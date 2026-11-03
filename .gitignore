@@ -1,0 +1,8 @@
+out/
+**/__pycache__/
+*.py[cod]
+workspace/msys-tmp/
+tool/.cache/
+tool/linux_x86_64/
+tool/win_x86_64/
+tool/arm-gnu-toolchain-*/

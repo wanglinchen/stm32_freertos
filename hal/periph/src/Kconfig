@@ -1,0 +1,276 @@
+# 自动生成，勿手改。刷新：python3 build/create-project.py update
+menu "src"
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL
+	bool "stm32f4xx_hal.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_ADC
+	bool "stm32f4xx_hal_adc.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_ADC_EX
+	bool "stm32f4xx_hal_adc_ex.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_CAN
+	bool "stm32f4xx_hal_can.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_CEC
+	bool "stm32f4xx_hal_cec.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_CORTEX
+	bool "stm32f4xx_hal_cortex.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_CRC
+	bool "stm32f4xx_hal_crc.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_CRYP
+	bool "stm32f4xx_hal_cryp.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_CRYP_EX
+	bool "stm32f4xx_hal_cryp_ex.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_DAC
+	bool "stm32f4xx_hal_dac.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_DAC_EX
+	bool "stm32f4xx_hal_dac_ex.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_DCMI
+	bool "stm32f4xx_hal_dcmi.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_DCMI_EX
+	bool "stm32f4xx_hal_dcmi_ex.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_DFSDM
+	bool "stm32f4xx_hal_dfsdm.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_DMA
+	bool "stm32f4xx_hal_dma.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_DMA2D
+	bool "stm32f4xx_hal_dma2d.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_DMA_EX
+	bool "stm32f4xx_hal_dma_ex.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_DSI
+	bool "stm32f4xx_hal_dsi.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_ETH
+	bool "stm32f4xx_hal_eth.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_EXTI
+	bool "stm32f4xx_hal_exti.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_FLASH
+	bool "stm32f4xx_hal_flash.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_FLASH_EX
+	bool "stm32f4xx_hal_flash_ex.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_FLASH_RAMFUNC
+	bool "stm32f4xx_hal_flash_ramfunc.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_FMPI2C
+	bool "stm32f4xx_hal_fmpi2c.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_FMPI2C_EX
+	bool "stm32f4xx_hal_fmpi2c_ex.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_FMPSMBUS
+	bool "stm32f4xx_hal_fmpsmbus.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_FMPSMBUS_EX
+	bool "stm32f4xx_hal_fmpsmbus_ex.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_GPIO
+	bool "stm32f4xx_hal_gpio.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_HASH
+	bool "stm32f4xx_hal_hash.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_HASH_EX
+	bool "stm32f4xx_hal_hash_ex.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_HCD
+	bool "stm32f4xx_hal_hcd.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_I2C
+	bool "stm32f4xx_hal_i2c.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_I2C_EX
+	bool "stm32f4xx_hal_i2c_ex.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_I2S
+	bool "stm32f4xx_hal_i2s.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_I2S_EX
+	bool "stm32f4xx_hal_i2s_ex.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_IRDA
+	bool "stm32f4xx_hal_irda.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_IWDG
+	bool "stm32f4xx_hal_iwdg.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_LPTIM
+	bool "stm32f4xx_hal_lptim.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_LTDC
+	bool "stm32f4xx_hal_ltdc.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_LTDC_EX
+	bool "stm32f4xx_hal_ltdc_ex.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_MMC
+	bool "stm32f4xx_hal_mmc.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_NAND
+	bool "stm32f4xx_hal_nand.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_NOR
+	bool "stm32f4xx_hal_nor.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_PCCARD
+	bool "stm32f4xx_hal_pccard.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_PCD
+	bool "stm32f4xx_hal_pcd.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_PCD_EX
+	bool "stm32f4xx_hal_pcd_ex.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_PWR
+	bool "stm32f4xx_hal_pwr.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_PWR_EX
+	bool "stm32f4xx_hal_pwr_ex.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_QSPI
+	bool "stm32f4xx_hal_qspi.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_RCC
+	bool "stm32f4xx_hal_rcc.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_RCC_EX
+	bool "stm32f4xx_hal_rcc_ex.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_RNG
+	bool "stm32f4xx_hal_rng.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_RTC
+	bool "stm32f4xx_hal_rtc.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_RTC_EX
+	bool "stm32f4xx_hal_rtc_ex.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_SAI
+	bool "stm32f4xx_hal_sai.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_SAI_EX
+	bool "stm32f4xx_hal_sai_ex.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_SD
+	bool "stm32f4xx_hal_sd.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_SDRAM
+	bool "stm32f4xx_hal_sdram.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_SMARTCARD
+	bool "stm32f4xx_hal_smartcard.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_SMBUS
+	bool "stm32f4xx_hal_smbus.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_SPDIFRX
+	bool "stm32f4xx_hal_spdifrx.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_SPI
+	bool "stm32f4xx_hal_spi.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_SRAM
+	bool "stm32f4xx_hal_sram.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_TIM
+	bool "stm32f4xx_hal_tim.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_TIM_EX
+	bool "stm32f4xx_hal_tim_ex.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_UART
+	bool "stm32f4xx_hal_uart.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_USART
+	bool "stm32f4xx_hal_usart.c"
+	default y
+
+config HAL_PERIPH_SRC_STM32F4XX_HAL_WWDG
+	bool "stm32f4xx_hal_wwdg.c"
+	default y
+
+endmenu

@@ -1,0 +1,18 @@
+# 自动生成，勿手改。刷新：python3 build/create-project.py update
+menu "startup"
+
+config HAL_CHIP_STARTUP_INC
+	bool "inc"
+	default y
+if HAL_CHIP_STARTUP_INC
+source "hal/chip/startup/inc/Kconfig"
+endif
+
+config HAL_CHIP_STARTUP_SRC
+	bool "src"
+	default y
+if HAL_CHIP_STARTUP_SRC
+source "hal/chip/startup/src/Kconfig"
+endif
+
+endmenu

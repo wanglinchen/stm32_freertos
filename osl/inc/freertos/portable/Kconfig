@@ -1,0 +1,11 @@
+# 自动生成，勿手改。刷新：python3 build/create-project.py update
+menu "portable"
+
+config OSL_INC_FREERTOS_PORTABLE_GCC
+	bool "GCC"
+	default y
+if OSL_INC_FREERTOS_PORTABLE_GCC
+source "osl/inc/freertos/portable/GCC/Kconfig"
+endif
+
+endmenu

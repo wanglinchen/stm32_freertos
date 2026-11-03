@@ -1,0 +1,8 @@
+# 自动生成，勿手改。刷新：python3 build/create-project.py update
+menu "ARM_CM4F"
+
+config OSL_SRC_FREERTOS_PORTABLE_GCC_ARM_CM4F_PORT
+	bool "port.c"
+	default y
+
+endmenu

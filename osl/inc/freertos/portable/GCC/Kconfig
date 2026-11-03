@@ -1,0 +1,11 @@
+# 自动生成，勿手改。刷新：python3 build/create-project.py update
+menu "GCC"
+
+config OSL_INC_FREERTOS_PORTABLE_GCC_ARM_CM4F
+	bool "ARM_CM4F"
+	default y
+if OSL_INC_FREERTOS_PORTABLE_GCC_ARM_CM4F
+source "osl/inc/freertos/portable/GCC/ARM_CM4F/Kconfig"
+endif
+
+endmenu

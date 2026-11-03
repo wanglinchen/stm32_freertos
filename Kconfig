@@ -1,0 +1,37 @@
+# 自动生成，勿手改。刷新：python3 build/create-project.py update
+mainmenu "stm32-freertos"
+
+config APL
+	bool "apl"
+	default y
+if APL
+source "apl/Kconfig"
+endif
+
+config BSL
+	bool "bsl"
+	default y
+if BSL
+source "bsl/Kconfig"
+endif
+
+config FML
+	bool "fml"
+	default y
+if FML
+source "fml/Kconfig"
+endif
+
+config HAL
+	bool "hal"
+	default y
+if HAL
+source "hal/Kconfig"
+endif
+
+config OSL
+	bool "osl"
+	default y
+if OSL
+source "osl/Kconfig"
+endif

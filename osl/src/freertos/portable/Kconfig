@@ -1,0 +1,18 @@
+# 自动生成，勿手改。刷新：python3 build/create-project.py update
+menu "portable"
+
+config OSL_SRC_FREERTOS_PORTABLE_GCC
+	bool "GCC"
+	default y
+if OSL_SRC_FREERTOS_PORTABLE_GCC
+source "osl/src/freertos/portable/GCC/Kconfig"
+endif
+
+config OSL_SRC_FREERTOS_PORTABLE_MEMMANG
+	bool "MemMang"
+	default y
+if OSL_SRC_FREERTOS_PORTABLE_MEMMANG
+source "osl/src/freertos/portable/MemMang/Kconfig"
+endif
+
+endmenu

@@ -1,0 +1,18 @@
+# 自动生成，勿手改。刷新：python3 build/create-project.py update
+menu "chip"
+
+config HAL_CHIP_REGISTER
+	bool "register"
+	default y
+if HAL_CHIP_REGISTER
+source "hal/chip/register/Kconfig"
+endif
+
+config HAL_CHIP_STARTUP
+	bool "startup"
+	default y
+if HAL_CHIP_STARTUP
+source "hal/chip/startup/Kconfig"
+endif
+
+endmenu

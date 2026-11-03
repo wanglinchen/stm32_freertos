@@ -1,0 +1,11 @@
+# 自动生成，勿手改。刷新：python3 build/create-project.py update
+menu "arch"
+
+config HAL_ARCH_INC
+	bool "inc"
+	default y
+if HAL_ARCH_INC
+source "hal/arch/inc/Kconfig"
+endif
+
+endmenu

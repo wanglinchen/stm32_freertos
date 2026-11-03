@@ -1,0 +1,11 @@
+# 自动生成，勿手改。刷新：python3 build/create-project.py update
+menu "inc"
+
+config OSL_INC_FREERTOS
+	bool "freertos"
+	default y
+if OSL_INC_FREERTOS
+source "osl/inc/freertos/Kconfig"
+endif
+
+endmenu

@@ -1,0 +1,18 @@
+# 自动生成，勿手改。刷新：python3 build/create-project.py update
+menu "apl"
+
+config APL_INC
+	bool "inc"
+	default y
+if APL_INC
+source "apl/inc/Kconfig"
+endif
+
+config APL_SRC
+	bool "src"
+	default y
+if APL_SRC
+source "apl/src/Kconfig"
+endif
+
+endmenu

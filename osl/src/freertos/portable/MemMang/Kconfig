@@ -1,0 +1,8 @@
+# 自动生成，勿手改。刷新：python3 build/create-project.py update
+menu "MemMang"
+
+config OSL_SRC_FREERTOS_PORTABLE_MEMMANG_HEAP_4
+	bool "heap_4.c"
+	default y
+
+endmenu

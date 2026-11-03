@@ -1,0 +1,5 @@
+# 安装脚本下载与解压产物（体积大，勿提交）
+.cache/
+arm-gnu-toolchain-*/
+linux_x86_64/
+win_x86_64/
