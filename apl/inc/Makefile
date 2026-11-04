@@ -13,6 +13,8 @@ INCLUDE_DIRS += $(PROJECT_ROOT)/hal/arch/inc
 INCLUDE_DIRS += $(PROJECT_ROOT)/hal/chip/register/inc
 INCLUDE_DIRS += $(PROJECT_ROOT)/hal/chip/startup/inc
 INCLUDE_DIRS += $(PROJECT_ROOT)/hal/periph/inc
+INCLUDE_DIRS += $(PROJECT_ROOT)/fml/inc
+INCLUDE_DIRS += $(PROJECT_ROOT)/bsl/inc
 INCLUDES := $(addprefix -I,$(INCLUDE_DIRS))
 
 LOCAL_OBJS :=

@@ -27,7 +27,7 @@ osl apl fml bsl hal:
 
 osl: hal
 apl: fml osl
-fml: bsl hal
+fml: bsl hal osl
 bsl: hal
 
 clean:

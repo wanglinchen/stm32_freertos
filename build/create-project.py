@@ -50,7 +50,7 @@ STATIC_LIB_DIRS = ("osl", "apl", "fml", "bsl", "hal")
 NORMAL_LINK_LIBS = ("hal", "osl", "apl", "fml", "bsl")
 LAYER_DEPENDENCIES = {
     "apl": ("fml", "osl"),
-    "fml": ("bsl", "hal"),
+    "fml": ("bsl", "hal", "osl"),
     "bsl": ("hal",),
     "osl": ("hal",),
 }
