@@ -1,5 +1,4 @@
-out/object
-out/target
+out
 **/__pycache__/
 *.py[cod]
 workspace/msys-tmp/
