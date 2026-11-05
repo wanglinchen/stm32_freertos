@@ -21,6 +21,13 @@ LOCAL_OBJS :=
 ARCHIVE_OBJS :=
 ifeq ($(CONFIG_FML),y)
 ifeq ($(CONFIG_FML_SRC),y)
+ifeq ($(CONFIG_FML_SRC_FML_BUTTON),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/fml/src/fml_button.o
+endif
+endif
+endif
+ifeq ($(CONFIG_FML),y)
+ifeq ($(CONFIG_FML_SRC),y)
 ifeq ($(CONFIG_FML_SRC_FML_LED),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/fml/src/fml_led.o
 endif

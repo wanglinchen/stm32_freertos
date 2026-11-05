@@ -42,6 +42,9 @@ EXCLUDE_DIRS = {
     "build",
     "workspace",
     "out",
+    # release 是打包输出（release/<日期>/*.bin/.elf/.hex/.map），与 out 同类：
+    # 由构建/发版脚本产生，不参与源码树扫描，也不该进版本控制。
+    "release",
     "__pycache__",
 }
 SOURCE_SUFFIXES = {".c", ".cpp", ".cc", ".cxx", ".s", ".S"}
@@ -1040,6 +1043,10 @@ def collect_verify_errors() -> list[str]:
             continue
         if child.name not in allowed_root and child.name not in EXCLUDE_DIRS:
             if child.name not in STATIC_LIB_DIRS:
+                # 空目录 git 根本不跟踪（checkout 之后不会出现），也不含任何可构建内容；
+                # 只按"里面有文件"才判定未知顶层目录，避免一个空壳把整个门禁卡死。
+                if next(child.rglob("*"), None) is None:
+                    continue
                 errors.append(f"未识别的顶层目录 {child.name}/（不在 LAYER_DIRS 或 STATIC_LIB_DIRS）")
 
     link_chain = expected_link_chain()
@@ -1107,6 +1114,7 @@ def verify(artifacts: bool = False, *, check_symbols: bool = True) -> None:
     if check_symbols:
         errors.extend(collect_heap_artifact_errors())
         errors.extend(collect_fault_artifact_errors())
+        errors.extend(collect_bsp_artifact_errors())
     if artifacts:
         errors.extend(collect_artifact_errors())
     if errors:
@@ -1611,6 +1619,44 @@ def collect_fault_artifact_errors() -> list[str]:
     return errors
 
 
+BSP_ARTIFACT_SYMBOLS = (
+    "board_key_init",
+    "board_key_pressed",
+    "board_beep_init",
+    "board_beep_set",
+)
+
+
+def collect_bsp_artifact_errors() -> list[str]:
+    """链接之后：按键/蜂鸣器实现必须真的进镜像。
+
+    历史事实：bsl 的 board_key_init/pressed、board_beep_init/on/off 曾经全仓零引用，
+    被 -Wl,--gc-sections 整段丢弃。源码、头文件、归档全都在，elf 里却查不到符号，
+    板上按 KEY 毫无反应，也没有任何门禁发现——这正是"实现写完但没人接"最典型的假绿。
+    """
+    errors: list[str] = []
+    nm = tool_binary("nm")
+    elfs = sorted((ROOT / "out" / "object").glob("*.elf"))
+    if nm is None or not elfs:
+        return errors
+    for elf in elfs:
+        symbols = run_tool(nm, elf)
+        if not symbols:
+            continue
+        defined = set()
+        for line in symbols.splitlines():
+            parts = line.split()
+            if len(parts) == 3 and parts[1].upper() in {"T", "D", "B", "W"}:
+                defined.add(parts[2])
+        missing = [name for name in BSP_ARTIFACT_SYMBOLS if name not in defined]
+        if missing:
+            errors.append(
+                f"产物 {elf.name} 里找不到 {', '.join(missing)}；"
+                "bsl 的按键/蜂鸣器实现被 --gc-sections 丢弃（没有任何任务引用它）"
+            )
+    return errors
+
+
 def collect_doc_reference_errors() -> list[str]:
     """文档里反引号包住的路径必须真实存在。
 
@@ -1701,12 +1747,14 @@ def build() -> None:
     errors = collect_artifact_errors()
     errors.extend(collect_heap_artifact_errors())
     errors.extend(collect_fault_artifact_errors())
+    errors.extend(collect_bsp_artifact_errors())
     if errors:
         print("产物断言失败：", file=sys.stderr)
         for item in errors:
             print(f"  - {item}", file=sys.stderr)
         raise SystemExit(
-            "编译通过但镜像里没有应用代码；请检查链接顺序、静态库中的弱符号定义后重试。"
+            "产物断言失败：编译通过不等于镜像里有对应实现，逐条看上面列出的项"
+            "（应用代码未进镜像 / 弱符号被抢占 / 实现被 --gc-sections 丢弃 / 资源越界）。"
         )
     copy_outputs()
     setenv.remove_msys_tmp()

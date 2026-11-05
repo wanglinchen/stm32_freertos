@@ -1,4 +1,5 @@
 out
+release
 **/__pycache__/
 *.py[cod]
 workspace/msys-tmp/

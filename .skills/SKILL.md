@@ -36,7 +36,7 @@ python3 build/install-toolchain.py
 1. **同步规格文档**：按 [文档维护.md](./文档维护.md) 更新 `.skills`（必要时 `doc/`）。
 2. **刷新生成物**：`python3 build/create-project.py update`（末尾会自动执行 `verify`）。
 3. **处理失败项**：若 verify 报错，根据终端列出的项修正 **代码 / 生成逻辑 / `.skills`**，再跑 `update` 或 `verify`，直到输出「自检通过」。
-4. **编译并校验产物**：`python3 build/create-project.py build`。链接后会自动断言四项：镜像里确有强 `main` 与 `vTaskStartScheduler`、`.text` ≥ 2048 字节、`text + data` 不超 `ROM`、`data + bss` 不超 `RAM`（容量实时取自链接脚本 `MEMORY`）；此外还断言堆/锁符号（`_sbrk`、`__malloc_lock`）与四个硬件异常入口都在镜像里。断言失败说明应用层没进镜像或资源越界，先修链接顺序 / 弱符号 / 内存布局，不要只看 make 退出码。
+4. **编译并校验产物**：`python3 build/create-project.py build`。链接后会自动断言四项：镜像里确有强 `main` 与 `vTaskStartScheduler`、`.text` ≥ 2048 字节、`text + data` 不超 `ROM`、`data + bss` 不超 `RAM`（容量实时取自链接脚本 `MEMORY`）；此外还断言堆/锁符号（`_sbrk`、`__malloc_lock`）、四个硬件异常入口，以及 BSP 接入（`board_key_init` / `board_key_pressed` / `board_beep_init` / `board_beep_set` 必须出现在镜像里）。断言失败说明应用层没进镜像或资源越界，先修链接顺序 / 弱符号 / 内存布局，不要只看 make 退出码。
 
 仅改 `.skills` 文案、未改 `create-project.py` 与目录时，可只跑 `python3 build/create-project.py verify` 确认与仓库仍一致。
 
@@ -53,7 +53,8 @@ python3 build/install-toolchain.py
 | 元数据容量 | `proj/project-info.json` 的 `flash_kb` / `sram_kb` / `ccm_kb` 必须等于链接脚本 `MEMORY` 的 `ROM` / `RAM` / `CCMRAM`（历史上 json 写 2048 KB 而 `ROM` 只有 1024 KB，构建完全不会报错） |
 | 硬件异常 | `osl/src/freertos_port_st.c` 必须定义 `HardFault_Handler` / `MemManage_Handler` / `BusFault_Handler` / `UsageFault_Handler`；`startup_stm32f429xx.s` 必须保留 `.thumb_set …,Default_Handler` 弱别名；产物里四个入口必须是强符号 `T`，且地址不等于 `Default_Handler`。缺一个就意味着异常落到 `b Infinite_Loop`，`g_panic_record` 里一个字都不会留下 |
 | 文档路径 | `.skills/` 与 `doc/` 下 Markdown 中反引号包住的**仓库相对路径**（`doc/…`、`.skills/…`、`build/…`、`proj/…`、`hal/…`）必须真实存在；裸文件名（`FreeRTOSConfig.h`、`Depend.make` 这类正文提及）与 `tool/`、`out/`、`examples/`、`doc/reference/` 前缀不作断言 |
-| 目录 | 无排除目录内误生成的 `Makefile`/`Kconfig`；无未在 `LAYER_DIRS` 声明的顶层目录 |
+| BSP 接入 | 产物里必须能找到 `board_key_init`、`board_key_pressed`、`board_beep_init`、`board_beep_set`。bsl 的按键/蜂鸣器曾经零引用、被 `-Wl,--gc-sections` 整段丢弃：源码、头文件、`libbsl.a` 全在，elf 里却没有符号，板上按 KEY 毫无反应 |
+| 目录 | 无排除目录内误生成的 `Makefile`/`Kconfig`；无未在 `LAYER_DIRS` 声明的顶层目录。**空目录不判**——git 不跟踪空目录，一个空壳不该把门禁卡死；`release/` 这类打包输出已在 `EXCLUDE_DIRS` 里 |
 | 文档 | [工程规格.md](./工程规格.md) 含当前层名、扫描排除项、链接顺序；[SKILL.md](./SKILL.md) 含 `verify` 与各层名；[设计手稿.md](./设计手稿.md) 中 lib 链接链与现网一致 |
 
 实现细节与链接顺序以 [工程规格.md](./工程规格.md) 及 `build/create-project.py` 中 `STATIC_LIB_DIRS` / `NORMAL_LINK_LIBS` 为准。
@@ -72,6 +73,7 @@ python3 build/install-toolchain.py
 | 三灯闪 4 次后常亮停机 | `SystemClock_Config` 失败：HSE 没起振或 PLL 没锁，芯片仍停在 HSI 16 MHz | 查 25 MHz 晶振与负载电容（核心板 Y1、C27/C28 22 pF），示波器看 `OSC_IN`；确认 `HAL` 的 `HSE_VALUE` 与实际晶振一致 |
 | 板子能跑但明显慢约 11 倍 | 时钟没切到 180 MHz（`SystemCoreClock` 仍是 16 MHz），FreeRTOS 与 DWT 时基全按 16 MHz 算 | 反汇编确认 `main` 调用了 `SystemClock_Config` 且返回 0；同时检查 PWR Scale1 与 `FLASH_LATENCY_5` |
 | 按键读数总是反的 | `board_key.c` 的 `pressed_level` 与原理图极性不一致（两块板级按键都是按下接 3V3 = 高电平） | 对照「工程规格」的「板级事实」表；板上已有 4.7K 外部下拉，`GPIO_NOPULL` 是正确用法 |
+| 板上有按键/蜂鸣器，按下去毫无反应也不报错 | `bsl` 的实现零引用，被 `-Wl,--gc-sections` 整段丢弃（源码和 `libbsl.a` 都在，elf 里却没有符号） | `nm` 查 `board_key_init` / `board_beep_set`；`verify` 的「BSP 接入」断言会直接报出来，把 `fml_button_start()` 接进 `main()` 即可 |
 | 三灯闪 5 次后停机，或某处 `malloc` 之后莫名崩 | newlib 的 `_sbrk` 越界：单次 `malloc` 超过 512 B（`_Min_Heap_Size`），或链路退回到 `-lnosys` 的空桩 | 中等/长期分配改 `pvPortMalloc`；确认 `toolchain.make` 的 LDFLAGS 含 `-Wl,-u,_sbrk`（详见「工程规格」的「两套堆的边界」） |
 | 编译报 `implicit declaration of function 'HAL_XXX_...'` | `hal_conf.h` 底部少了该模块的 `#ifdef … / #include …` 块（模块开关还开着，但顶层头没引入） | `verify` 会直接报"缺 `#ifdef … / #include` 块"并列出模块名；按「工程规格」HAL 配置一节补齐四处对应关系 |
 

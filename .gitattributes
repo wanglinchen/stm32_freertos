@@ -1,7 +1,10 @@
-# doc/reference 是大体积参考资料（56 MB 器件手册 + 519 张原理图截图），
-# 走 Git LFS：仓库里只存指针，checkout 时还原真实文件。
+# 大体积参考资料走 Git LFS：仓库里只存 131 B 指针，checkout 时还原真实文件。
+# 新机器必须先 git lfs install，否则拿到指针而 git status 仍显示干净。
+# 显式列出后缀、不整目录通配：目录里的 .md 索引必须留在 git 里。
 doc/reference/*.pdf     filter=lfs diff=lfs merge=lfs -text
 doc/reference/**/*.pdf  filter=lfs diff=lfs merge=lfs -text
 doc/reference/*.png     filter=lfs diff=lfs merge=lfs -text
 doc/reference/**/*.png  filter=lfs diff=lfs merge=lfs -text
-doc/hardware/**/*.pdf filter=lfs diff=lfs merge=lfs -text
+# doc/hardware 的原理图与数据手册连同历史版本一起迁入 LFS（43 个 PDF / 66.5 MB）。
+doc/hardware/*.pdf      filter=lfs diff=lfs merge=lfs -text
+doc/hardware/**/*.pdf   filter=lfs diff=lfs merge=lfs -text

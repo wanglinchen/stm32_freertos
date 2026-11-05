@@ -1,6 +1,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "stm32f4xx_hal.h"
+#include "fml_button.h"
 #include "fml_led.h"
 #include "system_stm32f4xx.h"
 
@@ -28,6 +29,12 @@ int main(void)
     SystemCoreClockUpdate();
 
     fml_led_blink_start();
+
+    /*
+     * 按键/蜂鸣器任务：没有它，bsl 的 board_key_* 与 board_beep_* 会被 --gc-sections
+     * 整段丢掉——源码在、归档在、镜像里却什么都没有，按 KEY 毫无反应也不报错。
+     */
+    fml_button_start();
 
     vTaskStartScheduler();
 

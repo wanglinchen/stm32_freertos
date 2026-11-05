@@ -18,7 +18,21 @@ INCLUDE_DIRS += $(PROJECT_ROOT)/bsl/inc
 INCLUDES := $(addprefix -I,$(INCLUDE_DIRS))
 
 LOCAL_OBJS :=
+-include $(BUILD_DIR)/fml/src/fml_button.d
 -include $(BUILD_DIR)/fml/src/fml_led.d
+
+ifeq ($(CONFIG_FML),y)
+ifeq ($(CONFIG_FML_SRC),y)
+ifeq ($(CONFIG_FML_SRC_FML_BUTTON),y)
+LOCAL_OBJS += $(BUILD_DIR)/fml/src/fml_button.o
+$(BUILD_DIR)/fml/src/fml_button.o: $(PROJECT_ROOT)/fml/src/fml_button.c
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/fml/src/fml_button.d -c $< -o $@
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/fml/src/fml_button.d
+endif
+endif
+endif
 
 ifeq ($(CONFIG_FML),y)
 ifeq ($(CONFIG_FML_SRC),y)
