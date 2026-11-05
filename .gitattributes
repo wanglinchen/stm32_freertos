@@ -1,1 +1,7 @@
+# doc/reference 是大体积参考资料（56 MB 器件手册 + 519 张原理图截图），
+# 走 Git LFS：仓库里只存指针，checkout 时还原真实文件。
+doc/reference/*.pdf     filter=lfs diff=lfs merge=lfs -text
+doc/reference/**/*.pdf  filter=lfs diff=lfs merge=lfs -text
+doc/reference/*.png     filter=lfs diff=lfs merge=lfs -text
+doc/reference/**/*.png  filter=lfs diff=lfs merge=lfs -text
 doc/hardware/**/*.pdf filter=lfs diff=lfs merge=lfs -text
