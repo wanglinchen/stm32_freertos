@@ -150,24 +150,18 @@ SECTIONS
 
   } >RAM AT> ROM
 
-  _siccmram = LOADADDR(.ccmram);
-
   /* CCM-RAM section
   *
-  * IMPORTANT NOTE!
-  * If initialized variables will be placed in this section,
-  * the startup code needs to be modified to copy the init-values.
+  * 本工程当前不启用 CCMRAM：ST 模板给 .ccmram 分配了 CCMRAM 地址，但
+  * startup_stm32f429xx.s 只搬 .data、只清 .bss，没有 ccmram 的拷贝/清零循环，
+  * 任何 __attribute__((section(".ccmram"))) 的已初始化变量都会拿到垃圾值且链接不报错。
+  *
+  * 现在改为显式 DISCARD：真有人往里放变量时会在链接期直接失败，而不是悄悄出错。
+  * 要启用 CCMRAM 必须同时补三件事：
+  *   1) startup 里加 _siccmram -> _sccmram 的拷贝循环；
+  *   2) startup 里加 _sccmram -> _eccmram 的 bss 清零（.ccmram 里的未初始化符号）；
+  *   3) 恢复本节并去掉下面 /DISCARD/ 里的两条 *(.ccmram*)。
   */
-  .ccmram :
-  {
-    . = ALIGN(4);
-    _sccmram = .;       /* create a global symbol at ccmram start */
-    *(.ccmram)
-    *(.ccmram*)
-
-    . = ALIGN(4);
-    _eccmram = .;       /* create a global symbol at ccmram end */
-  } >CCMRAM AT> ROM
 
   /* Uninitialized data section into "RAM" Ram type memory */
   . = ALIGN(4);
@@ -191,7 +185,14 @@ SECTIONS
     . = ALIGN(8);
     PROVIDE ( end = . );
     PROVIDE ( _end = . );
+
+    /* newlib 的 malloc 只能从这里取内存：osl/src/freertos_port_st.c 的 _sbrk
+     * 以这两个符号为界，越界直接 panic(5)。512 字节只够 printf 一类小临时，
+     * 长期分配请用 FreeRTOS 的 pvPortMalloc（32 KB heap_4）。 */
+    __heap_start__ = .;
     . = . + _Min_Heap_Size;
+    __heap_end__ = .;
+
     . = . + _Min_Stack_Size;
     . = ALIGN(8);
   } >RAM
@@ -202,6 +203,8 @@ SECTIONS
     libc.a ( * )
     libm.a ( * )
     libgcc.a ( * )
+    *(.ccmram)
+    *(.ccmram*)
   }
 
   .ARM.attributes 0 : { *(.ARM.attributes) }

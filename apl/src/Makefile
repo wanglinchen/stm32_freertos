@@ -28,7 +28,7 @@ $(BUILD_DIR)/apl/src/main.o: $(PROJECT_ROOT)/apl/src/main.c
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/apl/src/main.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/apl/src/main.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/apl/src/main.d
 endif
 endif
 endif

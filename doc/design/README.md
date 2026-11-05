@@ -5,6 +5,8 @@
 | 文档 | 说明 |
 |------|------|
 | [开发环境配置.md](./开发环境配置.md) | 工具链、`create-project` / `install-toolchain` / `set-buildenv`、Windows 本机构建 |
+| [调试环境配置.md](./调试环境配置.md) | GDB 客户端、连接方式、读 `g_panic_record` / 硬件异常现场 |
+| [工程设计手稿.md](./工程设计手稿.md) | 搭建与生成链设计的**读者版**（权威副本是 `.skills/设计手稿.md`） |
 
 ## build 脚本速查
 

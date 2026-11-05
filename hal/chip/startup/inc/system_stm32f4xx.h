@@ -85,6 +85,8 @@ extern const uint8_t  APBPrescTable[8];     /*!< APB prescalers table values */
 
 extern void SystemInit(void);
 extern void SystemCoreClockUpdate(void);
+/* HSE 25 MHz → PLL 180 MHz；返回 0 表示成功，非 0 表示仍运行在 HSI 16 MHz。 */
+extern int SystemClock_Config(void);
 /**
   * @}
   */

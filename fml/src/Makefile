@@ -28,7 +28,7 @@ $(BUILD_DIR)/fml/src/fml_led.o: $(PROJECT_ROOT)/fml/src/fml_led.c
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/fml/src/fml_led.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/fml/src/fml_led.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/fml/src/fml_led.d
 endif
 endif
 endif

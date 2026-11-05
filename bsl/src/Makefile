@@ -26,7 +26,7 @@ $(BUILD_DIR)/bsl/src/board_beep.o: $(PROJECT_ROOT)/bsl/src/board_beep.c
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_beep.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_beep.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_beep.d
 endif
 endif
 endif
@@ -39,7 +39,7 @@ $(BUILD_DIR)/bsl/src/board_key.o: $(PROJECT_ROOT)/bsl/src/board_key.c
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_key.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_key.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_key.d
 endif
 endif
 endif
@@ -52,7 +52,7 @@ $(BUILD_DIR)/bsl/src/board_led.o: $(PROJECT_ROOT)/bsl/src/board_led.c
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_led.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_led.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_led.d
 endif
 endif
 endif

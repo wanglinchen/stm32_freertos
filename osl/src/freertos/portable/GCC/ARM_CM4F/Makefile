@@ -30,7 +30,7 @@ $(BUILD_DIR)/osl/src/freertos/portable/GCC/ARM_CM4F/port.o: $(PROJECT_ROOT)/osl/
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/osl/src/freertos/portable/GCC/ARM_CM4F/port.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/osl/src/freertos/portable/GCC/ARM_CM4F/port.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/osl/src/freertos/portable/GCC/ARM_CM4F/port.d
 endif
 endif
 endif

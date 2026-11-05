@@ -25,7 +25,7 @@ $(BUILD_DIR)/osl/src/freertos_port_st.o: $(PROJECT_ROOT)/osl/src/freertos_port_s
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/osl/src/freertos_port_st.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/osl/src/freertos_port_st.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/osl/src/freertos_port_st.d
 endif
 endif
 

@@ -29,7 +29,7 @@ $(BUILD_DIR)/osl/src/freertos/portable/MemMang/heap_4.o: $(PROJECT_ROOT)/osl/src
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/osl/src/freertos/portable/MemMang/heap_4.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/osl/src/freertos/portable/MemMang/heap_4.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/osl/src/freertos/portable/MemMang/heap_4.d
 endif
 endif
 endif

@@ -14,7 +14,7 @@ BIN := $(BUILD_DIR)/$(PROJECT_NAME).bin
 all: osl apl fml bsl hal
 	@mkdir -p $(dir $(ELF))
 	@echo "LD $(ELF)"
-	$(CC) $(LDFLAGS) -o $(ELF) -Wl,--whole-archive $(BUILD_DIR)/hal/chip/startup/src/startup_stm32f429xx.o -Wl,--no-whole-archive $(BUILD_DIR)/lib/libhal.a $(BUILD_DIR)/lib/libosl.a $(BUILD_DIR)/lib/libapl.a $(BUILD_DIR)/lib/libfml.a $(BUILD_DIR)/lib/libbsl.a $(LDLIBS)
+	$(CC) $(LDFLAGS) -o $(ELF) -Wl,--whole-archive $(BUILD_DIR)/hal/chip/startup/src/startup_stm32f429xx.o -Wl,--no-whole-archive -Wl,--start-group $(BUILD_DIR)/lib/libapl.a $(BUILD_DIR)/lib/libfml.a $(BUILD_DIR)/lib/libbsl.a $(BUILD_DIR)/lib/libosl.a $(BUILD_DIR)/lib/libhal.a -Wl,--end-group $(LDLIBS)
 	@echo "HEX $(HEX)"
 	$(OBJCOPY) -O ihex $(ELF) $(HEX)
 	@echo "BIN $(BIN)"

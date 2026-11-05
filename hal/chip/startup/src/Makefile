@@ -26,7 +26,7 @@ $(BUILD_DIR)/hal/chip/startup/src/startup_stm32f429xx.o: $(PROJECT_ROOT)/hal/chi
 	@mkdir -p $(dir $@)
 	@echo "AS $<"
 	$(AS) $(ASFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/chip/startup/src/startup_stm32f429xx.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/chip/startup/src/startup_stm32f429xx.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/chip/startup/src/startup_stm32f429xx.d
 endif
 endif
 endif
@@ -43,7 +43,7 @@ $(BUILD_DIR)/hal/chip/startup/src/system_stm32f4xx.o: $(PROJECT_ROOT)/hal/chip/s
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/chip/startup/src/system_stm32f4xx.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/chip/startup/src/system_stm32f4xx.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/chip/startup/src/system_stm32f4xx.d
 endif
 endif
 endif
