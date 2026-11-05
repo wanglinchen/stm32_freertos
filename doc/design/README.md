@@ -8,6 +8,18 @@
 | [调试环境配置.md](./调试环境配置.md) | GDB 客户端、连接方式、读 `g_panic_record` / 硬件异常现场 |
 | [工程设计手稿.md](./工程设计手稿.md) | 搭建与生成链设计的**读者版**（权威副本是 `.skills/设计手稿.md`） |
 
+## 参考资料（`doc/reference/`，走 Git LFS）
+
+`doc/reference/` 下的图片与 PDF 由 `.gitattributes` 交给 Git LFS 管理（仓库里存 131 B 指针，
+checkout 时还原真文件）。**克隆前请先装 `git lfs` 并在仓库内执行一次 `git lfs install`**，
+否则拿到的是一堆指针文件：图片打不开、PDF 0 字节，而 `git status` 却显示干净。
+
+```text
+git lfs install
+git clone <repo>            # 已装 lfs 的机器上 clone 会自动拉取真实文件
+git lfs pull                # 若 clone 时没装 lfs，事后补拉
+```
+
 ## build 脚本速查
 
 | 脚本 | 常用命令 |
