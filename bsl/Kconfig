@@ -1,6 +1,18 @@
 # 自动生成，勿手改。刷新：python3 build/create-project.py update
 menu "bsl"
 
-comment "无子目录、无源文件"
+config BSL_INC
+	bool "inc"
+	default y
+if BSL_INC
+source "bsl/inc/Kconfig"
+endif
+
+config BSL_SRC
+	bool "src"
+	default y
+if BSL_SRC
+source "bsl/src/Kconfig"
+endif
 
 endmenu

@@ -182,14 +182,69 @@ void SystemInit(void)
 }
 
 /**
-  *@brief  declare main function for build pass
+  *@brief  系统时钟配置：HSE 25 MHz → PLL → HCLK 180 MHz（APB1 45 MHz / APB2 90 MHz）。
+  *
+  *         依据原理图（doc/hardware/sch/野火_F429挑战者_核心板_原理图_V2.1.pdf 第 4 页）：
+  *         Y1 = 25 MHz，负载电容 C27/C28 = 22 pF，接 OSC_IN / OSC_OUT。
+  *         HSE_VALUE 已在 hal/periph/inc/stm32f4xx_hal_conf.h 中定义为 25000000。
+  *
+  *         PLL: M = 25 → VCO 输入 1 MHz；N = 360 → VCO 360 MHz；P = 2 → SYSCLK 180 MHz。
+  *         180 MHz（2.7–3.6 V）必须同时满足：VOS = Scale1、FLASH 5 个等待周期。
+  *
+  * @note   必须在 .data / .bss 初始化之后调用（即 main 里，而不是 SystemInit 里）：
+  *         启动汇编是先调用 SystemInit、再拷贝 .data、再清 .bss，
+  *         在 SystemInit 里写全局变量会被随后的初始化覆盖掉。
+  * @note   PLLQ = 7 → 51.4 MHz，不等于 USB/SDIO 需要的 48 MHz。25 MHz 晶振无法整数分频
+  *         得到 48 MHz；将来启用 USB FS / SDIO 时必须换晶振频率或改用其它 N/P 组合。
+  * @retval 0 = 已切换到 180 MHz；1 = HSE 未起振或 PLL 失败，保持 HSI 16 MHz
   */
-__attribute__((weak)) int main(void)
+int SystemClock_Config(void)
 {
-    while(1) {
-    }
-    return 0;
+  RCC_OscInitTypeDef osc = {0};
+  RCC_ClkInitTypeDef clk = {0};
+
+  /* 180 MHz 属于 Scale1 电压档；先开 PWR 时钟并等到稳压器就绪。 */
+  __HAL_RCC_PWR_CLK_ENABLE();
+  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+  while (__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY) == 0U)
+  {
+  }
+
+  osc.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  osc.HSEState = RCC_HSE_ON;
+  osc.PLL.PLLState = RCC_PLL_ON;
+  osc.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  osc.PLL.PLLM = 25U;
+  osc.PLL.PLLN = 360U;
+  osc.PLL.PLLP = RCC_PLLP_DIV2;
+  osc.PLL.PLLQ = 7U;
+  if (HAL_RCC_OscConfig(&osc) != HAL_OK)
+  {
+    return 1;   /* HSE 起振失败：保持复位后的 HSI 16 MHz，由应用层报错 */
+  }
+
+  clk.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK |
+                  RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+  clk.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  clk.AHBCLKDivider = RCC_SYSCLK_DIV1;
+  clk.APB1CLKDivider = RCC_HCLK_DIV4;     /* 180 / 4 = 45 MHz，APB1 上限 */
+  clk.APB2CLKDivider = RCC_HCLK_DIV2;     /* 180 / 2 = 90 MHz，APB2 上限 */
+  if (HAL_RCC_ClockConfig(&clk, FLASH_LATENCY_5) != HAL_OK)
+  {
+    return 1;
+  }
+
+  /* HAL_RCC_ClockConfig 内部已调用 SystemCoreClockUpdate()；调用方仍可再调一次兜底。 */
+  return 0;
 }
+
+/**
+  *@brief  注意：此处不得保留 __attribute__((weak)) int main(void) 之类的占位实现。
+  *
+  *         该文件参与 libhal.a；启动对象的 main 引用若被这里的弱定义满足，ld 就不会再去
+  *         libapl.a 提取强 main，整个应用层都不会进入镜像（详见
+  *         .skills/工程规格.md「静态库与链接顺序」）。
+  */
 
 /**
   * @brief  Update SystemCoreClock variable according to Clock Register Values.

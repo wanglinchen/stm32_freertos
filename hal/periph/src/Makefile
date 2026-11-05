@@ -91,7 +91,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal.o: $(PROJECT_ROOT)/hal/periph/src/stm3
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal.d
 endif
 endif
 endif
@@ -106,7 +106,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_adc.o: $(PROJECT_ROOT)/hal/periph/src/
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_adc.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_adc.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_adc.d
 endif
 endif
 endif
@@ -121,7 +121,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_adc_ex.o: $(PROJECT_ROOT)/hal/periph/s
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_adc_ex.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_adc_ex.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_adc_ex.d
 endif
 endif
 endif
@@ -136,7 +136,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_can.o: $(PROJECT_ROOT)/hal/periph/src/
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_can.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_can.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_can.d
 endif
 endif
 endif
@@ -151,7 +151,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_cec.o: $(PROJECT_ROOT)/hal/periph/src/
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_cec.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_cec.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_cec.d
 endif
 endif
 endif
@@ -166,7 +166,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_cortex.o: $(PROJECT_ROOT)/hal/periph/s
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_cortex.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_cortex.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_cortex.d
 endif
 endif
 endif
@@ -181,7 +181,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_crc.o: $(PROJECT_ROOT)/hal/periph/src/
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_crc.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_crc.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_crc.d
 endif
 endif
 endif
@@ -196,7 +196,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_cryp.o: $(PROJECT_ROOT)/hal/periph/src
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_cryp.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_cryp.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_cryp.d
 endif
 endif
 endif
@@ -211,7 +211,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_cryp_ex.o: $(PROJECT_ROOT)/hal/periph/
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_cryp_ex.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_cryp_ex.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_cryp_ex.d
 endif
 endif
 endif
@@ -226,7 +226,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dac.o: $(PROJECT_ROOT)/hal/periph/src/
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dac.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dac.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dac.d
 endif
 endif
 endif
@@ -241,7 +241,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dac_ex.o: $(PROJECT_ROOT)/hal/periph/s
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dac_ex.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dac_ex.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dac_ex.d
 endif
 endif
 endif
@@ -256,7 +256,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dcmi.o: $(PROJECT_ROOT)/hal/periph/src
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dcmi.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dcmi.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dcmi.d
 endif
 endif
 endif
@@ -271,7 +271,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dcmi_ex.o: $(PROJECT_ROOT)/hal/periph/
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dcmi_ex.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dcmi_ex.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dcmi_ex.d
 endif
 endif
 endif
@@ -286,7 +286,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dfsdm.o: $(PROJECT_ROOT)/hal/periph/sr
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dfsdm.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dfsdm.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dfsdm.d
 endif
 endif
 endif
@@ -301,7 +301,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dma.o: $(PROJECT_ROOT)/hal/periph/src/
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dma.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dma.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dma.d
 endif
 endif
 endif
@@ -316,7 +316,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dma2d.o: $(PROJECT_ROOT)/hal/periph/sr
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dma2d.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dma2d.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dma2d.d
 endif
 endif
 endif
@@ -331,7 +331,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dma_ex.o: $(PROJECT_ROOT)/hal/periph/s
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dma_ex.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dma_ex.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dma_ex.d
 endif
 endif
 endif
@@ -346,7 +346,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dsi.o: $(PROJECT_ROOT)/hal/periph/src/
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dsi.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dsi.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_dsi.d
 endif
 endif
 endif
@@ -361,7 +361,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_eth.o: $(PROJECT_ROOT)/hal/periph/src/
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_eth.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_eth.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_eth.d
 endif
 endif
 endif
@@ -376,7 +376,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_exti.o: $(PROJECT_ROOT)/hal/periph/src
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_exti.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_exti.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_exti.d
 endif
 endif
 endif
@@ -391,7 +391,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_flash.o: $(PROJECT_ROOT)/hal/periph/sr
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_flash.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_flash.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_flash.d
 endif
 endif
 endif
@@ -406,7 +406,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_flash_ex.o: $(PROJECT_ROOT)/hal/periph
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_flash_ex.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_flash_ex.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_flash_ex.d
 endif
 endif
 endif
@@ -421,7 +421,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_flash_ramfunc.o: $(PROJECT_ROOT)/hal/p
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_flash_ramfunc.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_flash_ramfunc.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_flash_ramfunc.d
 endif
 endif
 endif
@@ -436,7 +436,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_fmpi2c.o: $(PROJECT_ROOT)/hal/periph/s
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_fmpi2c.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_fmpi2c.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_fmpi2c.d
 endif
 endif
 endif
@@ -451,7 +451,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_fmpi2c_ex.o: $(PROJECT_ROOT)/hal/perip
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_fmpi2c_ex.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_fmpi2c_ex.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_fmpi2c_ex.d
 endif
 endif
 endif
@@ -466,7 +466,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_fmpsmbus.o: $(PROJECT_ROOT)/hal/periph
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_fmpsmbus.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_fmpsmbus.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_fmpsmbus.d
 endif
 endif
 endif
@@ -481,7 +481,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_fmpsmbus_ex.o: $(PROJECT_ROOT)/hal/per
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_fmpsmbus_ex.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_fmpsmbus_ex.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_fmpsmbus_ex.d
 endif
 endif
 endif
@@ -496,7 +496,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_gpio.o: $(PROJECT_ROOT)/hal/periph/src
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_gpio.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_gpio.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_gpio.d
 endif
 endif
 endif
@@ -511,7 +511,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_hash.o: $(PROJECT_ROOT)/hal/periph/src
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_hash.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_hash.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_hash.d
 endif
 endif
 endif
@@ -526,7 +526,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_hash_ex.o: $(PROJECT_ROOT)/hal/periph/
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_hash_ex.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_hash_ex.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_hash_ex.d
 endif
 endif
 endif
@@ -541,7 +541,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_hcd.o: $(PROJECT_ROOT)/hal/periph/src/
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_hcd.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_hcd.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_hcd.d
 endif
 endif
 endif
@@ -556,7 +556,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_i2c.o: $(PROJECT_ROOT)/hal/periph/src/
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_i2c.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_i2c.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_i2c.d
 endif
 endif
 endif
@@ -571,7 +571,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_i2c_ex.o: $(PROJECT_ROOT)/hal/periph/s
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_i2c_ex.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_i2c_ex.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_i2c_ex.d
 endif
 endif
 endif
@@ -586,7 +586,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_i2s.o: $(PROJECT_ROOT)/hal/periph/src/
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_i2s.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_i2s.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_i2s.d
 endif
 endif
 endif
@@ -601,7 +601,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_i2s_ex.o: $(PROJECT_ROOT)/hal/periph/s
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_i2s_ex.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_i2s_ex.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_i2s_ex.d
 endif
 endif
 endif
@@ -616,7 +616,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_irda.o: $(PROJECT_ROOT)/hal/periph/src
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_irda.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_irda.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_irda.d
 endif
 endif
 endif
@@ -631,7 +631,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_iwdg.o: $(PROJECT_ROOT)/hal/periph/src
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_iwdg.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_iwdg.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_iwdg.d
 endif
 endif
 endif
@@ -646,7 +646,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_lptim.o: $(PROJECT_ROOT)/hal/periph/sr
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_lptim.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_lptim.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_lptim.d
 endif
 endif
 endif
@@ -661,7 +661,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_ltdc.o: $(PROJECT_ROOT)/hal/periph/src
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_ltdc.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_ltdc.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_ltdc.d
 endif
 endif
 endif
@@ -676,7 +676,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_ltdc_ex.o: $(PROJECT_ROOT)/hal/periph/
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_ltdc_ex.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_ltdc_ex.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_ltdc_ex.d
 endif
 endif
 endif
@@ -691,7 +691,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_mmc.o: $(PROJECT_ROOT)/hal/periph/src/
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_mmc.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_mmc.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_mmc.d
 endif
 endif
 endif
@@ -706,7 +706,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_nand.o: $(PROJECT_ROOT)/hal/periph/src
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_nand.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_nand.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_nand.d
 endif
 endif
 endif
@@ -721,7 +721,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_nor.o: $(PROJECT_ROOT)/hal/periph/src/
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_nor.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_nor.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_nor.d
 endif
 endif
 endif
@@ -736,7 +736,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_pccard.o: $(PROJECT_ROOT)/hal/periph/s
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_pccard.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_pccard.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_pccard.d
 endif
 endif
 endif
@@ -751,7 +751,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_pcd.o: $(PROJECT_ROOT)/hal/periph/src/
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_pcd.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_pcd.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_pcd.d
 endif
 endif
 endif
@@ -766,7 +766,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_pcd_ex.o: $(PROJECT_ROOT)/hal/periph/s
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_pcd_ex.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_pcd_ex.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_pcd_ex.d
 endif
 endif
 endif
@@ -781,7 +781,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_pwr.o: $(PROJECT_ROOT)/hal/periph/src/
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_pwr.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_pwr.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_pwr.d
 endif
 endif
 endif
@@ -796,7 +796,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_pwr_ex.o: $(PROJECT_ROOT)/hal/periph/s
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_pwr_ex.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_pwr_ex.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_pwr_ex.d
 endif
 endif
 endif
@@ -811,7 +811,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_qspi.o: $(PROJECT_ROOT)/hal/periph/src
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_qspi.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_qspi.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_qspi.d
 endif
 endif
 endif
@@ -826,7 +826,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_rcc.o: $(PROJECT_ROOT)/hal/periph/src/
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_rcc.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_rcc.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_rcc.d
 endif
 endif
 endif
@@ -841,7 +841,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_rcc_ex.o: $(PROJECT_ROOT)/hal/periph/s
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_rcc_ex.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_rcc_ex.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_rcc_ex.d
 endif
 endif
 endif
@@ -856,7 +856,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_rng.o: $(PROJECT_ROOT)/hal/periph/src/
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_rng.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_rng.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_rng.d
 endif
 endif
 endif
@@ -871,7 +871,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_rtc.o: $(PROJECT_ROOT)/hal/periph/src/
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_rtc.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_rtc.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_rtc.d
 endif
 endif
 endif
@@ -886,7 +886,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_rtc_ex.o: $(PROJECT_ROOT)/hal/periph/s
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_rtc_ex.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_rtc_ex.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_rtc_ex.d
 endif
 endif
 endif
@@ -901,7 +901,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_sai.o: $(PROJECT_ROOT)/hal/periph/src/
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_sai.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_sai.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_sai.d
 endif
 endif
 endif
@@ -916,7 +916,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_sai_ex.o: $(PROJECT_ROOT)/hal/periph/s
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_sai_ex.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_sai_ex.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_sai_ex.d
 endif
 endif
 endif
@@ -931,7 +931,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_sd.o: $(PROJECT_ROOT)/hal/periph/src/s
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_sd.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_sd.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_sd.d
 endif
 endif
 endif
@@ -946,7 +946,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_sdram.o: $(PROJECT_ROOT)/hal/periph/sr
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_sdram.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_sdram.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_sdram.d
 endif
 endif
 endif
@@ -961,7 +961,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_smartcard.o: $(PROJECT_ROOT)/hal/perip
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_smartcard.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_smartcard.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_smartcard.d
 endif
 endif
 endif
@@ -976,7 +976,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_smbus.o: $(PROJECT_ROOT)/hal/periph/sr
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_smbus.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_smbus.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_smbus.d
 endif
 endif
 endif
@@ -991,7 +991,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_spdifrx.o: $(PROJECT_ROOT)/hal/periph/
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_spdifrx.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_spdifrx.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_spdifrx.d
 endif
 endif
 endif
@@ -1006,7 +1006,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_spi.o: $(PROJECT_ROOT)/hal/periph/src/
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_spi.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_spi.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_spi.d
 endif
 endif
 endif
@@ -1021,7 +1021,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_sram.o: $(PROJECT_ROOT)/hal/periph/src
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_sram.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_sram.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_sram.d
 endif
 endif
 endif
@@ -1036,7 +1036,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_tim.o: $(PROJECT_ROOT)/hal/periph/src/
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_tim.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_tim.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_tim.d
 endif
 endif
 endif
@@ -1051,7 +1051,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_tim_ex.o: $(PROJECT_ROOT)/hal/periph/s
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_tim_ex.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_tim_ex.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_tim_ex.d
 endif
 endif
 endif
@@ -1066,7 +1066,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_uart.o: $(PROJECT_ROOT)/hal/periph/src
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_uart.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_uart.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_uart.d
 endif
 endif
 endif
@@ -1081,7 +1081,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_usart.o: $(PROJECT_ROOT)/hal/periph/sr
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_usart.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_usart.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_usart.d
 endif
 endif
 endif
@@ -1096,7 +1096,7 @@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_wwdg.o: $(PROJECT_ROOT)/hal/periph/src
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_wwdg.d -c $< -o $@
-	@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_wwdg.d
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/hal/periph/src/stm32f4xx_hal_wwdg.d
 endif
 endif
 endif

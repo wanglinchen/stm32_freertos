@@ -1,0 +1,8 @@
+# 自动生成，勿手改。刷新：python3 build/create-project.py update
+menu "src"
+
+config FML_SRC_FML_LED
+	bool "fml_led.c"
+	default y
+
+endmenu

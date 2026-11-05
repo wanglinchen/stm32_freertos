@@ -47,7 +47,7 @@ extern uint32_t SystemCoreClock;
 
 #define configUSE_IDLE_HOOK                   0
 #define configUSE_TICK_HOOK                   0
-#define configUSE_MALLOC_FAILED_HOOK          0
+#define configUSE_MALLOC_FAILED_HOOK          1
 #define configCHECK_FOR_STACK_OVERFLOW        2
 
 #define configUSE_TASK_NOTIFICATIONS          1
@@ -64,12 +64,16 @@ extern uint32_t SystemCoreClock;
 #define INCLUDE_xTaskGetSchedulerState        1
 #define INCLUDE_xTaskGetCurrentTaskHandle     1
 
+/*
+ * 断言失败必须留下证据：调用 osl 里的 vAssertFailed 记录文件名/行号并用 LED 播报，
+ * 而不是原地死循环（原地死循环在板子上只能看到“不动”）。
+ */
+void vAssertFailed(const char *file, uint32_t line) __attribute__((noreturn));
+
 #define configASSERT(x)                       \
     do {                                      \
         if ((x) == 0) {                       \
-            taskDISABLE_INTERRUPTS();         \
-            for (;;) {                        \
-            }                                 \
+            vAssertFailed(__FILE__, __LINE__); \
         }                                     \
     } while (0)
 

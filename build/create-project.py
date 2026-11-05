@@ -47,10 +47,12 @@ EXCLUDE_DIRS = {
 SOURCE_SUFFIXES = {".c", ".cpp", ".cc", ".cxx", ".s", ".S"}
 HEADER_SUFFIXES = {".h", ".hpp", ".hh"}
 STATIC_LIB_DIRS = ("osl", "apl", "fml", "bsl", "hal")
-NORMAL_LINK_LIBS = ("hal", "osl", "apl", "fml", "bsl")
+# 静态库顺序必须“消费者在前、提供者在后”：ld 单遍扫描归档，只解析当时仍未定义的符号。
+# apl 依赖 fml/osl，fml 依赖 bsl/osl/hal，故 apl 必须排最前、hal 排最后。
+NORMAL_LINK_LIBS = ("apl", "fml", "bsl", "osl", "hal")
 LAYER_DEPENDENCIES = {
     "apl": ("fml", "osl"),
-    "fml": ("bsl", "hal"),
+    "fml": ("bsl", "hal", "osl"),
     "bsl": ("hal",),
     "osl": ("hal",),
 }
@@ -304,6 +306,12 @@ def write_toolchain(info: dict) -> None:
         "OBJCOPY := $(PREFIX)objcopy",
         "GDB := $(PREFIX)gdb",
         "SIZE := $(PREFIX)size",
+        "# 编译规则收尾（回写时间戳）用的解释器：Windows 的 MSYS sh 里 python3 多为失效别名。",
+        "ifeq ($(OS),Windows_NT)",
+        "PYTHON := python",
+        "else",
+        "PYTHON := python3",
+        "endif",
         "OPT := -Og",
         "DEBUG := -g3",
         f"CPU_FLAGS := {cpu_flags(info)}",
@@ -312,7 +320,13 @@ def write_toolchain(info: dict) -> None:
         "CXXFLAGS = $(CPU_FLAGS) $(CHIP_DEFS) $(OPT) $(DEBUG) -std=c++17 -ffunction-sections -fdata-sections -fno-exceptions -fno-rtti -Wall $(INCLUDES)",
         "ASFLAGS = $(CPU_FLAGS) $(CHIP_DEFS) $(OPT) $(DEBUG) $(INCLUDES)",
         f"LDSCRIPT := $(PROJECT_ROOT)/{rel}",
-        "LDFLAGS = $(CPU_FLAGS) -T$(LDSCRIPT) -nostartfiles -Wl,--gc-sections --specs=nano.specs --specs=nosys.specs",
+        "# -u _sbrk：make 在 --start-group 扫描时还没有 _sbrk 这个未定义符号（那时只有 malloc 未定义），",
+        "# 等 -lc 把 _sbrk_r 拉进来，-lnosys 的空桩已经先满足了它，libosl.a 里不会再有提取机会。",
+        "# 显式声明 _sbrk 为未定义，才会让 libosl.a 的那份强定义胜出；顺带保证它不被 --gc-sections 丢掉。",
+        "# -u __malloc_lock 同理：不强制引用的话，libc_nano.a 的 mlock.o（空锁）会先满足 malloc 的引用，",
+        "# 任务里并发 malloc 就会踩坏堆。",
+        "LDFLAGS = $(CPU_FLAGS) -T$(LDSCRIPT) -nostartfiles -Wl,--gc-sections -Wl,-Map=$(BUILD_DIR)/$(PROJECT_NAME).map "
+        "-Wl,-u,_sbrk -Wl,-u,__malloc_lock --specs=nano.specs --specs=nosys.specs",
         "LDLIBS := -lc -lm -lgcc",
         "",
     ]
@@ -543,7 +557,7 @@ def write_dir_makefile(directory: Path) -> None:
             "\t@mkdir -p $(dir $@)",
             f'\t@echo "{tag} $<"',
             f"\t{tool} -MMD -MP -MF {dep} -c $< -o $@",
-            "\t@python3 -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ " + dep,
+            "\t@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ " + dep,
         ]
         lines.extend(guarded_lines(source_guards(source), body))
         lines.append("")
@@ -590,7 +604,9 @@ def root_makefile_body() -> list[str]:
         link += " -Wl,--whole-archive " + " ".join(startup_asm) + " -Wl,--no-whole-archive"
     if normal:
         libs = " ".join(f"$(BUILD_DIR)/lib/lib{name}.a" for name in normal)
-        link += f" {libs}"
+        # --start-group/--end-group 让 ld 反复扫描这组归档，覆盖“符号在同一归档内
+        # 靠后成员定义”的情况（如 tasks.o 需要 freertos_port_st.o 的栈溢出钩子）。
+        link += f" -Wl,--start-group {libs} -Wl,--end-group"
     link += " $(LDLIBS)"
     lines.append(link)
     lines.append('\t@echo "HEX $(HEX)"')
@@ -862,6 +878,11 @@ def collect_verify_errors() -> list[str]:
                 errors.append(
                     f"{source.relative_to(ROOT).as_posix()} 应放在所属模块的 src/ 目录中"
                 )
+        makefile = directory / "Makefile"
+        if makefile.is_file() and "python3 -c 'import os,sys,time" in read_text(makefile):
+            errors.append(
+                f"{makefile.relative_to(ROOT).as_posix()} 仍硬编码 python3 收尾步骤（Windows 需 $(PYTHON)）"
+            )
         for header in directory.iterdir():
             if header.is_file() and header.suffix in HEADER_SUFFIXES and "inc" not in relative_parts:
                 errors.append(
@@ -1069,9 +1090,25 @@ def collect_verify_errors() -> list[str]:
     return errors
 
 
-def verify() -> None:
+def verify(artifacts: bool = False, *, check_symbols: bool = True) -> None:
+    """校验生成物与规格；artifacts 为真时额外断言现有 elf 里的应用代码。
+
+    check_symbols=False 供 update() 内部使用：那一步发生在 make 之前，
+    归档/产物还是上一轮的，检查它们只会把 build 自己锁死。
+    """
     print("自检：代码生成物与 .skills 规格")
     errors = collect_verify_errors()
+    errors.extend(collect_stale_dependency_errors())
+    errors.extend(collect_hal_module_errors())
+    errors.extend(collect_heap_errors())
+    errors.extend(collect_fault_errors())
+    errors.extend(collect_memory_metadata_errors())
+    errors.extend(collect_doc_reference_errors())
+    if check_symbols:
+        errors.extend(collect_heap_artifact_errors())
+        errors.extend(collect_fault_artifact_errors())
+    if artifacts:
+        errors.extend(collect_artifact_errors())
     if errors:
         print("自检失败：", file=sys.stderr)
         for item in errors:
@@ -1112,10 +1149,15 @@ def update() -> None:
     write_defconfig(info)
     write_config()
     restamp_generated(info)
-    verify()
+    verify(check_symbols=False)
 
 
 def copy_outputs() -> None:
+    """只复制发布产物。
+
+    静态库（尤其带 -g3 的 libhal.a / libosl.a）属于构建中间物，体积近百 MB，
+    以前被一起复制进 out/target，让产物目录看起来像工程垃圾场。
+    """
     out = ROOT / "out"
     target = out / "target"
     if target.exists():
@@ -1124,14 +1166,493 @@ def copy_outputs() -> None:
     artifacts = [
         path
         for path in (out / "object").rglob("*")
-        if path.is_file() and path.suffix in {".bin", ".hex", ".elf", ".a"} and target not in path.parents
+        if path.is_file()
+        and path.suffix in {".bin", ".hex", ".elf", ".map"}
+        and target not in path.parents
     ]
     if not artifacts:
-        raise SystemExit("编译结束，但 out/ 下没有 .elf/.hex/.bin/.a 可复制")
+        raise SystemExit("编译结束，但 out/ 下没有 .elf/.hex/.bin/.map 可复制")
     for path in artifacts:
         dest = target / path.name
         shutil.copy2(path, dest)
-        print(f"复制 {path.relative_to(ROOT)} -> {dest.relative_to(ROOT)}")
+        print(f"复制 {path.relative_to(ROOT)} -> {dest.relative_to(ROOT)} → {dest.stat().st_size} 字节")
+
+
+ARTIFACT_TEXT_FLOOR = 2048
+"""应用代码参与链接后 .text 至少应有这么多字节；明显低于此值说明镜像里只有启动代码。"""
+
+
+def collect_hal_module_errors() -> list[str]:
+    """检查 HAL 模块开关（hal_conf.h）与include 块、源文件、目标文件是否自洽。
+
+    这套开关只有一处（stm32f4xx_hal_conf.h），但它有三处"影子"必须同时对得上：
+      1) 同文件底部的 `#ifdef HAL_X_MODULE_ENABLED / #include "stm32f4xx_hal_x.h"` 块
+         —— 少了它，顶层头不会引入该模块，用到的 .c 只会得到隐式声明（指针参数被当成 int，
+         静默截断，链接还能过）；
+      2) `hal/periph/src/stm32f4xx_hal_x.c` —— 少了它，编译期没有任何提示，链接期才报 undefined；
+      3) 对应的 `.o` —— 目录没参与编译时同样只在链接期暴露。
+    """
+    errors: list[str] = []
+    confs = sorted((ROOT / "hal").rglob("stm32f4xx_hal_conf.h"))
+    if not confs:
+        return errors
+    conf = confs[0]
+    text = conf.read_text(encoding="utf-8", errors="replace")
+    enabled: set[str] = set()
+    disabled: set[str] = set()
+    for match in re.finditer(r"^(/\*\s*)?#define\s+(HAL_[A-Z0-9_]+_MODULE_ENABLED)", text, re.M):
+        (disabled if match.group(1) else enabled).add(match.group(2))
+    guarded = set(
+        re.findall(
+            r"#ifdef\s+(HAL_[A-Z0-9_]+_MODULE_ENABLED)\s*\n\s*#include\s+\"stm32f4xx_hal_",
+            text,
+        )
+    )
+    src_dir = conf.parent.parent / "src"
+    obj_dir = ROOT / "out" / "object" / "hal" / "periph" / "src"
+
+    missing_include = sorted(enabled - guarded)
+    if missing_include:
+        errors.append(
+            f"{len(missing_include)} 个已启用的 HAL 模块在 {conf.name} 里缺 `#ifdef ... / #include` 块："
+            + "、".join(missing_include)
+            + "（顶层头不会引入它们，使用时只会得到隐式声明）"
+        )
+    orphan_guard = sorted(guarded - enabled - disabled)
+    if orphan_guard:
+        errors.append(
+            "以下 include 块的开关既没启用也没有注释，说明开关名拼错或漏写："
+            + "、".join(orphan_guard)
+        )
+
+    missing_src: list[str] = []
+    missing_obj: list[str] = []
+    for symbol in sorted(enabled):
+        stem = symbol[len("HAL_"):-len("_MODULE_ENABLED")].lower()
+        if not (src_dir / f"stm32f4xx_hal_{stem}.c").is_file():
+            missing_src.append(symbol)
+        if obj_dir.is_dir() and not (obj_dir / f"stm32f4xx_hal_{stem}.o").is_file():
+            missing_obj.append(symbol)
+    if missing_src:
+        errors.append(
+            f"{len(missing_src)} 个已启用的 HAL 模块没有实现文件（hal/periph/src 下找不到 .c）："
+            + "、".join(missing_src)
+        )
+    if missing_obj:
+        errors.append(
+            f"{len(missing_obj)} 个已启用的 HAL 模块没有生成目标文件（hal/periph 目录未参与编译？）："
+            + "、".join(missing_obj)
+        )
+    return errors
+
+
+def collect_stale_dependency_errors() -> list[str]:
+    """检查 -MMD 产出的 .d 里记录的依赖路径是否仍然存在。
+
+    .d 记录的是绝对路径。工程被整目录复制到另一台机器（或另一个根路径）后，
+    make 找不到旧路径的头文件就"看不见"头文件变化：改了 FreeRTOSConfig.h，
+    tasks.o 仍然是几天前的产物，而 make 全程沉默。实测出现过 77 个这样的 .d。
+    """
+    errors: list[str] = []
+    objdir = ROOT / "out" / "object"
+    if not objdir.is_dir():
+        return errors
+    missing_examples: list[str] = []
+    broken = 0
+    for dep in sorted(objdir.rglob("*.d")):
+        try:
+            text = dep.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        parts = text.replace("\\\n", " ").replace("\\", "/").split()
+        pruned = [part for part in parts if "/" in part and not part.endswith(":")]
+        absent = [part for part in pruned if not Path(part).exists()]
+        if absent:
+            broken += 1
+            if len(missing_examples) < 3:
+                missing_examples.append(f"{dep.relative_to(ROOT).as_posix()} -> {absent[0]}")
+    if broken:
+        errors.append(
+            f"{broken} 个 .d 依赖文件中记录的路径已不存在（工程目录被移动/复制过），"
+            "make 会因此漏编改动过的头文件；请先 clean 再 build。"
+            + "".join(f"\n      例如 {item}" for item in missing_examples)
+        )
+    return errors
+
+
+def tool_binary(name: str) -> Path | None:
+    """定位 arm-none-eabi-<name>：优先本机工具链 bin（按主机 OS），其次 PATH。"""
+    stem = f"arm-none-eabi-{name}"
+    candidates = (f"{stem}.exe", stem)
+    bin_dir = setenv.find_toolchain_bin()
+    dirs = [bin_dir] if bin_dir is not None else sorted((ROOT / "tool").glob("*/bin"))
+    for base in dirs:
+        for fname in candidates:
+            path = base / fname
+            if path.is_file():
+                return path
+    for fname in candidates:
+        found = shutil.which(fname)
+        if found:
+            return Path(found)
+    return None
+
+
+def run_tool(exe: Path, elf: Path) -> str:
+    """执行 arm-none-eabi-nm/size；无法执行时返回空串。"""
+    try:
+        return subprocess.run(
+            [str(exe), str(elf)], capture_output=True, text=True, check=False
+        ).stdout
+    except OSError:
+        return ""
+
+
+def parse_capacity(text: str) -> int:
+    """把链接脚本里的 192K / 1024K / 0x30000 解析成字节数。"""
+    match = re.fullmatch(r"(0x[0-9a-fA-F]+|\d+)([KkMm]?)", text.strip())
+    if match is None:
+        return 0
+    value = int(match.group(1), 0)
+    scale = {"": 1, "k": 1024, "K": 1024, "m": 1024 * 1024, "M": 1024 * 1024}[match.group(2)]
+    return value * scale
+
+
+def memory_regions(info: dict) -> dict[str, int]:
+    """从链接脚本的 MEMORY 块读出各区域容量；解析不到时返回空字典（跳过容量断言）。"""
+    script = linker_script_path(info)
+    if not script.is_file():
+        return {}
+    text = script.read_text(encoding="utf-8", errors="replace")
+    block = re.search(r"MEMORY\s*\{(.*?)\}", text, re.DOTALL)
+    if block is None:
+        return {}
+    capacity: dict[str, int] = {}
+    for match in re.finditer(
+        r"(\w+)\s*(?:\([^)]*\))?\s*:\s*ORIGIN\s*=\s*[^,]+,\s*LENGTH\s*=\s*(\w+)", block.group(1)
+    ):
+        capacity[match.group(1)] = parse_capacity(match.group(2))
+    return capacity
+
+
+def collect_artifact_errors() -> list[str]:
+    """产物断言：镜像里必须真有应用入口与调度器，且不能超出 Flash/RAM。
+
+    弱符号抢占（例如 static 库里的 __attribute__((weak)) main）或链接顺序反了时，
+    ld 会“成功”产出只含启动代码的镜像；只看 make 退出码发现不了。
+    容量断言补的是另一半：text 够大但 bss 吃掉 RAM 时，链接同样会“成功”。
+    """
+    errors: list[str] = []
+    info = load_info()
+    elf = ROOT / "out" / "object" / f"{info.get('project_name', '')}.elf"
+    if not elf.is_file():
+        return errors
+    nm = tool_binary("nm")
+    size = tool_binary("size")
+    if nm is None or size is None:
+        errors.append("未找到 arm-none-eabi-nm / size，无法校验产物")
+        return errors
+    symbols = run_tool(nm, elf)
+    if not symbols:
+        errors.append(f"无法执行 {nm.name}，无法校验产物")
+        return errors
+    for symbol in ("main", "vTaskStartScheduler"):
+        if not re.search(rf"^[0-9a-fA-F]+\s+T\s+{symbol}$", symbols, re.MULTILINE):
+            errors.append(
+                f"产物 {elf.relative_to(ROOT).as_posix()} 缺少强符号 {symbol}（T），应用层未参与链接"
+            )
+    text = 0
+    data = 0
+    bss = 0
+    rows = [line for line in run_tool(size, elf).splitlines() if line.strip()]
+    if rows:
+        parts = rows[-1].split()
+        if len(parts) >= 4 and parts[0].isdigit() and parts[1].isdigit() and parts[2].isdigit():
+            text = int(parts[0])
+            data = int(parts[1])
+            bss = int(parts[2])
+    if text < ARTIFACT_TEXT_FLOOR:
+        errors.append(
+            f"产物 {elf.name} 的 .text 仅 {text} 字节，低于 {ARTIFACT_TEXT_FLOOR} 字节下限；镜像疑似空壳"
+        )
+        return errors
+    regions = memory_regions(info)
+    rom = regions.get("ROM", 0)
+    ram = regions.get("RAM", 0)
+    flash_used = text + data
+    if rom and flash_used > rom:
+        errors.append(
+            f"Flash 用量 {flash_used} 字节超出 ROM 容量 {rom} 字节（text {text} + data {data}）"
+        )
+    # size 的 bss 已经把 ._user_heap_stack 里的 _Min_Heap_Size / _Min_Stack_Size 算在内。
+    ram_used = data + bss
+    if ram and ram_used > ram:
+        errors.append(
+            f"RAM 用量 {ram_used} 字节超出 RAM 容量 {ram} 字节（data {data} + bss {bss}）"
+        )
+    if not errors:
+        print(
+            f"产物校验：{elf.name} text={text} bytes，main / vTaskStartScheduler 均为强符号；"
+            f"Flash {flash_used}/{rom} 字节（{flash_used * 100.0 / rom:.2f}%），"
+            f"RAM {ram_used}/{ram} 字节（{ram_used * 100.0 / ram:.2f}%）"
+            if rom and ram
+            else f"产物校验：{elf.name} text={text} bytes，main / vTaskStartScheduler 均为强符号"
+        )
+    return errors
+
+
+def collect_heap_errors() -> list[str]:
+    """newlib 的堆必须由本工程供给且有明确边界（静态部分：链接脚本与 LDFLAGS）。
+
+    `--specs=nosys.specs` 自带一个 `_sbrk` 桩：一旦有人调用 malloc，什么也拿不到，
+    调用方不检查返回值就在别处零星崩 —— 这条路径在链接期完全看不出来。
+    因此这里断言两件事：链接脚本给出 __heap_start__/__heap_end__ 边界，
+    且 libosl.a 里 `_sbrk` 是强符号（保证它排在 -lnosys 之前被提取）。
+    """
+    errors: list[str] = []
+    lds = sorted((ROOT / "hal").rglob("*_flash.ld"))
+    if not lds:
+        errors.append("未找到 hal 下的 *_flash.ld 链接脚本，无法确认 newlib 堆边界")
+    else:
+        script = lds[0]
+        text = script.read_text(encoding="utf-8", errors="replace")
+        for symbol in ("__heap_start__", "__heap_end__"):
+            if not re.search(rf"\b{symbol}\s*=\s*\.\s*;", text):
+                errors.append(
+                    f"{script.relative_to(ROOT).as_posix()} 没有输出 {symbol}，"
+                    "osl 的 _sbrk 将无从判断 newlib 堆边界"
+                )
+
+    toolchain = ROOT / "toolchain.make"
+    if toolchain.is_file():
+        text = toolchain.read_text(encoding="utf-8", errors="replace")
+        if "-Wl,-u,_sbrk" not in text and "-u,_sbrk" not in text:
+            errors.append(
+                "toolchain.make 的 LDFLAGS 里没有 `-Wl,-u,_sbrk`；libnosys 的 _sbrk 空桩会抢先，"
+                "malloc 拿不到任何内存（详见 osl/src/freertos_port_st.c 的 _sbrk 注释）"
+            )
+    if toolchain.is_file():
+        text = toolchain.read_text(encoding="utf-8", errors="replace")
+        if "-Wl,-u,__malloc_lock" not in text and "-u,__malloc_lock" not in text:
+            errors.append(
+                "toolchain.make 的 LDFLAGS 里没有 `-Wl,-u,__malloc_lock`；"
+                "libc_nano.a(mlock.o) 的空锁会先满足 _malloc_r 的引用，"
+                "本工程的锁进不了镜像（详见 osl/src/freertos_port_st.c 的锁注释）"
+            )
+
+    return errors
+
+
+def collect_memory_metadata_errors() -> list[str]:
+    """project-info.json 里的容量必须与链接脚本 MEMORY 一致。
+
+    这两个数字描述同一块芯片，历史上却对不上过：json 写 flash_kb=2048，
+    链接脚本 ROM 只有 1024K。json 只被生成器读取，错了不会有任何构建报错，
+    所以必须在自检里盯住它，并且以链接脚本为准。
+    """
+    errors: list[str] = []
+    info = load_info()
+    regions = memory_regions(info)
+    if not regions:
+        return errors
+    for key, region in (("flash_kb", "ROM"), ("sram_kb", "RAM"), ("ccm_kb", "CCMRAM")):
+        declared = info.get("cpu", {}).get(key)
+        actual = regions.get(region)
+        if not isinstance(declared, int) or not actual:
+            continue
+        if declared * 1024 != actual:
+            errors.append(
+                f"proj/project-info.json 的 cpu.{key} = {declared} KB，"
+                f"而链接脚本的 {region} 是 {actual // 1024} KB（{actual} 字节）；"
+                "以链接脚本为准改 json"
+            )
+    return errors
+
+
+def collect_heap_artifact_errors() -> list[str]:
+    """重编之后才能判定的部分：归档里的强定义、map 里的空锁、产物里的 _sbrk。
+
+    与 collect_heap_errors() 分开，是因为 update 里的自检发生在 make 之前：
+    那时归档还是上一轮的，检查必然失败，会把 build 自己锁死。
+    """
+    errors: list[str] = []
+    nm = tool_binary("nm")
+    archive = ROOT / "out" / "object" / "lib" / "libosl.a"
+    if nm is None or not archive.is_file():
+        return errors
+    symbols = run_tool(nm, archive)
+    for symbol, reason in (
+        (
+            "_sbrk",
+            "newlib 会退回到 -lnosys 的空桩，malloc 静默失败"
+            "（osl/src/freertos_port_st.c 的 _sbrk 未参与编译？）",
+        ),
+        (
+            "__malloc_lock",
+            "newlib 会用 libc_nano.a(mlock.o) 的空锁，任务里并发 malloc 会踩坏堆",
+        ),
+        (
+            "__malloc_unlock",
+            "锁只有加没有减，第二次 malloc 就会永久关中断",
+        ),
+    ):
+        if symbols and not re.search(rf"^[0-9a-fA-F]+\s+T\s+{symbol}$", symbols, re.MULTILINE):
+            errors.append(f"libosl.a 里没有强符号 {symbol}；{reason}")
+    maps = sorted((ROOT / "out" / "object").glob("*.map"))
+    for map_file in maps:
+        if "libc_a-mlock.o" in map_file.read_text(encoding="utf-8", errors="replace"):
+            errors.append(
+                f"{map_file.name} 里链接了 libc_nano.a(libc_a-mlock.o)（newlib 的空锁）；"
+                "本工程的 __malloc_lock 没有被采用，检查 LDFLAGS 是否缺少 -Wl,-u,__malloc_lock"
+            )
+    for elf in sorted((ROOT / "out" / "object").glob("*.elf")):
+        elf_symbols = run_tool(nm, elf)
+        if not elf_symbols or not re.search(r"^[0-9a-fA-F]+\s+T\s+_sbrk$", elf_symbols, re.MULTILINE):
+            errors.append(f"产物 {elf.name} 里没有强符号 _sbrk（被 -lnosys 的空桩覆盖）")
+    return errors
+
+
+FAULT_HANDLER_NAMES = (
+    "HardFault_Handler",
+    "MemManage_Handler",
+    "BusFault_Handler",
+    "UsageFault_Handler",
+)
+"""Cortex-M4 的四个异常入口；startup 里全部是 .weak 别名到 Default_Handler。"""
+
+FAULT_SOURCE = ROOT / "osl" / "src" / "freertos_port_st.c"
+
+DOC_SCAN_SKIP_PREFIXES = ("tool/", "out/", "examples/", "doc/reference/")
+"""文档里这些路径属于工具链目录、上游示例或未跟踪的大体积参考资料，不做存在性断言。"""
+
+DOC_REF_PREFIXES = (".skills/", "build/", "proj/", "doc/", "apl/", "fml/", "bsl/", "osl/", "hal/")
+"""只有"仓库相对路径"才断言存在。裸文件名（`FreeRTOSConfig.h`、`Depend.make` 这类
+正文提及）不在此列——它们不是在说"去看这个文件"，而是把文件名当术语用。"""
+
+DOC_REF_EXTENSIONS = (
+    ".md", ".c", ".h", ".py", ".ld", ".s", ".json", ".make", ".mk", ".txt",
+    ".cfg", ".xlsx", ".pdf", ".png", ".bin", ".hex", ".elf", ".map",
+)
+
+
+def collect_fault_errors() -> list[str]:
+    """硬件异常必须由本工程接管，不能落到 startup 的 Default_Handler。
+
+    startup_stm32f429xx.s 把四个异常入口都 .weak 别名到 Default_Handler，
+    而 Default_Handler 只是 `Infinite_Loop: b Infinite_Loop`。这条路径在编译期
+    和链接期都没有任何提示：真出现空指针 / 总线错误 / 除零时，板子只会安静停机，
+    g_panic_record 里一个字都不会留下。
+
+    静态部分断言两件事：源码里四个入口是强定义；startup 仍保持弱别名。
+    后者是"覆盖关系"的另一半——弱别名被删掉，覆盖就不再是有意设计（而是巧合）。
+    """
+    errors: list[str] = []
+    if not FAULT_SOURCE.is_file():
+        return [f"缺少 {FAULT_SOURCE.relative_to(ROOT).as_posix()}，无法确认硬件异常是否被接管"]
+    text = read_text(FAULT_SOURCE)
+    for name in FAULT_HANDLER_NAMES:
+        defined = re.search(rf"^void\s+{name}\s*\(void\)", text, re.M) or re.search(
+            rf"^DEFINE_FAULT_HANDLER\(\s*{name}\s*,", text, re.M
+        )
+        if not defined:
+            errors.append(
+                f"{FAULT_SOURCE.relative_to(ROOT).as_posix()} 没有定义 {name}；"
+                "它会落到 startup 的 Default_Handler（b Infinite_Loop），"
+                "故障现场不留任何证据"
+            )
+    startups = sorted((ROOT / "hal").rglob("startup_*.s"))
+    if not startups:
+        errors.append("未找到 hal 下的 startup_*.s，无法确认异常入口的弱别名")
+    else:
+        asm = read_text(startups[0])
+        for name in FAULT_HANDLER_NAMES:
+            if not re.search(rf"\.thumb_set\s+{name}\s*,\s*Default_Handler", asm):
+                errors.append(
+                    f"{startups[0].relative_to(ROOT).as_posix()} 里 {name} 不再弱别名到 "
+                    "Default_Handler；启动文件被改过，请重新确认异常覆盖关系"
+                )
+    return errors
+
+
+def collect_fault_artifact_errors() -> list[str]:
+    """链接之后：四个异常入口必须真的进镜像，且地址不能等于 Default_Handler。
+
+    与静态检查分开的原因同 collect_heap_artifact_errors()：update 里的自检发生在
+    make 之前，产物还是上一轮的。这里能抓到"源码写了、但没被链接进来"的情形
+    （例如将来把实现挪出 freertos_port_st.o，那个成员就不再被无条件拉入）。
+    """
+    errors: list[str] = []
+    nm = tool_binary("nm")
+    elfs = sorted((ROOT / "out" / "object").glob("*.elf"))
+    if nm is None or not elfs:
+        return errors
+    for elf in elfs:
+        symbols = run_tool(nm, elf)
+        if not symbols:
+            continue
+        table: dict[str, tuple[str, str]] = {}
+        for line in symbols.splitlines():
+            parts = line.split()
+            if len(parts) == 3:
+                table[parts[2]] = (parts[0].lower(), parts[1])
+        default_handler = table.get("Default_Handler")
+        for name in FAULT_HANDLER_NAMES:
+            entry = table.get(name)
+            if entry is None or entry[1] != "T":
+                errors.append(
+                    f"产物 {elf.name} 里 {name} 不是强符号 T；"
+                    "异常会落到 startup 的弱别名 Default_Handler（b Infinite_Loop）"
+                )
+            elif default_handler is not None and entry[0] == default_handler[0]:
+                errors.append(
+                    f"产物 {elf.name} 里 {name} 与 Default_Handler 同地址 "
+                    f"0x{int(entry[0], 16):08x}（仍是 Infinite_Loop），说明强定义没生效"
+                )
+    return errors
+
+
+def collect_doc_reference_errors() -> list[str]:
+    """文档里反引号包住的路径必须真实存在。
+
+    历史事实：`.skills/工程规格.md` 同时写了 `doc/工具链安装.md`（不存在）和
+    `doc/开发环境配置.md`（实际在 doc/design/ 下），两者都没被任何检查发现，
+    因为 verify 只管"文档里的层名/链接顺序"，不管路径。
+    """
+    errors: list[str] = []
+    candidates: list[Path] = []
+    for root in (ROOT / ".skills", ROOT / "doc"):
+        if not root.is_dir():
+            continue
+        for path in sorted(root.rglob("*.md")):
+            relative = path.relative_to(ROOT).as_posix()
+            if any(relative.startswith(prefix) for prefix in DOC_SCAN_SKIP_PREFIXES):
+                continue
+            candidates.append(path)
+    for path in candidates:
+        relative = path.relative_to(ROOT).as_posix()
+        text = read_text(path)
+        for lineno, line in enumerate(text.splitlines(), start=1):
+            for match in re.finditer(r"`([^`\n]+)`", line):
+                ref = match.group(1).strip()
+                if not ref or " " in ref or ref.startswith(("$", "http", "-", "0x")):
+                    continue
+                if any(ch in ref for ch in ("*", "<", ">", "{", "}", "|", "%")):
+                    continue
+                ref = ref.split(":", 1)[0]
+                if ref.endswith("/"):
+                    continue
+                if not ref.lower().endswith(DOC_REF_EXTENSIONS):
+                    continue
+                if not ref.startswith(DOC_REF_PREFIXES):
+                    continue
+                if any(ref.startswith(prefix) for prefix in DOC_SCAN_SKIP_PREFIXES):
+                    continue
+                if re.match(r"^[a-z0-9_/]*_x\.(c|h)$", ref):
+                    continue  # 规格里的占位模块名（stm32f4xx_hal_x.c 之类）
+                if (ROOT / ref).exists() or (path.parent / ref).exists():
+                    continue
+                errors.append(f"{relative}:{lineno} 引用的路径不存在：{ref}")
+    return errors
 
 
 def build_env() -> dict[str, str]:
@@ -1177,6 +1698,16 @@ def build() -> None:
     )
     if result.returncode != 0:
         raise SystemExit(result.returncode)
+    errors = collect_artifact_errors()
+    errors.extend(collect_heap_artifact_errors())
+    errors.extend(collect_fault_artifact_errors())
+    if errors:
+        print("产物断言失败：", file=sys.stderr)
+        for item in errors:
+            print(f"  - {item}", file=sys.stderr)
+        raise SystemExit(
+            "编译通过但镜像里没有应用代码；请检查链接顺序、静态库中的弱符号定义后重试。"
+        )
     copy_outputs()
     setenv.remove_msys_tmp()
 
@@ -1184,11 +1715,14 @@ def build() -> None:
 def clean() -> None:
     print("清理编译产物")
     makefile = ROOT / "Makefile"
-    if makefile.is_file():
-        subprocess.run(["make", "-C", str(ROOT), "clean"], check=False)
+    make_cmd = setenv.resolve_make() if setenv.host_os() == "win32" else shutil.which("make")
+    if makefile.is_file() and make_cmd is not None:
+        # 直接写 "make" 在 Windows 会抛 FileNotFoundError 并让 clean 半途而废（out/ 反而没删）。
+        subprocess.run([str(make_cmd), "-C", str(ROOT), "clean"], check=False, env=build_env())
     out = ROOT / "out"
     if out.exists():
         shutil.rmtree(out)
+    print("已删除 out/")
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -1199,6 +1733,7 @@ def main(argv: list[str] | None = None) -> None:
 子命令说明:
   update  扫描源码树，生成 Kconfig、Makefile、toolchain.make、project_defconfig、out/.config，并自检
   verify  检查生成物、层目录、链接顺序与 .skills/工程规格.md、SKILL.md 是否一致
+          （加 --artifacts 时额外校验现有 elf 里的应用代码）
   build   先 update（含自检），再 make 全量编译，产物复制到 out/target
   clean   删除 out/ 及编译中间文件
 
@@ -1217,13 +1752,18 @@ def main(argv: list[str] | None = None) -> None:
         metavar="{build|update|verify|clean}",
         help="build 会先 update；update 刷新描述并自检；verify 仅自检",
     )
+    parser.add_argument(
+        "--artifacts",
+        action="store_true",
+        help="verify 时额外校验现有 elf 产物（强 main、vTaskStartScheduler、.text 下限）",
+    )
     args = parser.parse_args(argv)
     if args.option == "build":
         build()
     elif args.option == "update":
         update()
     elif args.option == "verify":
-        verify()
+        verify(artifacts=args.artifacts)
     else:
         clean()
 

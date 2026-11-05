@@ -5,7 +5,7 @@
     "arch": "cortex-m4",
     "fpu": "fpv4-sp-d16",
     "float_abi": "hard",
-    "flash_kb": 2048,
+    "flash_kb": 1024,
     "sram_kb": 192,
     "ccm_kb": 64
   }

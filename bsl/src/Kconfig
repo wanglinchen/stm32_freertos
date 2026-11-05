@@ -1,0 +1,16 @@
+# 自动生成，勿手改。刷新：python3 build/create-project.py update
+menu "src"
+
+config BSL_SRC_BOARD_BEEP
+	bool "board_beep.c"
+	default y
+
+config BSL_SRC_BOARD_KEY
+	bool "board_key.c"
+	default y
+
+config BSL_SRC_BOARD_LED
+	bool "board_led.c"
+	default y
+
+endmenu
