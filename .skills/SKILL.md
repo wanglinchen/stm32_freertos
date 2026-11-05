@@ -74,6 +74,7 @@ python3 build/install-toolchain.py
 | 板子能跑但明显慢约 11 倍 | 时钟没切到 180 MHz（`SystemCoreClock` 仍是 16 MHz），FreeRTOS 与 DWT 时基全按 16 MHz 算 | 反汇编确认 `main` 调用了 `SystemClock_Config` 且返回 0；同时检查 PWR Scale1 与 `FLASH_LATENCY_5` |
 | 按键读数总是反的 | `board_key.c` 的 `pressed_level` 与原理图极性不一致（两块板级按键都是按下接 3V3 = 高电平） | 对照「工程规格」的「板级事实」表；板上已有 4.7K 外部下拉，`GPIO_NOPULL` 是正确用法 |
 | 板上有按键/蜂鸣器，按下去毫无反应也不报错 | `bsl` 的实现零引用，被 `-Wl,--gc-sections` 整段丢弃（源码和 `libbsl.a` 都在，elf 里却没有符号） | `nm` 查 `board_key_init` / `board_beep_set`；`verify` 的「BSP 接入」断言会直接报出来，把 `fml_button_start()` 接进 `main()` 即可 |
+| 新用某个外设，链接报 `undefined reference to HAL_xxx` | 该驱动已被裁掉：`hal_conf.h` 的开关注释着，`project_defconfig` 的 `USER_CUSTOM` 区里也写死 `=n` | 两处同时放开（放开 `#define …_MODULE_ENABLED`、删掉对应的 `CONFIG_HAL_PERIPH_SRC_…=n`），再 `update`；只改一处的表现是"编了但头文件不引入"（隐式声明）或"头文件引入了却没有 `.o`"，`verify` 都会拦 |
 | 三灯闪 5 次后停机，或某处 `malloc` 之后莫名崩 | newlib 的 `_sbrk` 越界：单次 `malloc` 超过 512 B（`_Min_Heap_Size`），或链路退回到 `-lnosys` 的空桩 | 中等/长期分配改 `pvPortMalloc`；确认 `toolchain.make` 的 LDFLAGS 含 `-Wl,-u,_sbrk`（详见「工程规格」的「两套堆的边界」） |
 | 编译报 `implicit declaration of function 'HAL_XXX_...'` | `hal_conf.h` 底部少了该模块的 `#ifdef … / #include …` 块（模块开关还开着，但顶层头没引入） | `verify` 会直接报"缺 `#ifdef … / #include` 块"并列出模块名；按「工程规格」HAL 配置一节补齐四处对应关系 |
 
