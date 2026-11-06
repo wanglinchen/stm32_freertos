@@ -77,6 +77,19 @@ GEN_BANNER = "# 自动生成，勿手改。刷新：python3 build/create-project
 ASSIGN_RE = re.compile(r"^\s*(CONFIG_[A-Z0-9_]+)\s*=")
 CONFIG_VALUE_RE = re.compile(r"^\s*(CONFIG_[A-Z0-9_]+)\s*=\s*(.*?)\s*$")
 DISABLED_RE = re.compile(r"^\s*#\s*(CONFIG_[A-Z0-9_]+)\s+is not set\s*$")
+NAME_SEP_RE = re.compile(r"[^a-z0-9]+")
+
+
+def same_project_name(left: str, right: str) -> bool:
+    """工程名比较：忽略大小写，并把 -、_、空格视为同一分隔符。
+
+    目录名不构成工程身份——clone 到 stm32_freertos/ 或任意路径都是同一份工程。
+    仓库名习惯用下划线、本地目录习惯用连字符，归一化后必须判定为同一个名字，
+    否则每次在 CI 里检出都会误报"工程名与目录名不一致"。
+    """
+    return NAME_SEP_RE.sub("-", left.casefold()).strip("-") == NAME_SEP_RE.sub(
+        "-", right.casefold()
+    ).strip("-")
 
 
 def default_info() -> dict:
@@ -991,9 +1004,10 @@ def collect_verify_errors() -> list[str]:
             errors.append(str(error))
 
     project_name = info.get("project_name", "")
-    if project_name.casefold() != ROOT.name.casefold():
+    if not same_project_name(project_name, ROOT.name):
         errors.append(
             f"proj/project-info.json 的 project_name={project_name!r} 与工程根目录名 {ROOT.name!r} 不一致"
+            "（比较时忽略大小写，并把 -/_ 视为同一分隔符）"
         )
     if defconfig.is_file() and f"CONFIG_PROJECT_NAME={project_name}" not in read_text(defconfig):
         errors.append("project_defconfig 中 CONFIG_PROJECT_NAME 与 project-info.json 不一致")
