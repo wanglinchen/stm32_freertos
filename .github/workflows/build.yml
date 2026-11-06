@@ -1,0 +1,64 @@
+# 云端门禁：把"本机记得跑 verify"变成"推上去就跑"。
+# 三步顺序有讲究：
+#   1) update + git diff --exit-code —— 抓"改了源文件却忘了 update 就提交"（生成物在库里，漂移看得见）
+#   2) build —— 编译 + 产物断言（强符号、镜像容量、BSP 接入）
+#   3) verify --artifacts —— 对现成产物再验一遍，防止 build 复用了旧 .o 造成假绿
+# 检出用 lfs: false：构建不需要 doc/ 下的 PDF，指针文件就够，别烧 LFS 下载额度。
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: 检出（跳过 LFS）
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: 缓存 ARM 工具链
+        uses: actions/cache@v4
+        with:
+          path: tool/linux_x86_64
+          key: arm-gnu-${{ runner.os }}-13.3.rel1
+
+      # 工具链进 tool/linux_x86_64，和本机 tool/win_x86_64 是同一个版本号，
+      # 版本由 install-toolchain.py 的 DEFAULT_VERSION 固定，别在这里另指定。
+      - name: 安装 ARM 工具链
+        run: python3 build/install-toolchain.py
+
+      - name: 刷新描述文件并自检
+        run: python3 build/create-project.py update
+
+      # 生成物入库是本工程的既定策略；这一条保证它们不会和源码脱节。
+      - name: 生成物必须与提交内容一致
+        run: |
+          git diff --stat
+          git diff --exit-code
+
+      - name: 全量构建
+        run: python3 build/create-project.py build
+
+      - name: 产物断言
+        run: python3 build/create-project.py verify --artifacts
+
+      - name: 上传镜像
+        uses: actions/upload-artifact@v4
+        with:
+          name: stm32-freertos-target
+          path: out/target/
+          if-no-files-found: error
