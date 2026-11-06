@@ -77,6 +77,7 @@ python3 build/install-toolchain.py
 | 新用某个外设，链接报 `undefined reference to HAL_xxx` | 该驱动已被裁掉：`hal_conf.h` 的开关注释着，`project_defconfig` 的 `USER_CUSTOM` 区里也写死 `=n` | 两处同时放开（放开 `#define …_MODULE_ENABLED`、删掉对应的 `CONFIG_HAL_PERIPH_SRC_…=n`），再 `update`；只改一处的表现是"编了但头文件不引入"（隐式声明）或"头文件引入了却没有 `.o`"，`verify` 都会拦 |
 | 三灯闪 5 次后停机，或某处 `malloc` 之后莫名崩 | newlib 的 `_sbrk` 越界：单次 `malloc` 超过 512 B（`_Min_Heap_Size`），或链路退回到 `-lnosys` 的空桩 | 中等/长期分配改 `pvPortMalloc`；确认 `toolchain.make` 的 LDFLAGS 含 `-Wl,-u,_sbrk`（详见「工程规格」的「两套堆的边界」） |
 | 编译报 `implicit declaration of function 'HAL_XXX_...'` | `hal_conf.h` 底部少了该模块的 `#ifdef … / #include …` 块（模块开关还开着，但顶层头没引入） | `verify` 会直接报"缺 `#ifdef … / #include` 块"并列出模块名；按「工程规格」HAL 配置一节补齐四处对应关系 |
+| 同一提交在两台机器/两个目录编出的镜像大小不同、`.bin` 哈希不同 | 路径被编进镜像：`configASSERT` 把 `__FILE__` 传给 `vAssertFailed`，`-g3` 又把源码绝对路径写进调试段 | `objdump -s -j .rodata` 看有没有 `D:/.../osl/src/freertos/tasks.c`；`toolchain.make` 必须有 `-ffile-prefix-map=$(PROJECT_ROOT)=.`（详见「工程规格」的「可复现构建」）。注意跨 OS 工具链包自带库不同，字节一致只在同包内成立 |
 
 ## 硬规则
 

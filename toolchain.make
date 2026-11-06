@@ -37,11 +37,15 @@ PYTHON := python3
 endif
 OPT := -Og
 DEBUG := -g3
+# 可复现构建：把工程根的绝对前缀折叠成 '.'。configASSERT 把 __FILE__ 传给 vAssertFailed，
+# -g3 又把源码路径写进 debug 段，两者都会让同一提交在不同目录/机器编出不同字节的镜像
+# （实测 Windows 与 Linux 的 .text 相差 136 字节，差异全部落在 .rodata 的路径字符串）。
+REPRO := -ffile-prefix-map=$(PROJECT_ROOT)=.
 CPU_FLAGS := -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard
 CHIP_DEFS = $(foreach config,$(filter CONFIG_STM32%,$(.VARIABLES)),$(if $(filter y,$($(config))),-D$(subst XX,xx,$(patsubst CONFIG_%,%,$(config)))))
-CFLAGS = $(CPU_FLAGS) $(CHIP_DEFS) $(OPT) $(DEBUG) -std=c11 -ffunction-sections -fdata-sections -fno-common -Wall $(INCLUDES)
-CXXFLAGS = $(CPU_FLAGS) $(CHIP_DEFS) $(OPT) $(DEBUG) -std=c++17 -ffunction-sections -fdata-sections -fno-exceptions -fno-rtti -Wall $(INCLUDES)
-ASFLAGS = $(CPU_FLAGS) $(CHIP_DEFS) $(OPT) $(DEBUG) $(INCLUDES)
+CFLAGS = $(CPU_FLAGS) $(CHIP_DEFS) $(OPT) $(DEBUG) $(REPRO) -std=c11 -ffunction-sections -fdata-sections -fno-common -Wall $(INCLUDES)
+CXXFLAGS = $(CPU_FLAGS) $(CHIP_DEFS) $(OPT) $(DEBUG) $(REPRO) -std=c++17 -ffunction-sections -fdata-sections -fno-exceptions -fno-rtti -Wall $(INCLUDES)
+ASFLAGS = $(CPU_FLAGS) $(CHIP_DEFS) $(OPT) $(DEBUG) $(REPRO) $(INCLUDES)
 LDSCRIPT := $(PROJECT_ROOT)/hal/chip/linker/stm32f429igx_flash.ld
 # -u _sbrk：make 在 --start-group 扫描时还没有 _sbrk 这个未定义符号（那时只有 malloc 未定义），
 # 等 -lc 把 _sbrk_r 拉进来，-lnosys 的空桩已经先满足了它，libosl.a 里不会再有提取机会。
