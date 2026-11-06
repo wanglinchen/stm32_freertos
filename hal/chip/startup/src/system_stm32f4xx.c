@@ -182,28 +182,34 @@ void SystemInit(void)
 }
 
 /**
-  *@brief  系统时钟配置：HSE 25 MHz → PLL → HCLK 180 MHz（APB1 45 MHz / APB2 90 MHz）。
+  *@brief  系统时钟配置：HSE 25 MHz → PLL → HCLK 168 MHz（APB1 42 MHz / APB2 84 MHz）。
   *
   *         依据原理图（doc/hardware/sch/野火_F429挑战者_核心板_原理图_V2.1.pdf 第 4 页）：
   *         Y1 = 25 MHz，负载电容 C27/C28 = 22 pF，接 OSC_IN / OSC_OUT。
   *         HSE_VALUE 已在 hal/periph/inc/stm32f4xx_hal_conf.h 中定义为 25000000。
   *
-  *         PLL: M = 25 → VCO 输入 1 MHz；N = 360 → VCO 360 MHz；P = 2 → SYSCLK 180 MHz。
-  *         180 MHz（2.7–3.6 V）必须同时满足：VOS = Scale1、FLASH 5 个等待周期。
+  *         PLL: M = 25 → VCO 输入 1 MHz；N = 336 → VCO 336 MHz；P = 2 → SYSCLK 168 MHz；
+  *         Q = 7 → 336 / 7 = 48 MHz，正好是 USB FS / SDIO 要求的那一路时钟。
+  *         168 MHz（2.7–3.6 V）必须同时满足：VOS = Scale1、FLASH 5 个等待周期；
+  *         168 MHz ≤ 168 MHz，因此**不需要** over-drive（那是 180 MHz 才要开的）。
+  *
+  *         为什么停在 168 而不是 180：25 MHz 晶振下 360 MHz VCO 除以 48 MHz 是 7.5，
+  *         而 PLLQ 只能取整数，所以 180 MHz 主频给不出 48 MHz。唯一同时满足
+  *         "PLLQ 为整数 + USB 要 48 MHz" 的主频是 168 MHz（VCO 336 / 7 = 48）。
+  *         代价是主频降 6.7%（180 → 168）。PLLSAI 也能单独产生 48 MHz 而保留 180 MHz，
+  *         但那是另一条时钟树，本工程当前不需要。
   *
   * @note   必须在 .data / .bss 初始化之后调用（即 main 里，而不是 SystemInit 里）：
   *         启动汇编是先调用 SystemInit、再拷贝 .data、再清 .bss，
   *         在 SystemInit 里写全局变量会被随后的初始化覆盖掉。
-  * @note   PLLQ = 7 → 51.4 MHz，不等于 USB/SDIO 需要的 48 MHz。25 MHz 晶振无法整数分频
-  *         得到 48 MHz；将来启用 USB FS / SDIO 时必须换晶振频率或改用其它 N/P 组合。
-  * @retval 0 = 已切换到 180 MHz；1 = HSE 未起振或 PLL 失败，保持 HSI 16 MHz
+  * @retval 0 = 已切换到 168 MHz；1 = HSE 未起振或 PLL 失败，保持 HSI 16 MHz
   */
 int SystemClock_Config(void)
 {
   RCC_OscInitTypeDef osc = {0};
   RCC_ClkInitTypeDef clk = {0};
 
-  /* 180 MHz 属于 Scale1 电压档；先开 PWR 时钟并等到稳压器就绪。 */
+  /* 168 MHz 属于 Scale1 电压档；先开 PWR 时钟并等到稳压器就绪。 */
   __HAL_RCC_PWR_CLK_ENABLE();
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
   while (__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY) == 0U)
@@ -215,9 +221,9 @@ int SystemClock_Config(void)
   osc.PLL.PLLState = RCC_PLL_ON;
   osc.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   osc.PLL.PLLM = 25U;
-  osc.PLL.PLLN = 360U;
+  osc.PLL.PLLN = 336U;
   osc.PLL.PLLP = RCC_PLLP_DIV2;
-  osc.PLL.PLLQ = 7U;
+  osc.PLL.PLLQ = 7U;    /* VCO 336 / 7 = 48 MHz：USB FS 与 SDIO 都取这一路 */
   if (HAL_RCC_OscConfig(&osc) != HAL_OK)
   {
     return 1;   /* HSE 起振失败：保持复位后的 HSI 16 MHz，由应用层报错 */
@@ -227,8 +233,8 @@ int SystemClock_Config(void)
                   RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
   clk.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   clk.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  clk.APB1CLKDivider = RCC_HCLK_DIV4;     /* 180 / 4 = 45 MHz，APB1 上限 */
-  clk.APB2CLKDivider = RCC_HCLK_DIV2;     /* 180 / 2 = 90 MHz，APB2 上限 */
+  clk.APB1CLKDivider = RCC_HCLK_DIV4;     /* 168 / 4 = 42 MHz，APB1 上限 */
+  clk.APB2CLKDivider = RCC_HCLK_DIV2;     /* 168 / 2 = 84 MHz，APB2 上限 */
   if (HAL_RCC_ClockConfig(&clk, FLASH_LATENCY_5) != HAL_OK)
   {
     return 1;

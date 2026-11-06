@@ -18,8 +18,9 @@ int main(void)
     HAL_Init();
 
     /*
-     * 系统时钟：HSE 25 MHz → PLL → HCLK 180 MHz（APB1 45 MHz / APB2 90 MHz）。
-     * 失败时停在 HSI 16 MHz —— 主频差 11 倍属于故障，不能静默降级。
+     * 系统时钟：HSE 25 MHz → PLL → HCLK 168 MHz（APB1 42 MHz / APB2 84 MHz）。
+     * 168 MHz 是为了让 PLLQ 给出整数 48 MHz（336 / 7）给 USB/SDIO；180 MHz 做不到
+     * （360 / 48 = 7.5）。失败时停在 HSI 16 MHz —— 主频差 10.5 倍属于故障，不能静默降级。
      */
     if (SystemClock_Config() != 0) {
         fml_led_panic(4U);

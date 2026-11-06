@@ -72,7 +72,7 @@ python3 build/install-toolchain.py
 | 链接报 `defined in discarded section '.ccmram'` | `.ccmram` 段被 `/DISCARD/` 丢弃（CCMRAM 的拷贝/清零循环从未实现） | 要么把变量移出 `.ccmram`，要么按「工程规格」补 startup 的拷贝与清零循环后移除 `/DISCARD/` 条目 |
 | 改了头文件却什么都没重编，`make` 一直 `Nothing to be done` | `out/object/**/*.d` 里的绝对路径已失效（工程被搬动过），make 看不见头文件变化 | `python3 build/create-project.py verify` 会报出失效的 `.d` 数量；`clean` 后重新 `build` |
 | 三灯闪 4 次后常亮停机 | `SystemClock_Config` 失败：HSE 没起振或 PLL 没锁，芯片仍停在 HSI 16 MHz | 查 25 MHz 晶振与负载电容（核心板 Y1、C27/C28 22 pF），示波器看 `OSC_IN`；确认 `HAL` 的 `HSE_VALUE` 与实际晶振一致 |
-| 板子能跑但明显慢约 11 倍 | 时钟没切到 180 MHz（`SystemCoreClock` 仍是 16 MHz），FreeRTOS 与 DWT 时基全按 16 MHz 算 | 反汇编确认 `main` 调用了 `SystemClock_Config` 且返回 0；同时检查 PWR Scale1 与 `FLASH_LATENCY_5` |
+| 板子能跑但明显慢约 10.5 倍 | 时钟没切到 168 MHz（`SystemCoreClock` 仍是 16 MHz），FreeRTOS 与 DWT 时基全按 16 MHz 算 | 反汇编确认 `main` 调用了 `SystemClock_Config` 且返回 0；同时检查 PWR Scale1 与 `FLASH_LATENCY_5` |
 | 按键读数总是反的 | `board_key.c` 的 `pressed_level` 与原理图极性不一致（两块板级按键都是按下接 3V3 = 高电平） | 对照「工程规格」的「板级事实」表；板上已有 4.7K 外部下拉，`GPIO_NOPULL` 是正确用法 |
 | 板上有按键/蜂鸣器，按下去毫无反应也不报错 | `bsl` 的实现零引用，被 `-Wl,--gc-sections` 整段丢弃（源码和 `libbsl.a` 都在，elf 里却没有符号） | `nm` 查 `board_key_init` / `board_beep_set`；`verify` 的「BSP 接入」断言会直接报出来，把 `fml_button_start()` 接进 `main()` 即可 |
 | 新用某个外设，链接报 `undefined reference to HAL_xxx` | 该驱动已被裁掉：`hal_conf.h` 的开关注释着，`project_defconfig` 的 `USER_CUSTOM` 区里也写死 `=n` | 两处同时放开（放开 `#define …_MODULE_ENABLED`、删掉对应的 `CONFIG_HAL_PERIPH_SRC_…=n`），再 `update`；只改一处的表现是"编了但头文件不引入"（隐式声明）或"头文件引入了却没有 `.o`"，`verify` 都会拦 |
