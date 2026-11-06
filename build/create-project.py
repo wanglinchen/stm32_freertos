@@ -1201,7 +1201,27 @@ def copy_outputs() -> None:
     for path in artifacts:
         dest = target / path.name
         shutil.copy2(path, dest)
+        if dest.suffix == ".map":
+            fold_root_in_map(dest)
         print(f"复制 {path.relative_to(ROOT)} -> {dest.relative_to(ROOT)} → {dest.stat().st_size} 字节")
+
+
+def fold_root_in_map(dest: Path) -> None:
+    """把 .map 里的工程根绝对路径折成 "."，让产物在别的目录/机器上也一致。
+
+    链接器只记录它收到的路径，-ffile-prefix-map 管不到 map 文件：实测同一提交
+    Windows 266831 B、Linux 325007 B、GitHub runner 304955 B，差异全是根路径长度。
+    map 不参与镜像，这里只做文本归一化，保证 artifact 里四个文件都可复现。
+    """
+    text = dest.read_text(encoding="utf-8", errors="replace")
+    for prefix in (
+        ROOT.as_posix(),
+        str(ROOT),
+        ROOT.as_posix().upper(),
+        str(ROOT).upper(),
+    ):
+        text = text.replace(prefix, ".")
+    dest.write_text(text, encoding="utf-8", newline="\n")
 
 
 ARTIFACT_TEXT_FLOOR = 2048
