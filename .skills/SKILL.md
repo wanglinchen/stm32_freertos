@@ -50,6 +50,7 @@ python3 build/install-toolchain.py
 | 中间产物 | `out/object/**/*.d` 里记录的依赖路径必须仍然存在；工程被整目录搬动后这些绝对路径会失效，make 将漏编改动过的头文件（实测 77 个 `.d` 指向另一台机器的 `/mnt/d/...`，导致改了 `FreeRTOSConfig.h` 而 `tasks.o` 三天没重编） |
 | HAL 模块开关 | `hal_conf.h` 里每个启用的 `HAL_*_MODULE_ENABLED` 必须同时具备：同文件底部的 `#ifdef … / #include "stm32f4xx_hal_x.h"` 块、`hal/periph/src/stm32f4xx_hal_x.c`、以及已生成的 `stm32f4xx_hal_x.o`；底部出现"既没启用也没注释"的守卫即判为开关名拼错 |
 | 堆边界 | 链接脚本必须输出 `__heap_start__` / `__heap_end__`；`toolchain.make` 的 LDFLAGS 必须含 `-Wl,-u,_sbrk` 与 `-Wl,-u,__malloc_lock`（否则 `-lnosys` 的空桩和 `libc_nano.a(mlock.o)` 的空锁抢先，`malloc` 静默失败且不防并发）；`libosl.a` 与产物里的 `_sbrk`、`__malloc_lock` 必须是强符号 `T`；map 里出现 `libc_a-mlock.o` 即判失败 |
+| newlib 分配器 | 产物里出现 `_malloc_r` / `_calloc_r` / `_realloc_r` / `_memalign_r`（按需提取，出现即有人真在用 newlib 堆）时，`_Min_Heap_Size` 必须 ≥ 2048 B；产物 `__heap_end__ - __heap_start__` 必须等于链接脚本声明值。`CFLAGS` / `CXXFLAGS` 必须带 `-include …/osl/inc/osl_alloc_guard.h`，该头把 `malloc` 一族编译期 poison 掉 |
 | 元数据容量 | `proj/project-info.json` 的 `flash_kb` / `sram_kb` / `ccm_kb` 必须等于链接脚本 `MEMORY` 的 `ROM` / `RAM` / `CCMRAM`（历史上 json 写 2048 KB 而 `ROM` 只有 1024 KB，构建完全不会报错） |
 | 硬件异常 | `osl/src/freertos_port_st.c` 必须定义 `HardFault_Handler` / `MemManage_Handler` / `BusFault_Handler` / `UsageFault_Handler`；`startup_stm32f429xx.s` 必须保留 `.thumb_set …,Default_Handler` 弱别名；产物里四个入口必须是强符号 `T`，且地址不等于 `Default_Handler`。缺一个就意味着异常落到 `b Infinite_Loop`，`g_panic_record` 里一个字都不会留下 |
 | 文档路径 | `.skills/` 与 `doc/` 下 Markdown 中反引号包住的**仓库相对路径**（`doc/…`、`.skills/…`、`build/…`、`proj/…`、`hal/…`）必须真实存在；裸文件名（`FreeRTOSConfig.h`、`Depend.make` 这类正文提及）与 `tool/`、`out/`、`examples/`、`doc/reference/` 前缀不作断言 |
@@ -77,6 +78,8 @@ python3 build/install-toolchain.py
 | 新用某个外设，链接报 `undefined reference to HAL_xxx` | 该驱动已被裁掉：`hal_conf.h` 的开关注释着，`project_defconfig` 的 `USER_CUSTOM` 区里也写死 `=n` | 两处同时放开（放开 `#define …_MODULE_ENABLED`、删掉对应的 `CONFIG_HAL_PERIPH_SRC_…=n`），再 `update`；只改一处的表现是"编了但头文件不引入"（隐式声明）或"头文件引入了却没有 `.o`"，`verify` 都会拦 |
 | 三灯闪 5 次后停机，或某处 `malloc` 之后莫名崩 | newlib 的 `_sbrk` 越界：单次 `malloc` 超过 512 B（`_Min_Heap_Size`），或链路退回到 `-lnosys` 的空桩 | 中等/长期分配改 `pvPortMalloc`；确认 `toolchain.make` 的 LDFLAGS 含 `-Wl,-u,_sbrk`（详见「工程规格」的「两套堆的边界」） |
 | 编译报 `implicit declaration of function 'HAL_XXX_...'` | `hal_conf.h` 底部少了该模块的 `#ifdef … / #include …` 块（模块开关还开着，但顶层头没引入） | `verify` 会直接报"缺 `#ifdef … / #include` 块"并列出模块名；按「工程规格」HAL 配置一节补齐四处对应关系 |
+| 编译报 `attempt to use poisoned "malloc"` | `osl_alloc_guard.h` 用 `#pragma GCC poison` 禁掉了 newlib 的分配入口（堆只有 512 B 且紧贴栈） | 改成 `pvPortMalloc` / `vPortFree`；确实需要 newlib 堆时不要拆守卫，而是把 `_Min_Heap_Size` 提到 2048 B 以上并重算 RAM 预算 |
+| 产物断言报"链接了 newlib 分配器（`_malloc_r`），但 newlib 堆只有 512 字节" | 有人用 `_malloc_r` 等内部入口绕过了 poison，把 newlib 分配器拉进镜像 | 同上：改用 `pvPortMalloc`，或按上面的门禁把堆提到下限以上 |
 | 同一提交在两台机器/两个目录编出的镜像大小不同、`.bin` 哈希不同 | 路径被编进镜像：`configASSERT` 把 `__FILE__` 传给 `vAssertFailed`，`-g3` 又把源码绝对路径写进调试段 | `objdump -s -j .rodata` 看有没有 `D:/.../osl/src/freertos/tasks.c`；`toolchain.make` 必须有 `-ffile-prefix-map=$(PROJECT_ROOT)=.`（详见「工程规格」的「可复现构建」）。注意跨 OS 工具链包自带库不同，字节一致只在同包内成立 |
 
 ## 硬规则

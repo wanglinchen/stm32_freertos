@@ -334,10 +334,15 @@ def write_toolchain(info: dict) -> None:
         "# -g3 又把源码路径写进 debug 段，两者都会让同一提交在不同目录/机器编出不同字节的镜像",
         "# （实测 Windows 与 Linux 的 .text 相差 136 字节，差异全部落在 .rodata 的路径字符串）。",
         "REPRO := -ffile-prefix-map=$(PROJECT_ROOT)=.",
+        "# 编译期禁用 newlib 的分配入口：newlib 堆只有 512 B 且紧贴 1 KB 栈，",
+        "# 任何大块 malloc 都会静默踩栈。用 -include 注入，避免依赖每个编译单元记得包含；",
+        "# 不进 ASFLAGS（汇编没有这个概念）。守卫头自己先包含 <stdlib.h>/<string.h> 再 poison，",
+        "# 否则会在系统头的函数声明处报错而不是在真正的调用点报错。",
+        "ALLOC_GUARD := -include $(PROJECT_ROOT)/osl/inc/osl_alloc_guard.h",
         f"CPU_FLAGS := {cpu_flags(info)}",
         "CHIP_DEFS = $(foreach config,$(filter CONFIG_STM32%,$(.VARIABLES)),$(if $(filter y,$($(config))),-D$(subst XX,xx,$(patsubst CONFIG_%,%,$(config)))))",
-        "CFLAGS = $(CPU_FLAGS) $(CHIP_DEFS) $(OPT) $(DEBUG) $(REPRO) -std=c11 -ffunction-sections -fdata-sections -fno-common -Wall $(INCLUDES)",
-        "CXXFLAGS = $(CPU_FLAGS) $(CHIP_DEFS) $(OPT) $(DEBUG) $(REPRO) -std=c++17 -ffunction-sections -fdata-sections -fno-exceptions -fno-rtti -Wall $(INCLUDES)",
+        "CFLAGS = $(CPU_FLAGS) $(CHIP_DEFS) $(OPT) $(DEBUG) $(REPRO) $(ALLOC_GUARD) -std=c11 -ffunction-sections -fdata-sections -fno-common -Wall $(INCLUDES)",
+        "CXXFLAGS = $(CPU_FLAGS) $(CHIP_DEFS) $(OPT) $(DEBUG) $(REPRO) $(ALLOC_GUARD) -std=c++17 -ffunction-sections -fdata-sections -fno-exceptions -fno-rtti -Wall $(INCLUDES)",
         "ASFLAGS = $(CPU_FLAGS) $(CHIP_DEFS) $(OPT) $(DEBUG) $(REPRO) $(INCLUDES)",
         f"LDSCRIPT := $(PROJECT_ROOT)/{rel}",
         "# -u _sbrk：make 在 --start-group 扫描时还没有 _sbrk 这个未定义符号（那时只有 malloc 未定义），",
@@ -1227,6 +1232,19 @@ def fold_root_in_map(dest: Path) -> None:
 ARTIFACT_TEXT_FLOOR = 2048
 """应用代码参与链接后 .text 至少应有这么多字节；明显低于此值说明镜像里只有启动代码。"""
 
+NEWLIB_ALLOC_SYMBOLS = ("_malloc_r", "_calloc_r", "_realloc_r", "_memalign_r")
+"""newlib 的分配入口。它们按需提取：只有真有代码引用 malloc 才会进镜像。
+
+因此"符号在不在 elf 里"就是"有没有人用 newlib 堆"的机器事实，不依赖文本扫描，
+也不怕宏包装或函数指针。"""
+
+NEWLIB_HEAP_FLOOR = 0x800
+"""newlib 堆的最小可用尺寸（2048 B）。
+
+触发条件只有一种：镜像里出现了 newlib 的分配入口。此时若堆仍是链接脚本里那个
+512 B 的默认值，一次中等分配就会越过 __heap_end__ 写进紧跟其后的栈区 ——
+链接不报错、运行时崩在别处。"""
+
 
 def collect_hal_module_errors() -> list[str]:
     """检查 HAL 模块开关（hal_conf.h）与include 块、源文件、目标文件是否自洽。
@@ -1436,13 +1454,67 @@ def collect_artifact_errors() -> list[str]:
         errors.append(
             f"RAM 用量 {ram_used} 字节超出 RAM 容量 {ram} 字节（data {data} + bss {bss}）"
         )
+    # newlib 堆：实际边界必须与链接脚本声明一致，且"有人在用堆"时尺寸得够。
+    # 这两条都只能从产物判：链接脚本里的 _Min_Heap_Size 是个魔数，
+    # 而 __heap_start__/__heap_end__ 才是链接器真正排出来的边界。
+    heap_bytes = 0
+    heap_declared = 0
+    bounds: dict[str, int] = {}
+    for match in re.finditer(
+        r"^([0-9a-fA-F]+)\s+[A-Za-z]\s+(__heap_start__|__heap_end__)$",
+        symbols,
+        re.MULTILINE,
+    ):
+        bounds[match.group(2)] = int(match.group(1), 16)
+    if len(bounds) == 2:
+        heap_bytes = bounds["__heap_end__"] - bounds["__heap_start__"]
+    else:
+        errors.append(
+            f"产物 {elf.name} 里没有 __heap_start__ / __heap_end__ 边界符号，"
+            "osl 的 _sbrk 将无从判断 newlib 堆的尽头"
+        )
+    script = linker_script_path(info)
+    if script.is_file():
+        declared = re.search(
+            r"_Min_Heap_Size\s*=\s*(0x[0-9a-fA-F]+|\d+)\s*;",
+            script.read_text(encoding="utf-8", errors="replace"),
+        )
+        heap_declared = int(declared.group(1), 0) if declared else 0
+        if declared is None:
+            errors.append(
+                f"{script.relative_to(ROOT).as_posix()} 里没有 _Min_Heap_Size 声明，"
+                "newlib 堆的尺寸失去唯一来源"
+            )
+    if heap_bytes and heap_declared and heap_bytes != heap_declared:
+        errors.append(
+            f"产物 {elf.name} 的 newlib 堆实际 {heap_bytes} 字节，"
+            f"但 {script.relative_to(ROOT).as_posix()} 声明 _Min_Heap_Size = {heap_declared} 字节；"
+            "链接脚本与产物边界已不一致，先查 ._user_heap_stack 的布置"
+        )
+    alloc_used = [
+        name
+        for name in NEWLIB_ALLOC_SYMBOLS
+        if re.search(rf"^[0-9a-fA-F]+\s+[A-Za-z]\s+{name}$", symbols, re.MULTILINE)
+    ]
+    if alloc_used and heap_bytes < NEWLIB_HEAP_FLOOR:
+        errors.append(
+            f"产物 {elf.name} 里链接了 newlib 分配器（{', '.join(alloc_used)}），"
+            f"但 newlib 堆只有 {heap_bytes} 字节（下限 {NEWLIB_HEAP_FLOOR}）；"
+            "一次中等 malloc 就会越过 __heap_end__ 写进紧跟其后的栈区。"
+            "要么改用 pvPortMalloc（osl_alloc_guard.h 已编译期禁用 malloc），"
+            "要么把 _Min_Heap_Size 提到下限以上并确认 RAM 预算"
+        )
     if not errors:
+        heap_note = ""
+        if heap_bytes:
+            used = f"已使用：{', '.join(alloc_used)}" if alloc_used else "未使用"
+            heap_note = f"；newlib 堆 {heap_bytes} 字节（{used}）"
         print(
             f"产物校验：{elf.name} text={text} bytes，main / vTaskStartScheduler 均为强符号；"
             f"Flash {flash_used}/{rom} 字节（{flash_used * 100.0 / rom:.2f}%），"
-            f"RAM {ram_used}/{ram} 字节（{ram_used * 100.0 / ram:.2f}%）"
+            f"RAM {ram_used}/{ram} 字节（{ram_used * 100.0 / ram:.2f}%）{heap_note}"
             if rom and ram
-            else f"产物校验：{elf.name} text={text} bytes，main / vTaskStartScheduler 均为强符号"
+            else f"产物校验：{elf.name} text={text} bytes，main / vTaskStartScheduler 均为强符号{heap_note}"
         )
     return errors
 
