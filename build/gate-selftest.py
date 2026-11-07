@@ -267,6 +267,12 @@ def case_heap_bound() -> tuple[str, str]:
     script = ROOT / "hal" / "chip" / "linker" / "stm32f429igx_flash.ld"
     if not script.is_file():
         return "SKIP", f"找不到 {script.name}"
+    # 这一组必须“有产物、且产物是用旧脚本链出来的”。干净检出（CI 的每个 job 都是）
+    # 没有 out/object/*.elf，若不先构建一次，verify --artifacts 只会因为“没产物”报错，
+    # 测到的就不是“边界与脚本不一致”这条断言了。
+    built = create_project("build")
+    if built.returncode != 0:
+        return "FAIL", f"破坏前的基础构建失败，无法测边界断言：\n{(built.stdout + built.stderr)[-400:]}"
     before = digest(script)
 
     def bump(text: str) -> str:

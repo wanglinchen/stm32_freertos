@@ -1505,6 +1505,12 @@ def collect_artifact_errors() -> list[str]:
     info = load_info()
     elf = ROOT / "out" / "object" / f"{info.get('project_name', '')}.elf"
     if not elf.is_file():
+        # 静默返回空表会让 `verify --artifacts` 在没有产物的干净树上"通过"：
+        # 断言一次都没跑，绿色却和"全部通过"长得一模一样。调用方明确要了产物校验，
+        # 就得说清产物不存在 —— 想跳过产物断言是不加 --artifacts。
+        errors.append(
+            f"产物 {elf.relative_to(ROOT).as_posix()} 不存在，--artifacts 无从校验（先跑 build）"
+        )
         return errors
     nm = tool_binary("nm")
     size = tool_binary("size")
