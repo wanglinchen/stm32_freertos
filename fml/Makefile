@@ -36,14 +36,22 @@ endif
 endif
 endif
 
-.PHONY: all clean
-all: $(LOCAL_OBJS)
+.PHONY: all clean subdirs
+
+LIB := $(BUILD_DIR)/lib/libfml.a
+
+all: subdirs
+	@$(MAKE) --no-print-directory $(LIB)
+
+subdirs:
 	@$(MAKE) --no-print-directory -C $(PROJECT_ROOT)/fml/inc all
 	@$(MAKE) --no-print-directory -C $(PROJECT_ROOT)/fml/src all
-	@mkdir -p $(dir $(BUILD_DIR)/lib/libfml.a)
-	@echo "AR $(BUILD_DIR)/lib/libfml.a"
-	@rm -f $(BUILD_DIR)/lib/libfml.a
-	$(AR) rcs $(BUILD_DIR)/lib/libfml.a $(ARCHIVE_OBJS)
+
+$(LIB): $(ARCHIVE_OBJS)
+	@mkdir -p $(dir $@)
+	@echo "AR $@"
+	@rm -f $@
+	$(AR) rcs $@ $(ARCHIVE_OBJS)
 
 clean:
 	rm -rf $(BUILD_DIR)/fml $(BUILD_DIR)/lib/libfml.a

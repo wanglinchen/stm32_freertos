@@ -597,17 +597,41 @@ def write_dir_makefile(directory: Path) -> None:
         ]
         lines.extend(guarded_lines(source_guards(source), body))
         lines.append("")
-    lines.append(".PHONY: all clean")
-    lines.append("all: $(LOCAL_OBJS)")
-    for child in child_dirs(directory):
-        child_dir = f"$(PROJECT_ROOT)/{child.relative_to(ROOT).as_posix()}"
-        lines.append(f"\t@$(MAKE) --no-print-directory -C {child_dir} all")
+    children = child_dirs(directory)
+    lines.append(".PHONY: all clean" + (" subdirs" if children else ""))
+    lines.append("")
     if is_lib:
         lib = f"$(BUILD_DIR)/lib/lib{rel.parts[0]}.a"
-        lines.append(f"\t@mkdir -p $(dir {lib})")
-        lines.append(f'\t@echo "AR {lib}"')
-        lines.append(f"\t@rm -f {lib}")
-        lines.append(f"\t$(AR) rcs {lib} $(ARCHIVE_OBJS)")
+        # 库必须是“真文件目标”，不能把 AR 挂在 PHONY 的 all 的 recipe 里。
+        # 以前是 rm -f + AR 无条件执行：`.a` 的 mtime 每次都变 → 顶层必然重链，
+        # 实测“什么都没改”的一次 build 仍打印 AR libfml.a / AR libapl.a / LD，耗时 24.1 s。
+        # 现在只有 $(ARCHIVE_OBJS) 里真有过期对象时才重打。
+        lines.append(f"LIB := {lib}")
+        lines.append("")
+        if children:
+            # 子目录必须先编出 .o，$(LIB) 才有可打包的对象。这里用二次 make 而不是
+            # 把两者并列写进 all 的依赖：`make -j4` 下并列依赖会并行启动 $(LIB)，
+            # 而 .o 还不存在、又没有本目录内的规则，make 会直接报 No rule to make target。
+            lines.append("all: subdirs")
+            lines.append("\t@$(MAKE) --no-print-directory $(LIB)")
+            lines.append("")
+            lines.append("subdirs:")
+            for child in children:
+                child_dir = f"$(PROJECT_ROOT)/{child.relative_to(ROOT).as_posix()}"
+                lines.append(f"\t@$(MAKE) --no-print-directory -C {child_dir} all")
+        else:
+            lines.append("all: $(LIB)")
+        lines.append("")
+        lines.append("$(LIB): $(ARCHIVE_OBJS)")
+        lines.append("\t@mkdir -p $(dir $@)")
+        lines.append('\t@echo "AR $@"')
+        lines.append("\t@rm -f $@")
+        lines.append("\t$(AR) rcs $@ $(ARCHIVE_OBJS)")
+    else:
+        lines.append("all: $(LOCAL_OBJS)")
+        for child in children:
+            child_dir = f"$(PROJECT_ROOT)/{child.relative_to(ROOT).as_posix()}"
+            lines.append(f"\t@$(MAKE) --no-print-directory -C {child_dir} all")
     lines.append("")
     lines.append("clean:")
     if is_lib:
@@ -630,27 +654,47 @@ def root_makefile_body() -> list[str]:
         "HEX := $(BUILD_DIR)/$(PROJECT_NAME).hex",
         "BIN := $(BUILD_DIR)/$(PROJECT_NAME).bin",
         "",
-        ".PHONY: all clean " + " ".join(modules),
-        "all: " + " ".join(modules),
-        "\t@mkdir -p $(dir $(ELF))",
-        '\t@echo "LD $(ELF)"',
+        ".PHONY: all clean modules " + " ".join(modules),
+        "",
+        # 两段式：先把各层编出来（modules），再单独判一次 ELF/HEX/BIN。
+        # 不能把模块和 $(ELF) 并列写进 all 的依赖：`make -j4` 会并行启动 $(ELF)，
+        # 而 .a 还没生成 → No rule to make target。$(ELF) 自身是真文件目标，
+        # 所以“什么都没改”时第二段只打印 Nothing to be done，不再重链。
+        "all:",
+        "\t@$(MAKE) --no-print-directory modules",
+        "\t@$(MAKE) --no-print-directory $(ELF) $(HEX) $(BIN)",
+        '\t@echo "SIZE $(ELF)"',
+        "\t$(SIZE) $(ELF)",
+        "",
+        "modules: " + " ".join(modules),
+        "",
     ]
-    link = "\t$(CC) $(LDFLAGS) -o $(ELF)"
+    link = "\t$(CC) $(LDFLAGS) -o $@"
+    deps = []
     if startup_asm:
+        deps.extend(startup_asm)
         link += " -Wl,--whole-archive " + " ".join(startup_asm) + " -Wl,--no-whole-archive"
     if normal:
         libs = " ".join(f"$(BUILD_DIR)/lib/lib{name}.a" for name in normal)
+        deps.append(libs)
         # --start-group/--end-group 让 ld 反复扫描这组归档，覆盖“符号在同一归档内
         # 靠后成员定义”的情况（如 tasks.o 需要 freertos_port_st.o 的栈溢出钩子）。
         link += f" -Wl,--start-group {libs} -Wl,--end-group"
     link += " $(LDLIBS)"
+    # 链接脚本变化也必须重链（它是 $(ELF) 的真实输入，不是隐含假设）。
+    deps.append("$(LDSCRIPT)")
+    lines.append("$(ELF): " + " ".join(deps))
+    lines.append("\t@mkdir -p $(dir $@)")
+    lines.append('\t@echo "LD $@"')
     lines.append(link)
-    lines.append('\t@echo "HEX $(HEX)"')
-    lines.append("\t$(OBJCOPY) -O ihex $(ELF) $(HEX)")
-    lines.append('\t@echo "BIN $(BIN)"')
-    lines.append("\t$(OBJCOPY) -O binary $(ELF) $(BIN)")
-    lines.append('\t@echo "SIZE $(ELF)"')
-    lines.append("\t$(SIZE) $(ELF)")
+    lines.append("")
+    lines.append("$(HEX): $(ELF)")
+    lines.append('\t@echo "HEX $@"')
+    lines.append("\t$(OBJCOPY) -O ihex $(ELF) $@")
+    lines.append("")
+    lines.append("$(BIN): $(ELF)")
+    lines.append('\t@echo "BIN $@"')
+    lines.append("\t$(OBJCOPY) -O binary $(ELF) $@")
     lines.append("")
     if modules:
         lines.append(" ".join(modules) + ":")
@@ -1265,6 +1309,14 @@ def fold_root_in_map(dest: Path) -> None:
 ARTIFACT_TEXT_FLOOR = 2048
 """应用代码参与链接后 .text 至少应有这么多字节；明显低于此值说明镜像里只有启动代码。"""
 
+PANIC_RECORD_MIN_BYTES = 0x7C
+"""panic 记录结构体的最小尺寸（124 B）。
+
+它是 ipsr / reset_csr / wd_sync_fail 三个"上下文"字段是否真的编进去的唯一产物级证据：
+少任何一个，尺寸就回落到 0x70。字段的偏移顺序在 struct 里是固定的，所以尺寸下限
+等价于"新字段都在"。用 DWARF 解析字段名能更精确，但代价是几百毫秒和脆弱的调试信息依赖。
+"""
+
 NEWLIB_ALLOC_SYMBOLS = ("_malloc_r", "_calloc_r", "_realloc_r", "_memalign_r")
 """newlib 的分配入口。它们按需提取：只有真有代码引用 malloc 才会进镜像。
 
@@ -1575,6 +1627,40 @@ def collect_artifact_errors() -> list[str]:
             f"产物 {elf.name} 里没有 _write：--gc-sections 把它和 g_last_write 一起丢了，"
             "“把最近一段输出留给调试器”就是空承诺（检查 LDFLAGS 的 -Wl,-u,_write）"
         )
+    # panic 现场的“上下文”字段必须真的编进结构体：ipsr（任务/中断）、
+    # reset_csr（RCC->CSR 原始值）、wd_sync_fail（看门狗超时是否真的改成功）。
+    # 判据用符号尺寸而不是 DWARF 字段名：三者任一缺失，尺寸就从 0x7C 回落到 0x70。
+    sized = run_tool_args(nm, "-S", elf.as_posix())
+    record_bytes = 0
+    match = re.search(
+        r"^[0-9a-fA-F]+\s+([0-9a-fA-F]+)\s+[A-Za-z]\s+g_panic_record$", sized, re.MULTILINE
+    )
+    if match:
+        record_bytes = int(match.group(1), 16)
+    if record_bytes < PANIC_RECORD_MIN_BYTES:
+        errors.append(
+            f"产物 {elf.name} 里 g_panic_record 只有 {record_bytes} 字节（下限 "
+            f"{PANIC_RECORD_MIN_BYTES}）：ipsr / reset_csr / wd_sync_fail 至少有一个没编进去，"
+            "调试器读现场时看不到“这次是中断还是任务触发 / 原始复位标志 / 看门狗有没有改成功”"
+        )
+    # IWDG 的同步等待必须带失败分支：只写 while 循环时，成功与 0xFFFF 次耗尽共用
+    # 同一个出口（反汇编里就一条 bx lr），LSI 没起振、PR/RLR 没生效这件事完全不可见。
+    # 判据：函数里必须至少有一条 `str`（g_iwdg_sync_fail++ 在 -Og 下的落地形态）。
+    objdump = tool_binary("objdump")
+    if objdump is None:
+        errors.append("找不到 arm-none-eabi-objdump，无法校验看门狗同步等待的失败分支")
+    else:
+        dump = run_tool_args(objdump, "-d", "--disassemble=iwdg_wait_sync", elf.as_posix())
+        if "iwdg_wait_sync" not in dump:
+            errors.append(
+                f"产物 {elf.name} 里找不到 iwdg_wait_sync：它被内联或改名，"
+                "verify 无法证明 PR/RLR 的同步等待带失败分支（g_iwdg_sync_fail 不累加）"
+            )
+        elif not re.search(r"\bstr\b", dump):
+            errors.append(
+                f"产物 {elf.name} 的 iwdg_wait_sync 里没有任何 str：成功与超时共用一个出口，"
+                "LSI 没起振时 PR/RLR 未生效不可见（N18 的回退）"
+            )
     if not errors:
         heap_note = ""
         if heap_bytes:

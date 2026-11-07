@@ -43,7 +43,8 @@ $(BUILD_DIR)/osl/src/osl_boot.o: $(PROJECT_ROOT)/osl/src/osl_boot.c $(FLAG_DEPS)
 endif
 endif
 
-.PHONY: all clean
+.PHONY: all clean subdirs
+
 all: $(LOCAL_OBJS)
 	@$(MAKE) --no-print-directory -C $(PROJECT_ROOT)/osl/src/freertos all
 

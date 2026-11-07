@@ -46,6 +46,7 @@ CREATE_PROJECT = ROOT / "build" / "create-project.py"
 TOOLCHAIN = ROOT / "toolchain.make"
 MAIN_C = ROOT / "apl" / "src" / "main.c"
 STARTUP_S = ROOT / "hal" / "chip" / "startup" / "src" / "startup_stm32f429xx.s"
+PANIC_STORE_C = ROOT / "osl" / "src" / "freertos_port_st.c"
 
 
 def run(args: list[str], *, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
@@ -285,12 +286,80 @@ def case_heap_bound() -> tuple[str, str]:
     return "PASS", "把 _Min_Heap_Size 改大而不重链接后边界断言报错，已还原并重建"
 
 
+def case_noinit() -> tuple[str, str]:
+    """跨复位记录：删掉 section(".noinit") 属性后，产物断言必须报“不在 .noinit 段内”。
+
+    这是本工程最贵的静默失效：record 退回 .bss 后，Reset_Handler 每次复位都把它清零，
+    “上一次为什么 panic”永远读不到，而代码看起来完全正常。源码里有属性不代表布局对，
+    只有按 elf 里的 _snoinit / _enoinit 边界判才作数。
+    """
+    if not PANIC_STORE_C.is_file():
+        return "SKIP", f"找不到 {PANIC_STORE_C.name}"
+    before = digest(PANIC_STORE_C)
+    needle = '__attribute__((section(".noinit")))'
+
+    def drop(text: str) -> str:
+        if needle not in text:
+            raise RuntimeError('freertos_port_st.c 里找不到 section(".noinit") 属性')
+        return text.replace(needle, "__attribute__((used))", 1)
+
+    with patched(PANIC_STORE_C, drop):
+        result = create_project("build")
+        problem = expect_failure(result, "不在 .noinit 段")
+    if before != digest(PANIC_STORE_C):
+        return "ERROR", f"{PANIC_STORE_C.name} 没有还原到原始字节"
+    if problem:
+        return "FAIL", problem
+    restore = create_project("build")
+    if restore.returncode != 0:
+        return "FAIL", "破坏已还原，但恢复构建失败（产物可能仍是 .bss 版本）"
+    return "PASS", "去掉 .noinit 属性后产物断言报错，已还原并重建"
+
+
+def case_write() -> tuple[str, str]:
+    """_write 保留：从 LDFLAGS 去掉 `-Wl,-u,_write` 后，产物断言必须报“没有 _write”。
+
+    走 make 而不是 build：`build` 内部的 `update` 会先跑 toolchain 静态检查
+    （它也查 `-Wl,-u,_write`），那样就测不到产物级那条断言了 —— 与 case_fault 同理。
+    改 toolchain.make 会让所有对象过期，所以这一步会全量重编，耗时明显长于其它组。
+    """
+    make = find_make()
+    if make is None:
+        return "SKIP", "找不到 make"
+    text = TOOLCHAIN.read_text(encoding="utf-8", errors="replace")
+    if "-Wl,-u,_write" not in text:
+        return "SKIP", "toolchain.make 里本来就没有 -Wl,-u,_write"
+    env = make_env(make)
+    shell = msys_shell(make)
+    before = digest(TOOLCHAIN)
+
+    with patched(TOOLCHAIN, lambda t: t.replace(" -Wl,-u,_write", "", 1)):
+        args = [str(make), "-C", str(ROOT), "-j4", "all"]
+        if shell:
+            args.append(f"SHELL={shell}")
+        built = run(args, env=env)
+        if built.returncode != 0:
+            return "FAIL", f"去掉 -u _write 后 make 失败：\n{(built.stdout + built.stderr)[-400:]}"
+        checked = create_project("verify", "--artifacts")
+        problem = expect_failure(checked, "没有 _write")
+    if before != digest(TOOLCHAIN):
+        return "ERROR", "toolchain.make 没有还原到原始字节"
+    restore = create_project("build")
+    if problem:
+        return "FAIL", problem
+    if restore.returncode != 0:
+        return "FAIL", "破坏已还原，但恢复构建失败（产物可能仍缺 _write）"
+    return "PASS", "去掉 -Wl,-u,_write 后产物断言报错，已还原并重建"
+
+
 CASES = {
     "flags": case_flags,
     "heap": case_heap,
     "heap-bound": case_heap_bound,
     "bsp": case_bsp,
     "fault": case_fault,
+    "noinit": case_noinit,
+    "write": case_write,
 }
 
 

@@ -42,6 +42,7 @@ endif
 endif
 
 .PHONY: all clean
+
 all: $(LOCAL_OBJS)
 
 clean:

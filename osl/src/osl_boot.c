@@ -1,3 +1,5 @@
+#include <stdbool.h>
+
 #include "osl_boot.h"
 
 #include "FreeRTOS.h"
@@ -7,6 +9,15 @@
 
 volatile osl_reset_cause_t g_reset_cause = OSL_RESET_UNKNOWN;
 volatile uint32_t g_reset_csr;
+/*
+ * IWDG 的 SR 同步等待失败次数（PR / RLR 没被确认写进 LSI 域）。
+ *
+ * 单独成全局而不是直接 panic：panic 路径自己会调 osl_watchdog_relax()，
+ * 而 relax() 内部也要等 SR —— 在那里 panic 会递归。所以失败只累加计数，
+ * 由 osl_panic_report() 抄进 g_panic_record.wd_sync_fail，调试器读 record
+ * 就知道“这次现场的 32.7 s 到底有没有真的拉起来”。
+ */
+volatile uint32_t g_iwdg_sync_fail;
 
 void osl_reset_cause_capture(void)
 {
@@ -59,22 +70,39 @@ void osl_reset_cause_capture(void)
 #define IWDG_SR_SYNC_MASK (IWDG_SR_PVU | IWDG_SR_RVU)
 #define IWDG_SYNC_GUARD 0xFFFFUL
 
-static void iwdg_wait_sync(void)
+/*
+ * 返回 true：SR 的 PVU / RVU 已确认清零，这一笔 PR / RLR 真的进了 LSI 域。
+ * 返回 false：0xFFFF 次轮询都没等到（LSI 没起振或 SR 卡住），此时 PR / RLR
+ * 很可能没生效，看门狗按复位默认（/4 + 4095 ≈ 0.5 s）跑。
+ *
+ * 失败不 panic：panic 路径会先调 osl_watchdog_relax()，而 relax() 内部也要等 SR，
+ * 在那里 panic 就是递归。所以只累加 g_iwdg_sync_fail，由 osl_panic_report()
+ * 抄进 g_panic_record.wd_sync_fail —— 现场能看出“32.7 s 到底有没有拉起来”。
+ */
+static bool iwdg_wait_sync(void)
 {
     uint32_t guard = IWDG_SYNC_GUARD;
 
     while (((IWDG->SR & IWDG_SR_SYNC_MASK) != 0U) && (guard-- != 0U)) {
     }
+
+    /* “等”与“等到了没有”必须分开判：只写 while 时两者共用同一个出口，
+     * 失败完全不可见（反汇编里就是一条 bx lr），后果与修复前一模一样。 */
+    if ((IWDG->SR & IWDG_SR_SYNC_MASK) != 0U) {
+        g_iwdg_sync_fail++;
+        return false;
+    }
+    return true;
 }
 
 void osl_watchdog_start(void)
 {
     IWDG->KR = IWDG_KEY_WRITE_ENABLE;
-    iwdg_wait_sync();
+    (void)iwdg_wait_sync();
     IWDG->PR = IWDG_PR_DIV16;
-    iwdg_wait_sync();
+    (void)iwdg_wait_sync();
     IWDG->RLR = IWDG_RLR_NORMAL;
-    iwdg_wait_sync();
+    (void)iwdg_wait_sync();
     IWDG->KR = IWDG_KEY_RELOAD;
     IWDG->KR = IWDG_KEY_ENABLE;
 }
@@ -87,11 +115,11 @@ void osl_watchdog_feed(void)
 void osl_watchdog_relax(void)
 {
     IWDG->KR = IWDG_KEY_WRITE_ENABLE;
-    iwdg_wait_sync();
+    (void)iwdg_wait_sync();
     IWDG->PR = IWDG_PR_DIV256;
-    iwdg_wait_sync();
+    (void)iwdg_wait_sync();
     IWDG->RLR = IWDG_RLR_RELAXED;
-    iwdg_wait_sync();
+    (void)iwdg_wait_sync();
     IWDG->KR = IWDG_KEY_RELOAD;
 }
 
@@ -99,7 +127,7 @@ void osl_watchdog_relax(void)
  * MSP 栈底守卫。
  *
  * 链接脚本里 `_Min_Stack_Size = 0x400` 只是"在 ._user_heap_stack 段里预留 1 KB"，
- * 不是保护：MSP 从 _estack(0x20030000) 向下长，越界后落进 __heap_end__(0x20008410)
+ * 不是保护：MSP 从 _estack(0x20030000) 向下长，越界后落进 __heap_end__(0x20008460)
  * 到栈顶之间那约 159 KB 真空，不会撞到任何东西，也不会报错（configCHECK_FOR_STACK_OVERFLOW
  * 只管任务栈，管不到中断用的 MSP）。这里每个 tick 比一次 MSP，跌破预留线立刻按 7 号播报。
  */

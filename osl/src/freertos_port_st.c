@@ -95,6 +95,10 @@ typedef struct {
     /* 以下两项不是硬件现场，是"跨复位"用的：record 本身在 .noinit 里不清零。 */
     uint32_t seq;         /* 第几次 panic：同一故障反复重启时能看出累计次数 */
     uint32_t reset_cause; /* 进 panic 之前那一次复位的原因（g_reset_cause 的唯一消费点） */
+    /* 以下三项补的是“context”：这次 panic 从哪儿来、原始标志是什么、看门狗到底改成了没有。 */
+    uint32_t ipsr;         /* 0=任务上下文，>0=异常号：assert/栈溢出发生在中断里也能分清 */
+    uint32_t reset_csr;    /* RCC->CSR 原始值：reset_cause 是由它推出来的枚举，多标志同置时以此回溯 */
+    uint32_t wd_sync_fail; /* 进 panic 前的 IWDG SR 等待失败次数：0 才说明 32.7 s 真的拉起来了 */
 } panic_record_t;
 
 #define PANIC_MAGIC 0x50414E43UL /* "PANC" */
@@ -168,9 +172,17 @@ void osl_panic_report(osl_panic_code_t code)
      * 同一个故障把板子复位后再次触发 panic 时，seq 会累加（现场能分清第一次和第 N 次），
      * reset_cause 把 g_reset_cause（从 RCC->CSR 采到的复位原因）写进现场 ——
      * 这是该全局唯一的消费点，否则它就是"采集了没人读"。
+     *
+     * 同一处把"这次是任务还是中断触发的 panic"（IPSR）、CSR 原始值、
+     * 以及看门狗超时是否真的改成功（wd_sync_fail）一起落盘：
+     * 所有入口（assert / 栈溢出 / malloc 失败 / HardFault / 未实现中断 / _sbrk）
+     * 最终都走到这里，一处写入即覆盖全部路径，不必让每个钩子各写一遍。
      */
     g_panic_record.seq = (g_panic_record.magic == PANIC_MAGIC) ? (g_panic_record.seq + 1U) : 1U;
     g_panic_record.reset_cause = (uint32_t)g_reset_cause;
+    g_panic_record.ipsr = (uint32_t)__get_IPSR();
+    g_panic_record.reset_csr = g_reset_csr;
+    g_panic_record.wd_sync_fail = g_iwdg_sync_fail;
     g_panic_record.magic = PANIC_MAGIC;
     g_panic_record.code = raw;
     for (round = 0U; round < 4U; round++) {

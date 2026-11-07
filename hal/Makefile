@@ -640,15 +640,23 @@ endif
 endif
 endif
 
-.PHONY: all clean
-all: $(LOCAL_OBJS)
+.PHONY: all clean subdirs
+
+LIB := $(BUILD_DIR)/lib/libhal.a
+
+all: subdirs
+	@$(MAKE) --no-print-directory $(LIB)
+
+subdirs:
 	@$(MAKE) --no-print-directory -C $(PROJECT_ROOT)/hal/arch all
 	@$(MAKE) --no-print-directory -C $(PROJECT_ROOT)/hal/chip all
 	@$(MAKE) --no-print-directory -C $(PROJECT_ROOT)/hal/periph all
-	@mkdir -p $(dir $(BUILD_DIR)/lib/libhal.a)
-	@echo "AR $(BUILD_DIR)/lib/libhal.a"
-	@rm -f $(BUILD_DIR)/lib/libhal.a
-	$(AR) rcs $(BUILD_DIR)/lib/libhal.a $(ARCHIVE_OBJS)
+
+$(LIB): $(ARCHIVE_OBJS)
+	@mkdir -p $(dir $@)
+	@echo "AR $@"
+	@rm -f $@
+	$(AR) rcs $@ $(ARCHIVE_OBJS)
 
 clean:
 	rm -rf $(BUILD_DIR)/hal $(BUILD_DIR)/lib/libhal.a

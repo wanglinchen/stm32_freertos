@@ -18,7 +18,8 @@ INCLUDES := $(addprefix -I,$(INCLUDE_DIRS))
 FLAG_DEPS := $(wildcard $(PROJECT_ROOT)/toolchain.make) $(wildcard $(PROJECT_ROOT)/out/.config)
 
 LOCAL_OBJS :=
-.PHONY: all clean
+.PHONY: all clean subdirs
+
 all: $(LOCAL_OBJS)
 	@$(MAKE) --no-print-directory -C $(PROJECT_ROOT)/osl/src/freertos/portable/GCC/ARM_CM4F all
 

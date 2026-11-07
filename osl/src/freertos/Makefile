@@ -103,7 +103,8 @@ endif
 endif
 endif
 
-.PHONY: all clean
+.PHONY: all clean subdirs
+
 all: $(LOCAL_OBJS)
 	@$(MAKE) --no-print-directory -C $(PROJECT_ROOT)/osl/src/freertos/portable all
 

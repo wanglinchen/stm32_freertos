@@ -21,6 +21,7 @@ FLAG_DEPS := $(wildcard $(PROJECT_ROOT)/toolchain.make) $(wildcard $(PROJECT_ROO
 
 LOCAL_OBJS :=
 .PHONY: all clean
+
 all: $(LOCAL_OBJS)
 
 clean:

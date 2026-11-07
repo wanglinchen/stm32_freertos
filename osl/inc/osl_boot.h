@@ -24,6 +24,7 @@ typedef enum {
 
 extern volatile osl_reset_cause_t g_reset_cause;
 extern volatile uint32_t g_reset_csr; /* RCC->CSR 原始值，对照手册用 */
+extern volatile uint32_t g_iwdg_sync_fail; /* IWDG SR 同步等待失败次数（PR/RLR 未被确认生效） */
 
 /*
  * 由 HAL_InitTick() 早期调用一次：落盘 RCC->CSR 并清标志（RMVF）。
@@ -57,6 +58,10 @@ void osl_watchdog_feed(void);
  *
  * g_reset_cause 的消费方在 osl_panic_report()：每次 panic 都把当前复位原因写进
  * g_panic_record.reset_cause，调试器读 record 即可知道“这次 panic 之前是怎么重启的”。
+ *
+ * 注意本函数不保证成功：PR / RLR 写下去后要等 SR 的 PVU / RVU 清零才算进 LSI 域，
+ * 等不到时只累加 g_iwdg_sync_fail（不 panic，否则 panic→relax→再等失败会递归）。
+ * 所以“现场活了 32.7 s”这件事要读 g_panic_record.wd_sync_fail 才能确认：0 才是真的拉起来了。
  */
 void osl_watchdog_relax(void);
 

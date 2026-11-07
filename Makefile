@@ -10,17 +10,28 @@ ELF := $(BUILD_DIR)/$(PROJECT_NAME).elf
 HEX := $(BUILD_DIR)/$(PROJECT_NAME).hex
 BIN := $(BUILD_DIR)/$(PROJECT_NAME).bin
 
-.PHONY: all clean osl apl fml bsl hal
-all: osl apl fml bsl hal
-	@mkdir -p $(dir $(ELF))
-	@echo "LD $(ELF)"
-	$(CC) $(LDFLAGS) -o $(ELF) -Wl,--whole-archive $(BUILD_DIR)/hal/chip/startup/src/startup_stm32f429xx.o -Wl,--no-whole-archive -Wl,--start-group $(BUILD_DIR)/lib/libapl.a $(BUILD_DIR)/lib/libfml.a $(BUILD_DIR)/lib/libbsl.a $(BUILD_DIR)/lib/libosl.a $(BUILD_DIR)/lib/libhal.a -Wl,--end-group $(LDLIBS)
-	@echo "HEX $(HEX)"
-	$(OBJCOPY) -O ihex $(ELF) $(HEX)
-	@echo "BIN $(BIN)"
-	$(OBJCOPY) -O binary $(ELF) $(BIN)
+.PHONY: all clean modules osl apl fml bsl hal
+
+all:
+	@$(MAKE) --no-print-directory modules
+	@$(MAKE) --no-print-directory $(ELF) $(HEX) $(BIN)
 	@echo "SIZE $(ELF)"
 	$(SIZE) $(ELF)
+
+modules: osl apl fml bsl hal
+
+$(ELF): $(BUILD_DIR)/hal/chip/startup/src/startup_stm32f429xx.o $(BUILD_DIR)/lib/libapl.a $(BUILD_DIR)/lib/libfml.a $(BUILD_DIR)/lib/libbsl.a $(BUILD_DIR)/lib/libosl.a $(BUILD_DIR)/lib/libhal.a $(LDSCRIPT)
+	@mkdir -p $(dir $@)
+	@echo "LD $@"
+	$(CC) $(LDFLAGS) -o $@ -Wl,--whole-archive $(BUILD_DIR)/hal/chip/startup/src/startup_stm32f429xx.o -Wl,--no-whole-archive -Wl,--start-group $(BUILD_DIR)/lib/libapl.a $(BUILD_DIR)/lib/libfml.a $(BUILD_DIR)/lib/libbsl.a $(BUILD_DIR)/lib/libosl.a $(BUILD_DIR)/lib/libhal.a -Wl,--end-group $(LDLIBS)
+
+$(HEX): $(ELF)
+	@echo "HEX $@"
+	$(OBJCOPY) -O ihex $(ELF) $@
+
+$(BIN): $(ELF)
+	@echo "BIN $@"
+	$(OBJCOPY) -O binary $(ELF) $@
 
 osl apl fml bsl hal:
 	@$(MAKE) --no-print-directory -C $(PROJECT_ROOT)/$@ all

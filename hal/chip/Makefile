@@ -15,7 +15,8 @@ INCLUDES := $(addprefix -I,$(INCLUDE_DIRS))
 FLAG_DEPS := $(wildcard $(PROJECT_ROOT)/toolchain.make) $(wildcard $(PROJECT_ROOT)/out/.config)
 
 LOCAL_OBJS :=
-.PHONY: all clean
+.PHONY: all clean subdirs
+
 all: $(LOCAL_OBJS)
 	@$(MAKE) --no-print-directory -C $(PROJECT_ROOT)/hal/chip/register all
 	@$(MAKE) --no-print-directory -C $(PROJECT_ROOT)/hal/chip/startup all
