@@ -62,7 +62,7 @@ python3 build/install-toolchain.py
 
 实现细节与链接顺序以 [工程规格.md](./工程规格.md) 及 `build/create-project.py` 中 `STATIC_LIB_DIRS` / `NORMAL_LINK_LIBS` 为准。
 
-**改过门禁就跑门禁自测**：`python build/gate-selftest.py` 会逐组破坏被测条件（flags 依赖 / `-Wl,-u,_sbrk` / BSP 接入 / `Default_Handler` 跳转），要求 `verify` 报错后再还原。断言在代码正确时永远是绿的，绿一次证明不了它会拦人。全量约 150 s，`--only <组>` 可单跑。
+**改过门禁就跑门禁自测**：`python build/gate-selftest.py` 会逐组破坏被测条件（flags 依赖 / `-Wl,-u,_sbrk` / `_Min_Heap_Size` 与产物边界 / BSP 接入 / `Default_Handler` 跳转），要求 `verify` 报错后再还原。断言在代码正确时永远是绿的，绿一次证明不了它会拦人。全量约 160 s，`--only <组>` 可单跑。
 
 ## 故障排查
 

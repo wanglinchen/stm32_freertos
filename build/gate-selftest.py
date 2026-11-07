@@ -5,18 +5,19 @@
 证明它会在该报错时报错**（测试立刻通过等于没测到东西）。这里给每组断言造一个
 最小破坏，要求它以非零退出并打出预期关键字，然后还原并复核。
 
-四组（对应 `verify` 里四类"能静默失败"的门禁）：
+五组（对应 `verify` 里能静默失败的静态/产物门禁）：
 
 | 组 | 破坏方式 | 期望的失败信息 | 代价 |
 |----|----------|----------------|------|
 | flags | 不动文件，检查 `make -n -W <abs>/toolchain.make` 是否重编 | 必须打印 `CC` 行 | 秒级 |
 | heap  | 从 `toolchain.make` 删 `-Wl,-u,_sbrk` | `_sbrk` 强制引用缺失 | 秒级（静态） |
+| heap-bound | 把链接脚本的 `_Min_Heap_Size` 改大、不重链接 | 产物边界与脚本声明"已不一致" | 一次 build |
 | bsp   | 注释掉 `main()` 里的 `fml_button_start()` | 产物里找不到 `board_key_init` | 一次 build + 一次恢复 build |
 | fault | startup 的 `Default_Handler` 改回 `b Infinite_Loop` | 产物里的 `Default_Handler` 不跳 `UnhandledIRQ_Handler` | 一次 make + 一次恢复 make |
 
 用法：
 
-    python build/gate-selftest.py                 # 全部 4 组
+    python build/gate-selftest.py                 # 全部 5 组
     python build/gate-selftest.py --only bsp      # 只跑一组
     python build/gate-selftest.py --keep-going    # 某组失败也继续跑其余组
 
@@ -33,6 +34,7 @@ import argparse
 import contextlib
 import hashlib
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -248,9 +250,45 @@ def case_fault() -> tuple[str, str]:
     return "PASS", "startup 改回自旋后产物断言报错，已还原并重建"
 
 
+def case_heap_bound() -> tuple[str, str]:
+    """链接脚本与产物边界：改了 _Min_Heap_Size 却不重链接，断言必须报不一致。
+
+    这条和 `-u _sbrk` 是两回事：前者管"谁提供 _sbrk"，这里管"堆到底多大"。
+    `_Min_Heap_Size` 是布局里的魔数，只有拿 elf 里的 `__heap_start__`/`__heap_end__`
+    跟它对比才能确认两者没跑偏；单看任何一方都是绿的。这里故意只改脚本文本、
+    不重新链接，于是产物边界仍是旧值，断言必须看出来。
+    """
+    script = ROOT / "hal" / "chip" / "linker" / "stm32f429igx_flash.ld"
+    if not script.is_file():
+        return "SKIP", f"找不到 {script.name}"
+    before = digest(script)
+
+    def bump(text: str) -> str:
+        m = re.search(r"_Min_Heap_Size\s*=\s*(0x[0-9a-fA-F]+)\s*;", text)
+        if not m:
+            raise RuntimeError("链接脚本里没有 _Min_Heap_Size 声明")
+        value = int(m.group(1), 16)
+        return text.replace(m.group(0), f"_Min_Heap_Size = 0x{value * 2:X};", 1)
+
+    with patched(script, bump):
+        result = create_project("verify", "--artifacts")
+        problem = expect_failure(result, "已不一致")
+    if before != digest(script):
+        return "ERROR", f"{script.name} 没有还原到原始字节"
+    if problem:
+        return "FAIL", problem
+    # 脚本 mtime 变了，make 会重链接一次；这里主动重建，免得留下"文本已改回、
+    # 产物却按旧脚本链接"的中间状态。
+    restore = create_project("build")
+    if restore.returncode != 0:
+        return "FAIL", "破坏已还原，但恢复构建失败（产物可能仍按旧布局链接）"
+    return "PASS", "把 _Min_Heap_Size 改大而不重链接后边界断言报错，已还原并重建"
+
+
 CASES = {
     "flags": case_flags,
     "heap": case_heap,
+    "heap-bound": case_heap_bound,
     "bsp": case_bsp,
     "fault": case_fault,
 }
