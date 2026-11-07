@@ -1400,6 +1400,16 @@ def run_tool(exe: Path, elf: Path) -> str:
         return ""
 
 
+def run_tool_args(exe: Path, *args: str) -> str:
+    """执行带参数的 arm-none-eabi-*（objdump 之类）；无法执行时返回空串。"""
+    try:
+        return subprocess.run(
+            [str(exe), *args], capture_output=True, text=True, check=False
+        ).stdout
+    except OSError:
+        return ""
+
+
 def parse_capacity(text: str) -> int:
     """把链接脚本里的 192K / 1024K / 0x30000 解析成字节数。"""
     match = re.fullmatch(r"(0x[0-9a-fA-F]+|\d+)([KkMm]?)", text.strip())
@@ -1682,15 +1692,18 @@ DOC_REF_EXTENSIONS = (
 
 
 def collect_fault_errors() -> list[str]:
-    """硬件异常必须由本工程接管，不能落到 startup 的 Default_Handler。
+    """硬件异常必须由本工程接管；未实现的中断也必须留下证据。
 
-    startup_stm32f429xx.s 把四个异常入口都 .weak 别名到 Default_Handler，
-    而 Default_Handler 只是 `Infinite_Loop: b Infinite_Loop`。这条路径在编译期
-    和链接期都没有任何提示：真出现空指针 / 总线错误 / 除零时，板子只会安静停机，
-    g_panic_record 里一个字都不会留下。
+    startup_stm32f429xx.s 把四个异常入口都 .weak 别名到 Default_Handler，同时还有
+    90 个 .thumb_set …IRQHandler,Default_Handler。历史上 Default_Handler 是
+    `Infinite_Loop: b Infinite_Loop`：真出现空指针 / 总线错误 / 除零、或某个没实现的
+    中断被触发，板子只会安静停机，g_panic_record 里一个字都不会留下。
 
-    静态部分断言两件事：源码里四个入口是强定义；startup 仍保持弱别名。
-    后者是"覆盖关系"的另一半——弱别名被删掉，覆盖就不再是有意设计（而是巧合）。
+    静态部分断言三件事：
+      1) 源码里四个入口是强定义；
+      2) startup 仍保持弱别名（覆盖关系是有意设计，不是巧合）；
+      3) startup 的 Default_Handler 跳到 C 侧的 UnhandledIRQ_Handler，且不再有
+         `b Infinite_Loop`——这条改回去比硬件异常本身更容易发生，因为它是启动文件。
     """
     errors: list[str] = []
     if not FAULT_SOURCE.is_file():
@@ -1703,35 +1716,58 @@ def collect_fault_errors() -> list[str]:
         if not defined:
             errors.append(
                 f"{FAULT_SOURCE.relative_to(ROOT).as_posix()} 没有定义 {name}；"
-                "它会落到 startup 的 Default_Handler（b Infinite_Loop），"
-                "故障现场不留任何证据"
+                "它会落到 startup 的 Default_Handler，故障现场不留任何证据"
             )
+    if not re.search(r"^void\s+UnhandledIRQ_Handler\s*\(void\)", text, re.M):
+        errors.append(
+            f"{FAULT_SOURCE.relative_to(ROOT).as_posix()} 没有定义 UnhandledIRQ_Handler；"
+            "90 个未实现的中断会重新落回 Default_Handler 的自旋"
+        )
     startups = sorted((ROOT / "hal").rglob("startup_*.s"))
     if not startups:
         errors.append("未找到 hal 下的 startup_*.s，无法确认异常入口的弱别名")
     else:
         asm = read_text(startups[0])
+        rel = startups[0].relative_to(ROOT).as_posix()
+        # 只匹配真正的指令：注释里提到 "b Infinite_Loop / b UnhandledIRQ_Handler"
+        # 是在解释历史，不能算数（否则文档被自己的说明绊倒）。
+        code = re.sub(r"/\*.*?\*/", "", asm, flags=re.S)
+        code = re.sub(r"@.*", "", code)
         for name in FAULT_HANDLER_NAMES:
             if not re.search(rf"\.thumb_set\s+{name}\s*,\s*Default_Handler", asm):
                 errors.append(
-                    f"{startups[0].relative_to(ROOT).as_posix()} 里 {name} 不再弱别名到 "
-                    "Default_Handler；启动文件被改过，请重新确认异常覆盖关系"
+                    f"{rel} 里 {name} 不再弱别名到 Default_Handler；"
+                    "启动文件被改过，请重新确认异常覆盖关系"
                 )
+        if not re.search(r"^\s*b\s+UnhandledIRQ_Handler\b", code, re.M):
+            errors.append(
+                f"{rel} 的 Default_Handler 没有跳向 UnhandledIRQ_Handler；"
+                "未实现的中断会静默自旋，和硬故障无法区分"
+            )
+        if re.search(r"^\s*b\s+Infinite_Loop\b", code, re.M):
+            errors.append(
+                f"{rel} 里仍有 `b Infinite_Loop` 自旋；Default_Handler 必须转发到 "
+                "UnhandledIRQ_Handler（记录中断号并播报 code 6）"
+            )
     return errors
 
 
 def collect_fault_artifact_errors() -> list[str]:
-    """链接之后：四个异常入口必须真的进镜像，且地址不能等于 Default_Handler。
+    """链接之后：四个异常入口与 UnhandledIRQ_Handler 必须真的进镜像。
 
     与静态检查分开的原因同 collect_heap_artifact_errors()：update 里的自检发生在
     make 之前，产物还是上一轮的。这里能抓到"源码写了、但没被链接进来"的情形
     （例如将来把实现挪出 freertos_port_st.o，那个成员就不再被无条件拉入）。
+
+    Default_Handler 额外用 objdump 直接看那条指令：它必须跳到 UnhandledIRQ_Handler。
+    只看符号地址不够——符号在、但指令改回自旋，仍然是一次静默死机。
     """
     errors: list[str] = []
     nm = tool_binary("nm")
     elfs = sorted((ROOT / "out" / "object").glob("*.elf"))
     if nm is None or not elfs:
         return errors
+    objdump = tool_binary("objdump")
     for elf in elfs:
         symbols = run_tool(nm, elf)
         if not symbols:
@@ -1747,12 +1783,32 @@ def collect_fault_artifact_errors() -> list[str]:
             if entry is None or entry[1] != "T":
                 errors.append(
                     f"产物 {elf.name} 里 {name} 不是强符号 T；"
-                    "异常会落到 startup 的弱别名 Default_Handler（b Infinite_Loop）"
+                    "异常会落到 startup 的 Default_Handler"
                 )
             elif default_handler is not None and entry[0] == default_handler[0]:
                 errors.append(
                     f"产物 {elf.name} 里 {name} 与 Default_Handler 同地址 "
-                    f"0x{int(entry[0], 16):08x}（仍是 Infinite_Loop），说明强定义没生效"
+                    f"0x{int(entry[0], 16):08x}，说明强定义没生效"
+                )
+        unhandled = table.get("UnhandledIRQ_Handler")
+        if unhandled is None or unhandled[1] != "T":
+            errors.append(
+                f"产物 {elf.name} 里没有 UnhandledIRQ_Handler；"
+                "Default_Handler 的跳转目标没进镜像（会被 --gc-sections 收走）"
+            )
+        elif default_handler is not None and objdump is not None:
+            start = int(default_handler[0], 16)
+            dis = run_tool_args(
+                objdump,
+                "-d",
+                f"--start-address=0x{start:08x}",
+                f"--stop-address=0x{start + 4:08x}",
+                str(elf),
+            )
+            if "UnhandledIRQ_Handler" not in dis:
+                errors.append(
+                    f"产物 {elf.name} 里 Default_Handler(0x{start:08x}) 的第一条指令"
+                    "不是跳到 UnhandledIRQ_Handler"
                 )
     return errors
 

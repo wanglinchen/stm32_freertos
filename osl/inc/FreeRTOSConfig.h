@@ -46,7 +46,8 @@ extern uint32_t SystemCoreClock;
     (configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY << (8 - configPRIO_BITS))
 
 #define configUSE_IDLE_HOOK                   0
-#define configUSE_TICK_HOOK                   0
+/* tick hook 承载看门狗喂狗：tick 停了就没人喂，1 s 后复位（见 osl/inc/osl_boot.h）。 */
+#define configUSE_TICK_HOOK                   1
 #define configUSE_MALLOC_FAILED_HOOK          1
 #define configCHECK_FOR_STACK_OVERFLOW        2
 

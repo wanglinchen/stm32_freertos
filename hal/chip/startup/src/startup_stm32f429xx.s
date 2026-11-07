@@ -111,15 +111,20 @@ _init:
 
 /**
  * @brief  This is the code that gets called when the processor receives an 
- *         unexpected interrupt.  This simply enters an infinite loop, preserving
- *         the system state for examination by a debugger.
+ *         unexpected interrupt.  It jumps to UnhandledIRQ_Handler (C), which
+ *         records SCB->ICSR.VECTACTIVE in g_panic_record and reports panic code 6.
+ *         (Upstream CubeMX code just spun on `b Infinite_Loop`, which left no
+ *         evidence and could not be distinguished from a hard fault.)
  * @param  None     
  * @retval None       
 */
     .section  .text.Default_Handler,"ax",%progbits
 Default_Handler:
 Infinite_Loop:
-  b  Infinite_Loop
+  /* 原实现是 b Infinite_Loop：静默自旋，和硬故障无法区分。
+     改为跳 C 侧的 UnhandledIRQ_Handler（记录 ICSR.VECTACTIVE 后播报 code 6 停机）。
+     Infinite_Loop 标签保留，仅作为符号存在。 */
+  b  UnhandledIRQ_Handler
   .size  Default_Handler, .-Default_Handler
 /******************************************************************************
 *

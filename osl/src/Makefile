@@ -19,6 +19,7 @@ FLAG_DEPS := $(wildcard $(PROJECT_ROOT)/toolchain.make) $(wildcard $(PROJECT_ROO
 
 LOCAL_OBJS :=
 -include $(BUILD_DIR)/osl/src/freertos_port_st.d
+-include $(BUILD_DIR)/osl/src/osl_boot.d
 
 ifeq ($(CONFIG_OSL),y)
 ifeq ($(CONFIG_OSL_SRC),y)
@@ -28,6 +29,17 @@ $(BUILD_DIR)/osl/src/freertos_port_st.o: $(PROJECT_ROOT)/osl/src/freertos_port_s
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/osl/src/freertos_port_st.d -c $< -o $@
 	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/osl/src/freertos_port_st.d
+endif
+endif
+
+ifeq ($(CONFIG_OSL),y)
+ifeq ($(CONFIG_OSL_SRC),y)
+LOCAL_OBJS += $(BUILD_DIR)/osl/src/osl_boot.o
+$(BUILD_DIR)/osl/src/osl_boot.o: $(PROJECT_ROOT)/osl/src/osl_boot.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/osl/src/osl_boot.d -c $< -o $@
+	@$(PYTHON) -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/osl/src/osl_boot.d
 endif
 endif
 

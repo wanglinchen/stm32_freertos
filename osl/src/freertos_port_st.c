@@ -5,6 +5,7 @@
 #include "stm32f4xx_hal.h"
 #include "system_stm32f4xx.h"
 #include "osl_panic.h"
+#include "osl_boot.h"
 
 /*
  * 时基归属（唯一所有者为 HAL，FreeRTOS 只拥有自己的 tick）：
@@ -37,6 +38,8 @@ static void hal_time_base_init(void)
 HAL_StatusTypeDef HAL_InitTick(uint32_t TickPriority)
 {
     (void)TickPriority;
+    /* 最先做：把上一次的复位原因从 RCC->CSR 取走，晚一步就可能被新的复位覆盖。 */
+    osl_reset_cause_capture();
     hal_time_base_init();
     fault_monitor_init(); /* 打开 MemManage/BusFault/UsageFault，否则三类都升级成 HardFault */
     return HAL_OK;
@@ -77,6 +80,7 @@ typedef struct {
     uint32_t fault_bfar;
     uint32_t fault_exc_return;
     uint32_t fault_frame_type; /* 1 基本帧（8 字）/ 2 扩展帧（26 字，用了 FPU） */
+    uint32_t unhandled_irq;    /* Default_Handler 收到未实现的中断时，记录 ICSR.VECTACTIVE */
     uint32_t fault_sp;
     uint32_t fault_r0;
     uint32_t fault_r1;
@@ -145,6 +149,8 @@ void osl_panic_report(osl_panic_code_t code)
     uint32_t raw = (uint32_t)code;
     uint16_t mask;
 
+    /* 先把看门狗超时拉到最长再播报：否则 1 s 后就复位，三灯还没来得及闪完。 */
+    osl_watchdog_relax();
     g_panic_record.code = raw;
     for (round = 0U; round < 4U; round++) {
         for (bit = 0U; bit < 3U; bit++) {
@@ -267,6 +273,19 @@ DEFINE_FAULT_HANDLER(HardFault_Handler, FAULT_KIND_HARD)
 DEFINE_FAULT_HANDLER(MemManage_Handler, FAULT_KIND_MEM)
 DEFINE_FAULT_HANDLER(BusFault_Handler, FAULT_KIND_BUS)
 DEFINE_FAULT_HANDLER(UsageFault_Handler, FAULT_KIND_USAGE)
+
+/*
+ * startup_stm32f429xx.s 的 Default_Handler 原本是 `b Infinite_Loop`：90 个没有实现的
+ * 中断、以及向量表里未定义的槽位全落在那里，表现和硬故障一模一样——板子安静停住，
+ * 什么都不留。现在 .s 里改成跳到这里：记录中断号后按 code 6 播报停机。
+ * 中断号可以对照启动文件里的 .thumb_set 顺序，或直接看 SCB->ICSR 的 VECTACTIVE。
+ */
+void UnhandledIRQ_Handler(void)
+{
+    g_panic_record.magic = PANIC_MAGIC;
+    g_panic_record.unhandled_irq = SCB->ICSR & SCB_ICSR_VECTACTIVE_Msk;
+    osl_panic_report(OSL_PANIC_HARDWARE_FAULT);
+}
 
 /* configCHECK_FOR_STACK_OVERFLOW == 2 要求应用提供该钩子，否则 tasks.c 无法链接。 */
 void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
