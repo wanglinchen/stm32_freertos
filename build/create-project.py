@@ -1209,6 +1209,7 @@ def verify(artifacts: bool = False, *, check_symbols: bool = True) -> None:
     errors.extend(collect_heap_errors())
     errors.extend(collect_fault_errors())
     errors.extend(collect_warning_gate_errors())
+    errors.extend(collect_isr_priority_errors())
     errors.extend(collect_memory_metadata_errors())
     errors.extend(collect_doc_reference_errors())
     if check_symbols:
@@ -1690,6 +1691,27 @@ def collect_artifact_errors() -> list[str]:
                 f"产物 {elf.name} 的 iwdg_wait_sync 里没有任何 str：成功与超时共用一个出口，"
                 "LSI 没起振时 PR/RLR 未生效不可见（N18 的回退）"
             )
+    # 软件定时器是“开了但没人用”的典型：configUSE_TIMERS=1 会让 timers.c 整个编进来，
+    # 即使自研代码一次都没调 xTimer* —— 一个 timer task（128 词栈 + TCB）、一个 8 项
+    # 定时器队列，加上整条过期链表的维护逻辑全白占（实测约 510 B Flash + 约 0.8 KB RAM）。
+    # 判据用符号在场而不是“有没有调用”：关掉后 timers.c 不参与编译，符号必然消失；
+    # 哪天真需要软件定时器，回来删掉这条断言并写明理由 —— 不许静默重新打开。
+    timer_symbols = [
+        name
+        for name in (
+            "xTimerCreateTimerTask",
+            "prvTimerTask",
+            "prvProcessTimerOrBlockTask",
+        )
+        if re.search(rf"^[0-9a-fA-F]+\s+[A-Za-z]\s+{name}$", symbols, re.MULTILINE)
+    ]
+    if timer_symbols:
+        errors.append(
+            f"产物 {elf.name} 里编进了软件定时器（{', '.join(timer_symbols)}）："
+            "configUSE_TIMERS 开着但工程里没有任何 xTimer* 使用方，"
+            "timer task 的栈/TCB、8 项定时器队列与过期链表维护都在白占 RAM 和 Flash"
+            "（要么在 FreeRTOSConfig.h 关掉它，要么真正用起来并说明理由）"
+        )
     if not errors:
         heap_note = ""
         if heap_bytes:
@@ -1862,6 +1884,78 @@ def collect_warning_gate_errors() -> list[str]:
                 f"{path.relative_to(ROOT).as_posix()} 里没有 {flag}；"
                 "编译警告门禁被关掉了（干净代码看不出差别，新引入的告警会漏过去）"
             )
+    return errors
+
+
+RTOS_ISR_API = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*FromISR|portYIELD_FROM_ISR)\s*\(")
+NVIC_PRIORITY_CALL = re.compile(
+    r"HAL_NVIC_SetPriority\s*\(\s*[A-Za-z0-9_]+(?:_IRQn|[0-9]+)\s*,\s*([0-9]+|0x[0-9A-Fa-f]+)"
+)
+
+
+def collect_isr_priority_errors() -> list[str]:
+    """中断里调用 FreeRTOS 的 ISR 变体时，NVIC 抢占优先级必须能进临界区。
+
+    FreeRTOS 的临界区靠 `BASEPRI = configMAX_SYSCALL_INTERRUPT_PRIORITY` 屏蔽中断，
+    抢占优先级数值**小于**它的中断根本不受屏蔽。在这样的中断里调 `*FromISR`，
+    对内核链表/延迟列表的修改会和任务侧的临界区互相撕扯——而且功能上看不出任何异常，
+    只在偶发的链表损坏或丢唤醒时暴露。
+
+    现状（已核查，不是缺陷）：自研层一个 `*FromISR` 调用都没有，唯一的周期中断由
+    `port.c` 的 `xPortStartScheduler()` 把 SysTick/PendSV 设成 0xFF（最低），
+    SVCall 设成 0（正常）；`vPortValidateInterruptPriority()` 因此没有调用方，
+    `--gc-sections` 把它丢掉是正确结果，不是缺口。
+
+    这条断言的作用是防回归：一旦有人开始用，就必须在同一文件里给出该中断的
+    `HAL_NVIC_SetPriority` 且数值 ≥ `configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY`。
+    注意它只看文本、不剥注释——注释里提到这些名字同样算命中，这是有意的：
+    与其在构建脚本里写一个半吊子的 C 词法分析器，不如让这种提及也报出来（改措辞即可）。
+    """
+    errors: list[str] = []
+    config = ROOT / "osl" / "inc" / "FreeRTOSConfig.h"
+    if not config.is_file():
+        return ["缺少 osl/inc/FreeRTOSConfig.h，无法确认中断优先级约定"]
+    config_text = read_text(config)
+    if not re.search(r"#define\s+configASSERT\s*\(", config_text):
+        errors.append(
+            "FreeRTOSConfig.h 没有定义 configASSERT：vPortValidateInterruptPriority() 不会被编进来，"
+            "在过高的优先级上调 ISR 版 API 不会当场失败（只会偶发内核结构损坏）"
+        )
+    limit = 5
+    syscall = re.search(
+        r"#define\s+configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY\s+([0-9]+|0x[0-9A-Fa-f]+)",
+        config_text,
+    )
+    if syscall is None:
+        errors.append(
+            "FreeRTOSConfig.h 里没有 configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY 的数值定义，"
+            "无法判断哪个优先级的中断还能进临界区"
+        )
+    else:
+        limit = int(syscall.group(1), 0)
+    for layer in ("apl", "fml", "bsl", "osl", "hal"):
+        for path in sorted((ROOT / layer).rglob("*.c")):
+            if "freertos" in path.parts:
+                continue  # 内核自身的 *FromISR 由 port.c 的校验负责
+            body = read_text(path)
+            hits = sorted(set(RTOS_ISR_API.findall(body)))
+            if not hits:
+                continue
+            rel = path.relative_to(ROOT).as_posix()
+            priorities = [int(value, 0) for value in NVIC_PRIORITY_CALL.findall(body)]
+            if not priorities:
+                errors.append(
+                    f"{rel} 在中断里调用了 {', '.join(hits)}，但文件里没有 HAL_NVIC_SetPriority(...)："
+                    f"无法证明该中断被临界区（BASEPRI = {limit}）屏蔽；"
+                    "ISR 版 API 只能在抢占优先级数值 ≥ 该值的中断里使用"
+                )
+                continue
+            if min(priorities) < limit:
+                errors.append(
+                    f"{rel} 在中断里调用了 {', '.join(hits)}，但该文件设置的最紧急优先级是 "
+                    f"{min(priorities)}，高于 configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY（{limit}）："
+                    "这样的中断不受 taskENTER_CRITICAL 屏蔽，与内核共享的链表会被并发修改"
+                )
     return errors
 
 

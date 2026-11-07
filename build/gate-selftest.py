@@ -48,6 +48,7 @@ TOOLCHAIN = ROOT / "toolchain.make"
 MAIN_C = ROOT / "apl" / "src" / "main.c"
 STARTUP_S = ROOT / "hal" / "chip" / "startup" / "src" / "startup_stm32f429xx.s"
 PANIC_STORE_C = ROOT / "osl" / "src" / "freertos_port_st.c"
+FML_BUTTON_C = ROOT / "fml" / "src" / "fml_button.c"
 
 
 def run(args: list[str], *, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
@@ -209,6 +210,26 @@ def case_bsp() -> tuple[str, str]:
     if restore.returncode != 0:
         return "FAIL", "破坏已还原，但恢复构建失败（产物可能仍缺 BSP）"
     return "PASS", "去掉 fml_button_start() 后产物断言报错，已还原并重建"
+
+
+def case_isr_priority() -> tuple[str, str]:
+    """中断优先级约定：出现 *FromISR 却没给出该中断的 NVIC 优先级时，verify 必须报错。
+
+    纯静态断言（不编译、不要产物），所以这组跑得最快，也最容易在干净树上复现。
+    探针写在注释里就足够：`collect_isr_priority_errors()` 只看文本，不剥注释。
+    """
+    before = digest(FML_BUTTON_C)
+    with patched(
+        FML_BUTTON_C,
+        lambda t: t + '\n/* gate-selftest: xQueueReceiveFromISR(q, &item, 0U); */\n',
+    ):
+        result = create_project("verify")
+        problem = expect_failure(result, "ISR 版 API")
+    if before != digest(FML_BUTTON_C):
+        return "ERROR", "fml_button.c 没有还原到原始字节"
+    if problem:
+        return "FAIL", problem
+    return "PASS", "插入 ISR 版 API 调用而不给优先级后 verify 报错，已还原"
 
 
 def case_fault() -> tuple[str, str]:
@@ -465,6 +486,7 @@ CASES = {
     "write": case_write,
     "record-size": case_record_size,
     "iwdg-str": case_iwdg_str,
+    "isr-prio": case_isr_priority,
     "health": case_health,
 }
 

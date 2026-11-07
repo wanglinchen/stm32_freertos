@@ -19,10 +19,15 @@ extern uint32_t SystemCoreClock;
 #define configQUEUE_REGISTRY_SIZE             0
 #define configENABLE_BACKWARD_COMPATIBILITY   0
 
-#define configUSE_TIMERS                      1
-#define configTIMER_TASK_PRIORITY             (configMAX_PRIORITIES - 1)
-#define configTIMER_TASK_STACK_DEPTH          configMINIMAL_STACK_SIZE
-#define configTIMER_QUEUE_LENGTH              8
+/*
+ * 软件定时器不用：自研代码里一次 xTimer* 调用都没有，开着只会让 timers.c 整个编进来——
+ * 一个 timer task（configMINIMAL_STACK_SIZE 词栈 + TCB）、一个 8 项定时器队列，
+ * 外加整条过期链表的维护逻辑全部白占（实测约 510 B Flash + 约 0.8 KB RAM）。
+ * 上面三个 configTIMER_* 一并删掉：留着只会在关掉之后仍让人以为“有定时器在用”。
+ * 哪天真需要软件定时器，改回 1 并把这三项加回来，同时删掉 verify 里
+ * “软件定时器不得进镜像”那条产物断言（它会直接报红，别绕过）。
+ */
+#define configUSE_TIMERS                      0
 
 #define configUSE_EVENT_GROUPS                1
 #define configUSE_STREAM_BUFFERS              1

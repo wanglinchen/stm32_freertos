@@ -64,7 +64,7 @@ python3 build/install-toolchain.py
 
 实现细节与链接顺序以 [工程规格.md](./工程规格.md) 及 `build/create-project.py` 中 `STATIC_LIB_DIRS` / `NORMAL_LINK_LIBS` 为准。
 
-**改过门禁就跑门禁自测**：`python build/gate-selftest.py` 会逐组破坏被测条件（flags 依赖 / `-Wl,-u,_sbrk` / `_Min_Heap_Size` 与产物边界 / BSP 接入 / `Default_Handler` 跳转 / `.noinit` 属性 / `-Wl,-u,_write` / panic 记录尺寸 / `iwdg_wait_sync` 的 `str` / 堆栈水位符号），要求 `verify` 报错后再还原。断言在代码正确时永远是绿的，绿一次证明不了它会拦人。全量 10 组双端实测：本机 Windows 461.5 s、云主机 Linux 1417.7 s，均 10 PASS（每组都要重编，`write` 组串行全量重编最慢），`--only <组>` 可单跑，`--list` 打印组名的 JSON 数组。CI 也在跑它：`.github/workflows/build.yml` 的 `gate-list` job 用 `--list` 输出组名，`gate-selftest` job 按矩阵并行，一组一个 job —— 组名只有 `CASES` 一份来源，不硬编码，新增一组自动进矩阵。实测（run `42376978059`）12 个 job 全绿、从创建到结束 32 s（工具链缓存命中时；首次要拉 ARM 工具链会再加十几秒）。
+**改过门禁就跑门禁自测**：`python build/gate-selftest.py` 会逐组破坏被测条件（flags 依赖 / `-Wl,-u,_sbrk` / `_Min_Heap_Size` 与产物边界 / BSP 接入 / `Default_Handler` 跳转 / `.noinit` 属性 / `-Wl,-u,_write` / panic 记录尺寸 / `iwdg_wait_sync` 的 `str` / 堆栈水位符号 / 中断里用 ISR 版 API 是否给出优先级），要求 `verify` 报错后再还原。断言在代码正确时永远是绿的，绿一次证明不了它会拦人。全量 10 组双端实测：本机 Windows 461.5 s、云主机 Linux 1417.7 s，均 10 PASS（每组都要重编，`write` 组串行全量重编最慢），`--only <组>` 可单跑，`--list` 打印组名的 JSON 数组。CI 也在跑它：`.github/workflows/build.yml` 的 `gate-list` job 用 `--list` 输出组名，`gate-selftest` job 按矩阵并行，一组一个 job —— 组名只有 `CASES` 一份来源，不硬编码，新增一组自动进矩阵。实测（run `42376978059`）12 个 job 全绿、从创建到结束 32 s（工具链缓存命中时；首次要拉 ARM 工具链会再加十几秒）。
 
 ## 故障排查
 
@@ -90,6 +90,7 @@ python3 build/install-toolchain.py
 | 编译报 `implicit declaration of function 'HAL_XXX_...'` | `hal_conf.h` 底部少了该模块的 `#ifdef … / #include …` 块（模块开关还开着，但顶层头没引入） | `verify` 会直接报"缺 `#ifdef … / #include` 块"并列出模块名；按「工程规格」HAL 配置一节补齐四处对应关系 |
 | 编译报 `attempt to use poisoned "malloc"` | `osl_alloc_guard.h` 用 `#pragma GCC poison` 禁掉了 newlib 的分配入口（newlib 堆只有 512 B，而它到 `_estack` 之间是约 159 KB 无保护真空，越界既不撞栈也不报错） | 改成 `pvPortMalloc` / `vPortFree`；确实需要 newlib 堆时不要拆守卫，而是把 `_Min_Heap_Size` 提到 2048 B 以上并重算 RAM 预算 |
 | 产物断言报"链接了 newlib 分配器（`_malloc_r`），但 newlib 堆只有 512 字节" | 有人用 `_malloc_r` 等内部入口绕过了 poison，把 newlib 分配器拉进镜像 | 同上：改用 `pvPortMalloc`，或按上面的门禁把堆提到下限以上 |
+| 产物断言报“编进了软件定时器（`xTimerCreateTimerTask` / `prvTimerTask` / …）” | 有人把 `configUSE_TIMERS` 改回 1，但工程里依然没有任何 `xTimer*` 使用方 | 关掉它（连同 `configTIMER_TASK_PRIORITY` / `configTIMER_TASK_STACK_DEPTH` / `configTIMER_QUEUE_LENGTH` 一起删）；真要软件定时器就把它用起来，并删掉这条产物断言、写明理由 |
 | 同一提交在两台机器/两个目录编出的镜像大小不同、`.bin` 哈希不同 | 路径被编进镜像：`configASSERT` 把 `__FILE__` 传给 `vAssertFailed`，`-g3` 又把源码绝对路径写进调试段 | `objdump -s -j .rodata` 看有没有 `D:/.../osl/src/freertos/tasks.c`；`toolchain.make` 必须有 `-ffile-prefix-map=$(PROJECT_ROOT)=.`（详见「工程规格」的「可复现构建」）。注意跨 OS 工具链包自带库不同，字节一致只在同包内成立 |
 
 ## 硬规则
