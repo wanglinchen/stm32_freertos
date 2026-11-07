@@ -233,10 +233,14 @@ def case_fault() -> tuple[str, str]:
         "  b  UnhandledIRQ_Handler", "  b  Infinite_Loop"
     )):
         built = make_all()
+        problem = ""
         if built.returncode != 0:
-            return "FAIL", f"破坏后 make 失败（{built.returncode}）：\n{(built.stdout + built.stderr)[-400:]}"
-        checked = create_project("verify", "--artifacts")
-        problem = expect_failure(checked, "Default_Handler")
+            # 不要在这里直接 return：那会把半成品镜像留在工作区，
+            # 后续组（noinit / write / record-size / iwdg-str）全部连着挂。
+            problem = f"破坏后 make 失败（{built.returncode}）：\n{(built.stdout + built.stderr)[-400:]}"
+        else:
+            checked = create_project("verify", "--artifacts")
+            problem = expect_failure(checked, "Default_Handler")
     if before != digest(STARTUP_S):
         return "ERROR", "startup 没有还原到原始字节"
     restore = make_all()
@@ -334,14 +338,17 @@ def case_write() -> tuple[str, str]:
     before = digest(TOOLCHAIN)
 
     with patched(TOOLCHAIN, lambda t: t.replace(" -Wl,-u,_write", "", 1)):
-        args = [str(make), "-C", str(ROOT), "-j4", "all"]
+        # 串行 make：改 toolchain.make 会让所有对象过期，这是一次必然的全量重编。
+        args = [str(make), "-C", str(ROOT), "all"]
         if shell:
             args.append(f"SHELL={shell}")
         built = run(args, env=env)
+        problem = ""
         if built.returncode != 0:
-            return "FAIL", f"去掉 -u _write 后 make 失败：\n{(built.stdout + built.stderr)[-400:]}"
-        checked = create_project("verify", "--artifacts")
-        problem = expect_failure(checked, "没有 _write")
+            problem = f"去掉 -u _write 后 make 失败：\n{(built.stdout + built.stderr)[-400:]}"
+        else:
+            checked = create_project("verify", "--artifacts")
+            problem = expect_failure(checked, "没有 _write")
     if before != digest(TOOLCHAIN):
         return "ERROR", "toolchain.make 没有还原到原始字节"
     restore = create_project("build")
@@ -352,6 +359,63 @@ def case_write() -> tuple[str, str]:
     return "PASS", "去掉 -Wl,-u,_write 后产物断言报错，已还原并重建"
 
 
+def case_record_size() -> tuple[str, str]:
+    """panic 记录尺寸：删掉 wd_sync_fail 字段（连同那行写入）后，产物断言必须报尺寸不足。
+
+    尺寸是“三个上下文字段真的编进结构体”的唯一产物级证据。只删字段不改断言时，
+    构建照样成功，调试器读 `g_panic_record.wd_sync_fail` 拿到的就是下一段内存。
+    """
+    if not PANIC_STORE_C.is_file():
+        return "SKIP", f"找不到 {PANIC_STORE_C.name}"
+    before = digest(PANIC_STORE_C)
+
+    def drop(text: str) -> str:
+        field = "    uint32_t wd_sync_fail;"
+        write = "    g_panic_record.wd_sync_fail = g_iwdg_sync_fail;\n"
+        if field not in text or write not in text:
+            raise RuntimeError("freertos_port_st.c 里找不到 wd_sync_fail 的字段或写入")
+        return text.replace(field, "", 1).replace(write, "", 1)
+
+    with patched(PANIC_STORE_C, drop):
+        result = create_project("build")
+        problem = expect_failure(result, "g_panic_record 只有")
+    if before != digest(PANIC_STORE_C):
+        return "ERROR", f"{PANIC_STORE_C.name} 没有还原到原始字节"
+    if problem:
+        return "FAIL", problem
+    restore = create_project("build")
+    if restore.returncode != 0:
+        return "FAIL", "破坏已还原，但恢复构建失败（record 可能仍是 120 B）"
+    return "PASS", "删掉 wd_sync_fail 后产物断言报尺寸不足，已还原并重建"
+
+
+def case_iwdg_str() -> tuple[str, str]:
+    """看门狗同步等待：把失败计数删掉后，产物断言必须报“没有任何 str”。
+
+    只写 while 循环时成功与超时共用一条 `bx lr`，LSI 没起振、PR/RLR 没生效这件事
+    在镜像里完全不可见；这条断言就是盯它。
+    """
+    source = ROOT / "osl" / "src" / "osl_boot.c"
+    if not source.is_file():
+        return "SKIP", f"找不到 {source.name}"
+    before = digest(source)
+
+    def drop(text: str) -> str:
+        return re.sub(r"g_iwdg_sync_fail\+\+;", "/* gate-selftest: removed */", text, count=1)
+
+    with patched(source, drop):
+        result = create_project("build")
+        problem = expect_failure(result, "没有任何 str")
+    if before != digest(source):
+        return "ERROR", f"{source.name} 没有还原到原始字节"
+    if problem:
+        return "FAIL", problem
+    restore = create_project("build")
+    if restore.returncode != 0:
+        return "FAIL", "破坏已还原，但恢复构建失败（iwdg_wait_sync 可能仍是单出口）"
+    return "PASS", "删掉 g_iwdg_sync_fail++ 后产物断言报无 str，已还原并重建"
+
+
 CASES = {
     "flags": case_flags,
     "heap": case_heap,
@@ -360,6 +424,8 @@ CASES = {
     "fault": case_fault,
     "noinit": case_noinit,
     "write": case_write,
+    "record-size": case_record_size,
+    "iwdg-str": case_iwdg_str,
 }
 
 
