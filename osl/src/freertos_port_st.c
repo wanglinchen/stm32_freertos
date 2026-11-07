@@ -4,6 +4,7 @@
 #include "task.h"
 #include "stm32f4xx_hal.h"
 #include "system_stm32f4xx.h"
+#include "osl_panic.h"
 
 /*
  * 时基归属（唯一所有者为 HAL，FreeRTOS 只拥有自己的 tick）：
@@ -59,12 +60,7 @@ uint32_t HAL_GetTick(void)
 /* ------------------------------------------------------------------------- */
 /* 故障现场：钩子必须留下证据，否则板子只会“安静地不动”                      */
 /* ------------------------------------------------------------------------- */
-
-#define PANIC_STACK_OVERFLOW 1U
-#define PANIC_MALLOC_FAILED 2U
-#define PANIC_ASSERT 3U
-#define PANIC_HEAP_EXHAUSTED 5U
-#define PANIC_HARDWARE_FAULT 6U /* LED 只有 3 位，可编码 0..7；硬件故障归为这一类，细分见 fault_kind */
+/* 码值定义在 osl/inc/osl_panic.h，与 fml 共用一份；这里不再各自定义。 */
 
 typedef struct {
     uint32_t magic;
@@ -80,6 +76,7 @@ typedef struct {
     uint32_t fault_mmfar;
     uint32_t fault_bfar;
     uint32_t fault_exc_return;
+    uint32_t fault_frame_type; /* 1 基本帧（8 字）/ 2 扩展帧（26 字，用了 FPU） */
     uint32_t fault_sp;
     uint32_t fault_r0;
     uint32_t fault_r1;
@@ -138,21 +135,21 @@ static void panic_leds(uint16_t low_mask)
 /*
  * 以“闪灯次数 = 错误码”输出，3 位二进制用三颗灯，
  * 末段全亮表示故障码播报结束，之后停机。
+ * 对外入口，fml 的 fml_led_panic 也走这里（码表见 osl/inc/osl_panic.h）。
+ * 注意：本函数会自己配灯脚，所以不依赖 board_led_init() 是否已经跑过。
  */
-static void panic_report(uint32_t code)
-    __attribute__((noreturn));
-
-static void panic_report(uint32_t code)
+void osl_panic_report(osl_panic_code_t code)
 {
     uint32_t bit;
     uint32_t round;
+    uint32_t raw = (uint32_t)code;
     uint16_t mask;
 
-    g_panic_record.code = code;
+    g_panic_record.code = raw;
     for (round = 0U; round < 4U; round++) {
         for (bit = 0U; bit < 3U; bit++) {
             mask = (uint16_t)(1U << (10U + bit));
-            panic_leds(((code >> bit) & 1U) != 0U ? mask : 0U);
+            panic_leds(((raw >> bit) & 1U) != 0U ? mask : 0U);
         }
     }
     panic_leds(0x1C00U); /* 全亮收尾 */
@@ -199,6 +196,9 @@ static void fault_monitor_init(void)
     __ISB();
 }
 
+/* 扩展帧 26 字 = 0x68 字节（S0..S15 + FPSCR + 保留字 + R0..xPSR） */
+#define PANIC_FRAME_MAX_BYTES 0x68U
+
 static void fault_report(uint32_t kind, uint32_t exc_return)
     __attribute__((noreturn));
 
@@ -206,6 +206,8 @@ static void fault_report(uint32_t kind, uint32_t exc_return)
 {
     uint32_t sp;
     uint32_t *frame;
+    uint32_t frame_type;
+    uint32_t frame_offset;
 
     g_panic_record.magic = PANIC_MAGIC;
     g_panic_record.fault_kind = kind;
@@ -219,11 +221,22 @@ static void fault_report(uint32_t kind, uint32_t exc_return)
     sp = ((exc_return & 0x4U) != 0U) ? __get_PSP() : __get_MSP();
     g_panic_record.fault_sp = sp;
 
-    /* 异常帧固定 8 个字（R0/R1/R2/R3/R12/LR/PC/xPSR）。
-     * SP 明显不在 RAM（0x20000000..0x20030000，192 KB）里时说明栈已经崩了，
-     * 这时再去读它只会二次 fault，宁可留空。 */
-    if (sp >= 0x20000000U && sp < 0x2002FFE0U) {
-        frame = (uint32_t *)sp;
+    /*
+     * EXC_RETURN 的 bit4 决定帧类型：
+     *   1 = 基本帧（8 字）：R0 在 +0x00、LR 在 +0x14、PC 在 +0x18；
+     *   0 = 扩展帧（26 字）：硬件先把 S0..S15/FPSCR 压到低地址，
+     *       R0 在 +0x48、LR 在 +0x5C、PC 在 +0x60。
+     * M4F port 开了 FPU 且默认懒压栈：只要被中断的上下文用过浮点，硬件就压
+     * 扩展帧。以前恒按 8 字取值，这时 fault_pc 里存的是 S6 —— 错误的 PC 比没有更糟。
+     */
+    frame_type = ((exc_return & 0x10U) != 0U) ? 1U : 2U;
+    frame_offset = (frame_type == 1U) ? 0U : 0x48U;
+    g_panic_record.fault_frame_type = frame_type;
+
+    /* SP 必须留在 RAM（0x20000000..0x20030000，192 KB）且整帧不越过栈顶，
+     * 否则说明栈已经崩了，再去读只会二次 fault，宁可留空。 */
+    if (sp >= 0x20000000U && sp <= 0x20030000U - PANIC_FRAME_MAX_BYTES) {
+        frame = (uint32_t *)(sp + frame_offset);
         g_panic_record.fault_r0 = frame[0];
         g_panic_record.fault_r1 = frame[1];
         g_panic_record.fault_r2 = frame[2];
@@ -234,7 +247,7 @@ static void fault_report(uint32_t kind, uint32_t exc_return)
         g_panic_record.fault_xpsr = frame[7];
     }
 
-    panic_report(PANIC_HARDWARE_FAULT);
+    osl_panic_report(OSL_PANIC_HARDWARE_FAULT);
 }
 
 /*
@@ -271,15 +284,15 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
         }
         g_panic_record.task_name[i] = '\0';
     }
-    panic_report(PANIC_STACK_OVERFLOW);
+    osl_panic_report(OSL_PANIC_STACK_OVERFLOW);
 }
 
 /* 任务/堆创建失败：同样要看得见，否则“什么都没发生”是唯一的症状。 */
 void vApplicationMallocFailedHook(void)
 {
     g_panic_record.magic = PANIC_MAGIC;
-    g_panic_record.code = PANIC_MALLOC_FAILED;
-    panic_report(PANIC_MALLOC_FAILED);
+    g_panic_record.code = (uint32_t)OSL_PANIC_CREATE_FAILED;
+    osl_panic_report(OSL_PANIC_CREATE_FAILED);
 }
 
 /* configASSERT 的落点：记录文件名/行号（调试器可读 g_panic_record）后播报。 */
@@ -288,7 +301,7 @@ void vAssertFailed(const char *file, uint32_t line)
     g_panic_record.magic = PANIC_MAGIC;
     g_panic_record.assert_file = file;
     g_panic_record.assert_line = line;
-    panic_report(PANIC_ASSERT);
+    osl_panic_report(OSL_PANIC_ASSERT);
 }
 
 /*
@@ -300,10 +313,11 @@ void vAssertFailed(const char *file, uint32_t line)
  *
  * 现在：__heap_start__ / __heap_end__ 由 stm32f429igx_flash.ld 在
  * ._user_heap_stack 段内输出（两者之差正好 _Min_Heap_Size），越界立刻
- * panic(5)（三灯闪 5 次），让"谁在大块 malloc"成为现场可见的事实。
+ * panic(5)（三灯按二进制播报 5），让"谁在大块 malloc"成为现场可见的事实。
  *
- * 规则：这个堆只配给 newlib 内部的小临时（printf 缓冲之类）；
- * 任何跨函数、长期持有的分配一律走 FreeRTOS 的 pvPortMalloc。
+ * 规则：这个堆只配给 newlib 内部的临时对象（当前镜像里没有任何 printf 系列符号，
+ * 实际使用者只有偶尔的 malloc）；任何跨函数、长期持有的分配一律走
+ * FreeRTOS 的 pvPortMalloc。
  */
 
 extern char __heap_start__[];
@@ -320,8 +334,8 @@ void *_sbrk(ptrdiff_t incr)
     next = (intptr_t)(((uintptr_t)next + 7U) & ~(uintptr_t)7U);
     if (next < (intptr_t)__heap_start__ || next > (intptr_t)__heap_end__) {
         g_panic_record.magic = PANIC_MAGIC;
-        g_panic_record.code = PANIC_HEAP_EXHAUSTED;
-        panic_report(PANIC_HEAP_EXHAUSTED);
+        g_panic_record.code = (uint32_t)OSL_PANIC_HEAP_EXHAUSTED;
+        osl_panic_report(OSL_PANIC_HEAP_EXHAUSTED);
     }
     g_newlib_brk = (char *)next;
     return (void *)previous;

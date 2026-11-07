@@ -67,7 +67,7 @@ python3 build/install-toolchain.py
 | 只有本次改过的文件报 `Error 49`，其余显示 `Nothing to be done` | 编译规则末尾的时间戳回写在 MSYS `sh` 里调用了失效的 `python3` | 确认 `toolchain.make` 有 `PYTHON := python`（Windows）且各层规则用 `$(PYTHON)`，再 `update` |
 | `make` 退出 0，但 `.bin` 只有几百字节、`nm` 里 `main` 是 `W` | 静态库顺序反了，或库里有 `main` 的弱定义抢占了启动对象的引用 | 顺序改 `apl → fml → bsl → osl → hal`；删除 `system_stm32f4xx.c` 中的弱 `main`；靠 `build` 的产物断言把关 |
 | `undefined reference to vApplicationStackOverflowHook` | `FreeRTOSConfig.h` 开了 `configCHECK_FOR_STACK_OVERFLOW = 2` 但没提供钩子 | 由 `osl/src/freertos_port_st.c` 提供该钩子；**不要把它挪到别的层**，`libhal.a` 的弱 `HAL_GetTick` 正是靠这个钩子把 `freertos_port_st.o` 拉进场后才被强定义压过的 |
-| 板子上电后“什么都不动”、没有日志 | 栈溢出 / 堆耗尽 / `configASSERT` 失败 / **硬件异常**都曾表现为静默停机 | 看三灯故障码：`1` 栈溢出、`2` 堆或任务创建失败、`3` 断言失败、`6` 硬件异常；细节在 `g_panic_record`（含 `pcTaskName`、`assert_file`、`assert_line`；硬件异常另含 `fault_kind`、`fault_cfsr`、`fault_pc`、`fault_lr`），用调试器直接读 `g_panic_record` / `g_last_write` |
+| 板子上电后“什么都不动”、没有日志 | 栈溢出 / 堆耗尽 / `configASSERT` 失败 / **硬件异常**都曾表现为静默停机 | 看三灯故障码（码表只有一份，见 `osl/inc/osl_panic.h`）：`1` 调度器起不来、`2` 任务创建失败或堆不足、`3` 断言失败、`4` 时钟配置失败、`5` newlib 堆耗尽、`6` 硬件异常、`7` 任务栈溢出；细节在 `g_panic_record`（含 `pcTaskName`、`assert_file`、`assert_line`；硬件异常另含 `fault_kind`、`fault_frame_type`、`fault_cfsr`、`fault_pc`、`fault_lr`），用调试器直接读 `g_panic_record` / `g_last_write` |
 | 初始化阶段 `HAL_Delay` 卡死 | 旧实现里 `HAL_GetTick` 只在调度器运行时返回 tick，启动阶段恒返回 0，`while((0-0) < N)` 死等 | 现在 HAL 时基是 DWT 周期计数器（`freertos_port_st.c`），调度器前后都可用；若被改回 SysTick 方案必须重读「工程规格」的时基约定 |
 | 链接报 `defined in discarded section '.ccmram'` | `.ccmram` 段被 `/DISCARD/` 丢弃（CCMRAM 的拷贝/清零循环从未实现） | 要么把变量移出 `.ccmram`，要么按「工程规格」补 startup 的拷贝与清零循环后移除 `/DISCARD/` 条目 |
 | 改了头文件却什么都没重编，`make` 一直 `Nothing to be done` | `out/object/**/*.d` 里的绝对路径已失效（工程被搬动过），make 看不见头文件变化 | `python3 build/create-project.py verify` 会报出失效的 `.d` 数量；`clean` 后重新 `build` |
@@ -76,7 +76,7 @@ python3 build/install-toolchain.py
 | 按键读数总是反的 | `board_key.c` 的 `pressed_level` 与原理图极性不一致（两块板级按键都是按下接 3V3 = 高电平） | 对照「工程规格」的「板级事实」表；板上已有 4.7K 外部下拉，`GPIO_NOPULL` 是正确用法 |
 | 板上有按键/蜂鸣器，按下去毫无反应也不报错 | `bsl` 的实现零引用，被 `-Wl,--gc-sections` 整段丢弃（源码和 `libbsl.a` 都在，elf 里却没有符号） | `nm` 查 `board_key_init` / `board_beep_set`；`verify` 的「BSP 接入」断言会直接报出来，把 `fml_button_start()` 接进 `main()` 即可 |
 | 新用某个外设，链接报 `undefined reference to HAL_xxx` | 该驱动已被裁掉：`hal_conf.h` 的开关注释着，`project_defconfig` 的 `USER_CUSTOM` 区里也写死 `=n` | 两处同时放开（放开 `#define …_MODULE_ENABLED`、删掉对应的 `CONFIG_HAL_PERIPH_SRC_…=n`），再 `update`；只改一处的表现是"编了但头文件不引入"（隐式声明）或"头文件引入了却没有 `.o`"，`verify` 都会拦 |
-| 三灯闪 5 次后停机，或某处 `malloc` 之后莫名崩 | newlib 的 `_sbrk` 越界：单次 `malloc` 超过 512 B（`_Min_Heap_Size`），或链路退回到 `-lnosys` 的空桩 | 中等/长期分配改 `pvPortMalloc`；确认 `toolchain.make` 的 LDFLAGS 含 `-Wl,-u,_sbrk`（详见「工程规格」的「两套堆的边界」） |
+| 三灯播报 `5` 后停机，或某处 `malloc` 之后莫名崩 | newlib 的 `_sbrk` 越界：单次 `malloc` 超过 512 B（`_Min_Heap_Size`），或链路退回到 `-lnosys` 的空桩 | 中等/长期分配改 `pvPortMalloc`；确认 `toolchain.make` 的 LDFLAGS 含 `-Wl,-u,_sbrk`（详见「工程规格」的「两套堆的边界」） |
 | 编译报 `implicit declaration of function 'HAL_XXX_...'` | `hal_conf.h` 底部少了该模块的 `#ifdef … / #include …` 块（模块开关还开着，但顶层头没引入） | `verify` 会直接报"缺 `#ifdef … / #include` 块"并列出模块名；按「工程规格」HAL 配置一节补齐四处对应关系 |
 | 编译报 `attempt to use poisoned "malloc"` | `osl_alloc_guard.h` 用 `#pragma GCC poison` 禁掉了 newlib 的分配入口（堆只有 512 B 且紧贴栈） | 改成 `pvPortMalloc` / `vPortFree`；确实需要 newlib 堆时不要拆守卫，而是把 `_Min_Heap_Size` 提到 2048 B 以上并重算 RAM 预算 |
 | 产物断言报"链接了 newlib 分配器（`_malloc_r`），但 newlib 堆只有 512 字节" | 有人用 `_malloc_r` 等内部入口绕过了 poison，把 newlib 分配器拉进镜像 | 同上：改用 `pvPortMalloc`，或按上面的门禁把堆提到下限以上 |
