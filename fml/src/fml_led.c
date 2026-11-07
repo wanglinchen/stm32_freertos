@@ -33,8 +33,10 @@ static void fml_led_blink_task(void *argument)
     (void)argument;
     /*
      * 用 vTaskDelayUntil 而不是 vTaskDelay：基准点固定在首拍，循环里的执行时间
-     * （两次水位采样 + 四个灯脚写入）不会累加进周期。用 vTaskDelay 时每拍都把
+     * （两次水位采样 + 三个灯脚写入）不会累加进周期。用 vTaskDelay 时每拍都把
      * 这段开销叠在 1 s 上，闪烁会越走越慢且无法从外部察觉。
+     * 注意基准变量的赋值必须留在循环外：每拍重取 last_wake 会让
+     * vTaskDelayUntil 退化成 vTaskDelay（verify 的 period 断言守的就是这一点）。
      */
     last_wake = xTaskGetTickCount();
     for (;;) {

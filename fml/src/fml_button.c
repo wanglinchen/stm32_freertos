@@ -24,8 +24,15 @@ static void fml_button_task(void *argument)
     int candidate = 0;
     uint32_t agree = 0U;
     uint32_t health_div = 0U;
+    TickType_t last_wake;
 
     (void)argument;
+    /*
+     * 与 fml_led_blink_task 同理：基准固定在首拍，轮询本身的执行时间
+     * （两次按键读 + 每秒一次的栈水位扫描）不会累加进 10 ms 采样周期。
+     * 用 vTaskDelay 时周期会随负载浮动，30 ms 的去抖窗口跟着变长变短。
+     */
+    last_wake = xTaskGetTickCount();
     for (;;) {
         int held = board_key_pressed(BOARD_KEY1) || board_key_pressed(BOARD_KEY2);
 
@@ -45,7 +52,7 @@ static void fml_button_task(void *argument)
             health_div = 0U;
             osl_health_stack_mark(1U);
         }
-        vTaskDelay(pdMS_TO_TICKS(FML_BUTTON_POLL_PERIOD_MS));
+        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(FML_BUTTON_POLL_PERIOD_MS));
     }
 }
 

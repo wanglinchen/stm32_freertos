@@ -522,23 +522,48 @@ def case_health() -> tuple[str, str]:
 
 
 def case_period() -> tuple[str, str]:
-    """周期基准：把 vTaskDelayUntil 换回 vTaskDelay 后，verify 必须报错。
+    """周期基准：三处破坏都必须让 verify 报错。
 
-    纯静态（不编译、不要产物）——这组存在的理由正是"改回去不改变任何产物"：
+    ① 把 vTaskDelayUntil 换回 vTaskDelay；
+    ② 保留调用名、只把基准赋值挪进循环——语义等价于 ①，正是这条断言的假绿通道
+       （上一版只判调用名时，这样改完实测仍然"自检通过"）；
+    ③ 第二个周期任务（fml_button_task）换回 vTaskDelay——断言以前只读 fml_led.c。
+
+    纯静态（不编译、不要产物）：这组存在的理由正是"改回去不改变任何产物"，
     符号照样在、尺寸几乎不变，只有时间基准悄悄变差。
     """
-    before = digest(FML_LED_C)
+    before_led = digest(FML_LED_C)
+    before_button = digest(FML_BUTTON_C)
+    problems: list[str] = []
+
     with patched(
         FML_LED_C,
         lambda t: t.replace("vTaskDelayUntil(&last_wake,", "vTaskDelay(", 1),
     ):
-        result = create_project("verify")
-        problem = expect_failure(result, "vTaskDelayUntil")
-    if before != digest(FML_LED_C):
-        return "ERROR", "fml_led.c 没有还原到原始字节"
-    if problem:
-        return "FAIL", problem
-    return "PASS", "把 vTaskDelayUntil 换回 vTaskDelay 后 verify 报错，已还原"
+        problems.append(expect_failure(create_project("verify"), "vTaskDelayUntil"))
+
+    with patched(
+        FML_LED_C,
+        lambda t: t.replace(
+            "    last_wake = xTaskGetTickCount();\n    for (;;) {\n",
+            "    for (;;) {\n        last_wake = xTaskGetTickCount();\n",
+            1,
+        ),
+    ):
+        problems.append(expect_failure(create_project("verify"), "放在了循环内"))
+
+    with patched(
+        FML_BUTTON_C,
+        lambda t: t.replace("vTaskDelayUntil(&last_wake,", "vTaskDelay(", 1),
+    ):
+        problems.append(expect_failure(create_project("verify"), "fml_button_task"))
+
+    if before_led != digest(FML_LED_C) or before_button != digest(FML_BUTTON_C):
+        return "ERROR", "fml_led.c / fml_button.c 没有还原到原始字节"
+    for problem in problems:
+        if problem:
+            return "FAIL", problem
+    return "PASS", "换回 vTaskDelay / 基准挪进循环 / button 换回 vTaskDelay 三处都报错，已还原"
 
 
 CASES = {

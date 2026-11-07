@@ -1905,25 +1905,63 @@ NVIC_PRIORITY_CALL = re.compile(
 )
 
 
+PERIODIC_TASKS = (
+    ("fml/src/fml_led.c", r"static\s+void\s+fml_led_blink_task\s*\(", "fml_led_blink_task"),
+    ("fml/src/fml_button.c", r"static\s+void\s+fml_button_task\s*\(", "fml_button_task"),
+)
+
+
 def collect_periodic_task_errors() -> list[str]:
-    """周期任务必须用 vTaskDelayUntil：vTaskDelay 会把循环体的耗时累加进周期。
+    """周期任务必须用 vTaskDelayUntil，而且基准变量必须在循环外只取一次。
 
     和 isr-prio 同类：纯静态、不编译、不要产物。改回 vTaskDelay 不会让任何产物断言
     变红（符号照样在、尺寸几乎不变），只能靠读源码守住。
+
+    为什么不能只判"函数体里有没有 vTaskDelayUntil("：
+    `vTaskDelayUntil(&last_wake, inc)` 的语义是 `xTimeToWake = *pxPreviousWakeTime + inc`，
+    再把 `*pxPreviousWakeTime` 更新成 `xTimeToWake`——语义整个挂在这个外部变量上。
+    基准每拍重取（把赋值挪进 for 里），唤醒时刻就从 t0+p、t0+2p… 退化成 now+p、now2+p…，
+    与被替换掉的那个 vTaskDelay 在数学上等价，而调用名一个不少。
+    这条退化实测过：只判调用名时，改完照样"自检通过"。
+    所以这里查结构：基准变量在函数体内恰好被赋值一次，且位于首个循环之前。
     """
     errors: list[str] = []
-    relative = "fml/src/fml_led.c"
-    text = read_text(ROOT / "fml" / "src" / "fml_led.c")
-    if not text:
-        return [f"缺少 {relative}"]
-    body = _function_body(text, r"static\s+void\s+fml_led_blink_task\s*\(")
-    if body is None:
-        errors.append(f"{relative} 里找不到 fml_led_blink_task；无法确认周期基准是否固定")
-    elif "vTaskDelayUntil(" not in body:
-        errors.append(
-            f"{relative} 的 fml_led_blink_task 用了 vTaskDelay 而不是 vTaskDelayUntil："
-            "循环体的执行时间会累加进闪烁周期，1 s 会越走越慢"
-        )
+    for relative, signature, name in PERIODIC_TASKS:
+        text = read_text(ROOT / relative)
+        if not text:
+            errors.append(f"缺少 {relative}")
+            continue
+        body = _function_body(text, signature)
+        if body is None:
+            errors.append(f"{relative} 里找不到 {name}；无法确认周期基准是否固定")
+            continue
+        if "vTaskDelay(" in body:
+            errors.append(
+                f"{relative} 的 {name} 用了 vTaskDelay 而不是 vTaskDelayUntil："
+                "循环体的执行时间会累加进周期"
+            )
+            continue
+        call = re.search(r"vTaskDelayUntil\s*\(\s*&\s*([A-Za-z_][A-Za-z0-9_]*)", body)
+        if call is None:
+            errors.append(f"{relative} 的 {name} 没有把基准变量的地址传给 vTaskDelayUntil")
+            continue
+        baseline = call.group(1)
+        assigns = [m.start() for m in re.finditer(rf"(?<![&\w]){baseline}\s*=(?!=)", body)]
+        if len(assigns) != 1:
+            errors.append(
+                f"{relative} 的 {name} 里基准变量 {baseline} 被赋值 {len(assigns)} 次；"
+                "必须只在循环外取一次（每拍重取等于退化成 vTaskDelay）"
+            )
+            continue
+        loop = re.search(r"\b(?:for|while)\s*\(|\bdo\b", body)
+        if loop is None:
+            errors.append(f"{relative} 的 {name} 里找不到循环，无法确认基准赋值的位置")
+            continue
+        if assigns[0] >= loop.start():
+            errors.append(
+                f"{relative} 的 {name} 把基准变量 {baseline} 的赋值放在了循环内；"
+                "vTaskDelayUntil 会退化成 vTaskDelay"
+            )
     return errors
 
 
