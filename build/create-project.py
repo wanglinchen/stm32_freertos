@@ -341,8 +341,8 @@ def write_toolchain(info: dict) -> None:
         "ALLOC_GUARD := -include $(PROJECT_ROOT)/osl/inc/osl_alloc_guard.h",
         f"CPU_FLAGS := {cpu_flags(info)}",
         "CHIP_DEFS = $(foreach config,$(filter CONFIG_STM32%,$(.VARIABLES)),$(if $(filter y,$($(config))),-D$(subst XX,xx,$(patsubst CONFIG_%,%,$(config)))))",
-        "CFLAGS = $(CPU_FLAGS) $(CHIP_DEFS) $(OPT) $(DEBUG) $(REPRO) $(ALLOC_GUARD) -std=c11 -ffunction-sections -fdata-sections -fno-common -Wall $(INCLUDES)",
-        "CXXFLAGS = $(CPU_FLAGS) $(CHIP_DEFS) $(OPT) $(DEBUG) $(REPRO) $(ALLOC_GUARD) -std=c++17 -ffunction-sections -fdata-sections -fno-exceptions -fno-rtti -Wall $(INCLUDES)",
+        "CFLAGS = $(CPU_FLAGS) $(CHIP_DEFS) $(OPT) $(DEBUG) $(REPRO) $(ALLOC_GUARD) -std=c11 -ffunction-sections -fdata-sections -fno-common -Wall -Wextra -Werror -fstack-usage $(INCLUDES)",
+        "CXXFLAGS = $(CPU_FLAGS) $(CHIP_DEFS) $(OPT) $(DEBUG) $(REPRO) $(ALLOC_GUARD) -std=c++17 -ffunction-sections -fdata-sections -fno-exceptions -fno-rtti -Wall -Wextra -Werror -fstack-usage $(INCLUDES)",
         "ASFLAGS = $(CPU_FLAGS) $(CHIP_DEFS) $(OPT) $(DEBUG) $(REPRO) $(INCLUDES)",
         f"LDSCRIPT := $(PROJECT_ROOT)/{rel}",
         "# -u _sbrk：make 在 --start-group 扫描时还没有 _sbrk 这个未定义符号（那时只有 malloc 未定义），",
@@ -1160,6 +1160,7 @@ def verify(artifacts: bool = False, *, check_symbols: bool = True) -> None:
     errors.extend(collect_hal_module_errors())
     errors.extend(collect_heap_errors())
     errors.extend(collect_fault_errors())
+    errors.extend(collect_warning_gate_errors())
     errors.extend(collect_memory_metadata_errors())
     errors.extend(collect_doc_reference_errors())
     if check_symbols:
@@ -1689,6 +1690,27 @@ DOC_REF_EXTENSIONS = (
     ".md", ".c", ".h", ".py", ".ld", ".s", ".json", ".make", ".mk", ".txt",
     ".cfg", ".xlsx", ".pdf", ".png", ".bin", ".hex", ".elf", ".map",
 )
+
+
+def collect_warning_gate_errors() -> list[str]:
+    """编译警告门禁必须真的开着：-Wall -Wextra -Werror 与 -fstack-usage。
+
+    与 FLAG_DEPS 是同类问题：门禁写在生成器里，但生成器本身可以被改回去，而代码
+    干净时"有没有 -Werror"编出来的镜像完全一样——差别只有下一次新引入告警时才显现。
+    所以这里直接对生成物 toolchain.make 断言这几个 flag 还在。
+    """
+    errors: list[str] = []
+    path = ROOT / "toolchain.make"
+    if not path.is_file():
+        return [f"缺少 {path.relative_to(ROOT).as_posix()}，无法确认编译警告门禁"]
+    text = read_text(path)
+    for flag in ("-Wall", "-Wextra", "-Werror", "-fstack-usage"):
+        if flag not in text:
+            errors.append(
+                f"{path.relative_to(ROOT).as_posix()} 里没有 {flag}；"
+                "编译警告门禁被关掉了（干净代码看不出差别，新引入的告警会漏过去）"
+            )
+    return errors
 
 
 def collect_fault_errors() -> list[str]:
