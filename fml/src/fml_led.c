@@ -4,6 +4,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "osl_panic.h"
+#include "osl_health.h"
 
 #define FML_LED_BLINK_PERIOD_MS 1000U
 
@@ -36,6 +37,13 @@ static void fml_led_blink_task(void *argument)
             board_led_set((board_led_id_t)i, on);
         }
         on = !on;
+        /*
+         * 1 s 一拍，正好当健康采样节拍：这条任务周期最长、优先级又高于 IDLE，
+         * 把堆余量和自己的栈余量记在这里，板上不需要额外任务也不用加定时器。
+         * 栈余量单位是 word（见 osl/inc/osl_health.h），slot 0 专供本任务。
+         */
+        (void)osl_health_heap_mark();
+        osl_health_stack_mark(0U);
         vTaskDelay(pdMS_TO_TICKS(FML_LED_BLINK_PERIOD_MS));
     }
 }

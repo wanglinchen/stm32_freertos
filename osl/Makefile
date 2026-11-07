@@ -31,6 +31,11 @@ endif
 endif
 ifeq ($(CONFIG_OSL),y)
 ifeq ($(CONFIG_OSL_SRC),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/osl/src/osl_health.o
+endif
+endif
+ifeq ($(CONFIG_OSL),y)
+ifeq ($(CONFIG_OSL_SRC),y)
 ifeq ($(CONFIG_OSL_SRC_FREERTOS),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/osl/src/freertos/event_groups.o
 endif

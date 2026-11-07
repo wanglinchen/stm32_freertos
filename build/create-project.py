@@ -1309,7 +1309,7 @@ def fold_root_in_map(dest: Path) -> None:
 ARTIFACT_TEXT_FLOOR = 2048
 """应用代码参与链接后 .text 至少应有这么多字节；明显低于此值说明镜像里只有启动代码。"""
 
-PANIC_RECORD_MIN_BYTES = 0x7C
+PANIC_RECORD_MIN_BYTES = 0x80
 """panic 记录结构体的最小尺寸（124 B）。
 
 它是 ipsr / reset_csr / wd_sync_fail 三个"上下文"字段是否真的编进去的唯一产物级证据：
@@ -1640,8 +1640,31 @@ def collect_artifact_errors() -> list[str]:
     if record_bytes < PANIC_RECORD_MIN_BYTES:
         errors.append(
             f"产物 {elf.name} 里 g_panic_record 只有 {record_bytes} 字节（下限 "
-            f"{PANIC_RECORD_MIN_BYTES}）：ipsr / reset_csr / wd_sync_fail 至少有一个没编进去，"
-            "调试器读现场时看不到“这次是中断还是任务触发 / 原始复位标志 / 看门狗有没有改成功”"
+            f"{PANIC_RECORD_MIN_BYTES}）：ipsr / reset_csr / wd_sync_fail / heap_free_min "
+            "至少有一个没编进去，"
+            "调试器读现场时看不到“这次是中断还是任务触发 / 原始复位标志 / 看门狗有没有改成功 / "
+            "panic 时堆还剩多少”"
+        )
+    # 堆与任务栈的水位必须在镜像里可观测：panic 码 2（堆不足）和 7（栈溢出）的根因
+    # 只能靠“当时还剩多少”回答。只是把 config 打开不算数 ——
+    # INCLUDE_uxTaskGetStackHighWaterMark=1 只让函数可编，没人调用时
+    # --gc-sections 会把它和记录变量一起丢掉，配置与源码全在、镜像里什么都没有。
+    # 四个符号同时在场才算真的接上：两个采样入口 + 两个记录变量。
+    observing = [
+        name
+        for name in (
+            "xPortGetFreeHeapSize",
+            "uxTaskGetStackHighWaterMark",
+            "g_heap_free_min",
+            "g_stack_free_min",
+        )
+        if not re.search(rf"^[0-9a-fA-F]+\s+[A-Za-z]\s+{name}$", symbols, re.MULTILINE)
+    ]
+    if observing:
+        errors.append(
+            f"产物 {elf.name} 里没有 {', '.join(observing)}：堆/任务栈的水位在板上不可观测"
+            "（没人调用就会被 --gc-sections 丢掉，配置项开着也进不了镜像）；"
+            "检查 FreeRTOSConfig.h 的 INCLUDE_uxTaskGetStackHighWaterMark 与 osl_health 的接线"
         )
     # IWDG 的同步等待必须带失败分支：只写 while 循环时，成功与 0xFFFF 次耗尽共用
     # 同一个出口（反汇编里就一条 bx lr），LSI 没起振、PR/RLR 没生效这件事完全不可见。

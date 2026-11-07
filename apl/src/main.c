@@ -3,10 +3,17 @@
 #include "stm32f4xx_hal.h"
 #include "fml_button.h"
 #include "fml_led.h"
+#include "osl_health.h"
 #include "system_stm32f4xx.h"
 
 int main(void)
 {
+    /*
+     * 水位记录必须先复位成“未采样”：它们放在 .bss（复位为 0），而 0 对
+     * “历史最低剩余”是无意义的值 —— 每次采样都会比它大，最低值就永远记成 0。
+     */
+    osl_health_init();
+
     /*
      * HAL_Init 做三件以前漏掉的事：
      *   1) 设定 NVIC 优先级分组为 NVIC_PRIORITYGROUP_4（4 位抢占、0 位子优先级），

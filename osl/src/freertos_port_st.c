@@ -6,6 +6,7 @@
 #include "system_stm32f4xx.h"
 #include "osl_panic.h"
 #include "osl_boot.h"
+#include "osl_health.h"
 
 /*
  * 时基归属（唯一所有者为 HAL，FreeRTOS 只拥有自己的 tick）：
@@ -99,6 +100,7 @@ typedef struct {
     uint32_t ipsr;         /* 0=任务上下文，>0=异常号：assert/栈溢出发生在中断里也能分清 */
     uint32_t reset_csr;    /* RCC->CSR 原始值：reset_cause 是由它推出来的枚举，多标志同置时以此回溯 */
     uint32_t wd_sync_fail; /* 进 panic 前的 IWDG SR 等待失败次数：0 才说明 32.7 s 真的拉起来了 */
+    uint32_t heap_free_min; /* panic 时 FreeRTOS 堆的历史最低剩余（字节）：码 2 的根因读数 */
 } panic_record_t;
 
 #define PANIC_MAGIC 0x50414E43UL /* "PANC" */
@@ -183,6 +185,12 @@ void osl_panic_report(osl_panic_code_t code)
     g_panic_record.ipsr = (uint32_t)__get_IPSR();
     g_panic_record.reset_csr = g_reset_csr;
     g_panic_record.wd_sync_fail = g_iwdg_sync_fail;
+    /*
+     * 堆水位一起落盘：码 2 只说“创建失败 / 堆不足”，说不了“当时还剩多少”。
+     * 这里读的是历史最低（0xFFFFFFFF = 一次都没采到，说明采样本身没接上），
+     * 与 g_stack_free_min[] 一起构成码 2 / 码 7 的根因读数。
+     */
+    g_panic_record.heap_free_min = g_heap_free_min;
     g_panic_record.magic = PANIC_MAGIC;
     g_panic_record.code = raw;
     for (round = 0U; round < 4U; round++) {

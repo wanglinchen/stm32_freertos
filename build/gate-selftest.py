@@ -416,6 +416,38 @@ def case_iwdg_str() -> tuple[str, str]:
     return "PASS", "删掉 g_iwdg_sync_fail++ 后产物断言报无 str，已还原并重建"
 
 
+def case_health() -> tuple[str, str]:
+    """堆/栈水位可观测：把栈采样入口的调用删掉后，产物断言必须报“不可观测”。
+
+    这条盯的是“配置开着但镜像里什么都没有”这一类静默失效：
+    `INCLUDE_uxTaskGetStackHighWaterMark=1` 只让函数可编，
+    一旦没人引用，`--gc-sections` 就把 `uxTaskGetStackHighWaterMark` 连同
+    记录变量一起丢掉，而构建、链接、产物尺寸都不会有任何异常。
+    """
+    source = ROOT / "osl" / "src" / "osl_health.c"
+    if not source.is_file():
+        return "SKIP", f"找不到 {source.name}"
+    before = digest(source)
+
+    def drop(text: str) -> str:
+        call = "    watermark = uxTaskGetStackHighWaterMark(NULL);"
+        if call not in text:
+            raise RuntimeError("osl_health.c 里找不到 uxTaskGetStackHighWaterMark 的调用")
+        return text.replace(call, "    watermark = 0U;", 1)
+
+    with patched(source, drop):
+        result = create_project("build")
+        problem = expect_failure(result, "没有 uxTaskGetStackHighWaterMark")
+    if before != digest(source):
+        return "ERROR", f"{source.name} 没有还原到原始字节"
+    if problem:
+        return "FAIL", problem
+    restore = create_project("build")
+    if restore.returncode != 0:
+        return "FAIL", "破坏已还原，但恢复构建失败（栈水位可能仍是死的）"
+    return "PASS", "删掉栈采样调用后产物断言报水位不可观测，已还原并重建"
+
+
 CASES = {
     "flags": case_flags,
     "heap": case_heap,
@@ -426,6 +458,7 @@ CASES = {
     "write": case_write,
     "record-size": case_record_size,
     "iwdg-str": case_iwdg_str,
+    "health": case_health,
 }
 
 

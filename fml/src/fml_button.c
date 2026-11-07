@@ -5,6 +5,7 @@
 #include "fml_led.h"
 #include "FreeRTOS.h"
 #include "task.h"
+#include "osl_health.h"
 
 /*
  * 10 ms 采样 + 连续 3 次一致（30 ms）才认。
@@ -13,12 +14,16 @@
  */
 #define FML_BUTTON_POLL_PERIOD_MS 10U
 #define FML_BUTTON_DEBOUNCE_SAMPLES 3U
+/* 栈水位每 100 次轮询（约 1 s）采一次：uxTaskGetStackHighWaterMark 要扫描整段栈，
+ * 10 ms 一拍纯属浪费；1 s 的粒度足够看出余量。 */
+#define FML_BUTTON_HEALTH_DIVIDER 100U
 
 static void fml_button_task(void *argument)
 {
     int stable = 0;
     int candidate = 0;
     uint32_t agree = 0U;
+    uint32_t health_div = 0U;
 
     (void)argument;
     for (;;) {
@@ -35,6 +40,10 @@ static void fml_button_task(void *argument)
         if ((agree >= FML_BUTTON_DEBOUNCE_SAMPLES) && (candidate != stable)) {
             stable = candidate;
             board_beep_set(stable);
+        }
+        if (++health_div >= FML_BUTTON_HEALTH_DIVIDER) {
+            health_div = 0U;
+            osl_health_stack_mark(1U);
         }
         vTaskDelay(pdMS_TO_TICKS(FML_BUTTON_POLL_PERIOD_MS));
     }

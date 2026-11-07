@@ -58,6 +58,13 @@ extern uint32_t SystemCoreClock;
 
 #define INCLUDE_vTaskPrioritySet              1
 #define INCLUDE_uxTaskPriorityGet             1
+/*
+ * 栈水位：`uxTaskGetStackHighWaterMark` 只在配置为 1 时才编进内核，
+ * 但“可编”不等于“进去了”—— 没人调用时会被 --gc-sections 丢掉，
+ * 于是任务栈余量在板上依然不可见（码 7 的根因只能靠猜）。
+ * fml 的两个任务各自周期性采样，verify 的产物断言会要求该符号在场。
+ */
+#define INCLUDE_uxTaskGetStackHighWaterMark   1
 #define INCLUDE_vTaskDelete                   1
 #define INCLUDE_vTaskSuspend                  1
 #define INCLUDE_vTaskDelayUntil               1
