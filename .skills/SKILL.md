@@ -63,7 +63,7 @@ python3 build/install-toolchain.py
 
 实现细节与链接顺序以 [工程规格.md](./工程规格.md) 及 `build/create-project.py` 中 `STATIC_LIB_DIRS` / `NORMAL_LINK_LIBS` 为准。
 
-**改过门禁就跑门禁自测**：`python build/gate-selftest.py` 会逐组破坏被测条件（flags 依赖 / `-Wl,-u,_sbrk` / `_Min_Heap_Size` 与产物边界 / BSP 接入 / `Default_Handler` 跳转 / `.noinit` 属性 / `-Wl,-u,_write` / panic 记录尺寸 / `iwdg_wait_sync` 的 `str`），要求 `verify` 报错后再还原。断言在代码正确时永远是绿的，绿一次证明不了它会拦人。全量 9 组，云主机 Linux 实测 1158.5 s（每组都要重编，`write` 组串行全量重编最慢），`--only <组>` 可单跑。
+**改过门禁就跑门禁自测**：`python build/gate-selftest.py` 会逐组破坏被测条件（flags 依赖 / `-Wl,-u,_sbrk` / `_Min_Heap_Size` 与产物边界 / BSP 接入 / `Default_Handler` 跳转 / `.noinit` 属性 / `-Wl,-u,_write` / panic 记录尺寸 / `iwdg_wait_sync` 的 `str`），要求 `verify` 报错后再还原。断言在代码正确时永远是绿的，绿一次证明不了它会拦人。全量 9 组：本机 Windows 377.1 s、云主机 Linux 1158.5 s，两端均 9 PASS（每组都要重编，`write` 组串行全量重编最慢），`--only <组>` 可单跑。
 
 ## 故障排查
 
