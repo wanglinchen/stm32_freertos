@@ -6,20 +6,35 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
-/* 10 ms 轮询：够快，且不去抖也能靠任务周期天然滤掉大部分抖动毛刺。 */
+/*
+ * 10 ms 采样 + 连续 3 次一致（30 ms）才认。
+ * 以前这里没有去抖，注释写“靠任务周期天然滤掉大部分抖动毛刺”——那只是把采样
+ * 周期当去抖，机械抖动本身就是 1~10 ms 量级，落在采样点上时蜂鸣器会跟着咔哒。
+ */
 #define FML_BUTTON_POLL_PERIOD_MS 10U
+#define FML_BUTTON_DEBOUNCE_SAMPLES 3U
 
 static void fml_button_task(void *argument)
 {
-    int beep_on = 0;
+    int stable = 0;
+    int candidate = 0;
+    uint32_t agree = 0U;
 
     (void)argument;
     for (;;) {
         int held = board_key_pressed(BOARD_KEY1) || board_key_pressed(BOARD_KEY2);
 
-        if (held != beep_on) {
-            board_beep_set(held);
-            beep_on = held;
+        if (held == candidate) {
+            if (agree < FML_BUTTON_DEBOUNCE_SAMPLES) {
+                agree++;
+            }
+        } else {
+            candidate = held;
+            agree = 1U;
+        }
+        if ((agree >= FML_BUTTON_DEBOUNCE_SAMPLES) && (candidate != stable)) {
+            stable = candidate;
+            board_beep_set(stable);
         }
         vTaskDelay(pdMS_TO_TICKS(FML_BUTTON_POLL_PERIOD_MS));
     }

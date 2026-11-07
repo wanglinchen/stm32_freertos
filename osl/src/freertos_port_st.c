@@ -18,8 +18,10 @@
  * 现在改用 DWT 内核周期计数器做 HAL 时基：
  *   - 不占用中断，不参与 SysTick 归属之争；
  *   - 复位后即可用，调度器启动前 HAL_Delay / 各驱动的超时判断都是真实的；
- *   - 单个测量区间的上限是 CYCCNT 回绕周期（16 MHz 下约 268 s），
- *     HAL 的毫秒级超时远小于该值；超时比较用的是无符号差值，回绕安全。
+ *   - CYCCNT 是 32 位、按 HCLK 计数，回绕周期是 2^32 / HCLK：168 MHz 下约 25.6 s
+ *     （以前这里按 16 MHz 写的 268 s，与实际主频不符）。所以 HAL_GetTick 的返回值
+ *     每 25.6 s 回到 0，任何超过这一长度的延时/超时都会被截断；本工程没有
+ *     >25 s 的 HAL 调用。差值仍按无符号算，跨越回绕点不会被算成负数。
  *
  * 注意：uwTick / uwTickPrio 不再被维护（HAL_GetTickPrio 会返回无效值 0xFF）。
  * 本工程不使用 HAL 的 tick 优先级语义，若将来要用，必须改为 SysTick + HAL_IncTick 方案。
@@ -90,11 +92,20 @@ typedef struct {
     uint32_t fault_lr;
     uint32_t fault_pc;
     uint32_t fault_xpsr;
+    /* 以下两项不是硬件现场，是"跨复位"用的：record 本身在 .noinit 里不清零。 */
+    uint32_t seq;         /* 第几次 panic：同一故障反复重启时能看出累计次数 */
+    uint32_t reset_cause; /* 进 panic 之前那一次复位的原因（g_reset_cause 的唯一消费点） */
 } panic_record_t;
 
 #define PANIC_MAGIC 0x50414E43UL /* "PANC" */
 
-volatile panic_record_t g_panic_record;
+/*
+ * 放 .noinit 而不是 .bss：panic 记录是复位后唯一还剩的证据。
+ * Reset_Handler 只清 _sbss.._ebss（链接脚本的 .noinit 段在 .bss 之外、NOLOAD），
+ * 所以 IWDG 复位后重启时，上一次的 code / task_name / fault_pc 仍在 RAM 里。
+ * 首次上电内容随机，因此一律以 magic 作为"这里真的有记录"的判据。
+ */
+volatile panic_record_t g_panic_record __attribute__((section(".noinit")));
 volatile char g_last_write[64]; /* _write 的最近一段输出，调试器可直接读 */
 
 /*
@@ -151,6 +162,16 @@ void osl_panic_report(osl_panic_code_t code)
 
     /* 先把看门狗超时拉到最长再播报：否则 1 s 后就复位，三灯还没来得及闪完。 */
     osl_watchdog_relax();
+
+    /*
+     * seq / reset_cause 都以"上一次留在 .noinit 里的 magic 是否有效"为前提：
+     * 同一个故障把板子复位后再次触发 panic 时，seq 会累加（现场能分清第一次和第 N 次），
+     * reset_cause 把 g_reset_cause（从 RCC->CSR 采到的复位原因）写进现场 ——
+     * 这是该全局唯一的消费点，否则它就是"采集了没人读"。
+     */
+    g_panic_record.seq = (g_panic_record.magic == PANIC_MAGIC) ? (g_panic_record.seq + 1U) : 1U;
+    g_panic_record.reset_cause = (uint32_t)g_reset_cause;
+    g_panic_record.magic = PANIC_MAGIC;
     g_panic_record.code = raw;
     for (round = 0U; round < 4U; round++) {
         for (bit = 0U; bit < 3U; bit++) {
@@ -282,8 +303,27 @@ DEFINE_FAULT_HANDLER(UsageFault_Handler, FAULT_KIND_USAGE)
  */
 void UnhandledIRQ_Handler(void)
 {
+    uint32_t irq = SCB->ICSR & SCB_ICSR_VECTACTIVE_Msk;
+
     g_panic_record.magic = PANIC_MAGIC;
-    g_panic_record.unhandled_irq = SCB->ICSR & SCB_ICSR_VECTACTIVE_Msk;
+    g_panic_record.unhandled_irq = irq;
+
+    /*
+     * 先关掉这个中断源再播报。osl_panic_report 里的 taskDISABLE_INTERRUPTS 只把
+     * BASEPRI 提到 configMAX_SYSCALL_INTERRUPT_PRIORITY(=0x50)，优先级 0..4 的中断
+     * 仍然可以进来。如果引发本次异常的外设一直拉着中断线（最典型的是"没人清标志
+     * 的未实现外设"），这里会被反复重入，把 MSP 压穿后变成二次 HardFault，
+     * 三灯播报就永远闪不完。
+     *
+     * 16 以下编号是系统异常（这时 VECTACTIVE 只可能是真正的 IRQ，0..15 不会走到
+     * Default_Handler），所以只对 IRQ 操作；STM32F429 最多 90 个 IRQ，< 128 的
+     * 上界顺带避免了 NVIC->ICER 的数组越界。
+     */
+    if (irq >= 16U && irq < 128U) {
+        NVIC->ICER[(irq >> 5U)] = (uint32_t)1U << (irq & 0x1FU);
+        NVIC->ICPR[(irq >> 5U)] = (uint32_t)1U << (irq & 0x1FU);
+    }
+
     osl_panic_report(OSL_PANIC_HARDWARE_FAULT);
 }
 
@@ -347,17 +387,45 @@ static char *g_newlib_brk = __heap_start__;
 void *_sbrk(ptrdiff_t incr)
 {
     char *previous = g_newlib_brk;
-    intptr_t next = (intptr_t)previous + (intptr_t)incr;
+    uintptr_t start = (uintptr_t)__heap_start__;
+    uintptr_t end = (uintptr_t)__heap_end__;
+    uintptr_t cur = (uintptr_t)previous;
+    uintptr_t next;
+
+    /*
+     * 全用无符号算：以前写的是 `(intptr_t)previous + (intptr_t)incr`，
+     * 本机 intptr_t 是 32 位有符号（__PTRDIFF_MAX__ = 0x7fffffff，指针 4 B），
+     * 一次超大 incr 就是有符号溢出（UB，编译器可以假设它不发生），溢出回绕后
+     * 结果可能重新落回 [start, end]，越界检查就被绕过去了。
+     * 这里先比较"要多少 / 剩多少"，再动指针，任何分支都不依赖回绕值。
+     */
+    if (incr >= 0) {
+        if ((uintptr_t)incr > (end - cur)) {
+            goto exhausted;
+        }
+        next = cur + (uintptr_t)incr;
+    } else {
+        /* 0 - (uintptr_t)incr 得到 |incr|，避免对 PTRDIFF_MIN 取负的溢出。 */
+        uintptr_t back = (uintptr_t)0 - (uintptr_t)incr;
+        if (back > (cur - start)) {
+            goto exhausted;
+        }
+        next = cur - back;
+    }
 
     /* malloc 返回的地址要按 8 字节对齐（Cortex-M4 上的 double / uint64_t）。 */
-    next = (intptr_t)(((uintptr_t)next + 7U) & ~(uintptr_t)7U);
-    if (next < (intptr_t)__heap_start__ || next > (intptr_t)__heap_end__) {
-        g_panic_record.magic = PANIC_MAGIC;
-        g_panic_record.code = (uint32_t)OSL_PANIC_HEAP_EXHAUSTED;
-        osl_panic_report(OSL_PANIC_HEAP_EXHAUSTED);
+    next = (next + 7U) & ~(uintptr_t)7U;
+    if (next > end) {
+        goto exhausted;
     }
+
     g_newlib_brk = (char *)next;
     return (void *)previous;
+
+exhausted:
+    g_panic_record.magic = PANIC_MAGIC;
+    g_panic_record.code = (uint32_t)OSL_PANIC_HEAP_EXHAUSTED;
+    osl_panic_report(OSL_PANIC_HEAP_EXHAUSTED);
 }
 
 /*
@@ -391,6 +459,10 @@ void __malloc_unlock(struct _reent *ptr)
 /*
  * newlib 的 _write 最小实现：没有串口，就把最近一段输出留在内存里给调试器看。
  * 返回 len 让 printf 认为写成功，避免返回错误码导致重试或异常路径。
+ *
+ * 注意：本函数没有调用方，--gc-sections 会把它和 g_last_write 一起丢掉
+ * （实测 nm 里两者都不存在，等于"留最近输出"是空承诺）。所以 toolchain.make
+ * 的 LDFLAGS 里加了 -Wl,-u,_write 强制保留，verify 也会断言镜像里有该符号。
  */
 int _write(int file, char *ptr, int len)
 {

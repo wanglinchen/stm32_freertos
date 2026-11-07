@@ -334,8 +334,9 @@ def write_toolchain(info: dict) -> None:
         "# -g3 又把源码路径写进 debug 段，两者都会让同一提交在不同目录/机器编出不同字节的镜像",
         "# （实测 Windows 与 Linux 的 .text 相差 136 字节，差异全部落在 .rodata 的路径字符串）。",
         "REPRO := -ffile-prefix-map=$(PROJECT_ROOT)=.",
-        "# 编译期禁用 newlib 的分配入口：newlib 堆只有 512 B 且紧贴 1 KB 栈，",
-        "# 任何大块 malloc 都会静默踩栈。用 -include 注入，避免依赖每个编译单元记得包含；",
+        "# 编译期禁用 newlib 的分配入口：newlib 堆只有 512 B，而 __heap_end__ 到 _estack",
+        "# 之间约 159 KB 空闲 RAM（栈从 _estack 向下长，并不紧贴堆），大块 malloc 越界后",
+        "# 既不会撞到栈也不会报错。用 -include 注入，避免依赖每个编译单元记得包含；",
         "# 不进 ASFLAGS（汇编没有这个概念）。守卫头自己先包含 <stdlib.h>/<string.h> 再 poison，",
         "# 否则会在系统头的函数声明处报错而不是在真正的调用点报错。",
         "ALLOC_GUARD := -include $(PROJECT_ROOT)/osl/inc/osl_alloc_guard.h",
@@ -350,8 +351,11 @@ def write_toolchain(info: dict) -> None:
         "# 显式声明 _sbrk 为未定义，才会让 libosl.a 的那份强定义胜出；顺带保证它不被 --gc-sections 丢掉。",
         "# -u __malloc_lock 同理：不强制引用的话，libc_nano.a 的 mlock.o（空锁）会先满足 malloc 的引用，",
         "# 任务里并发 malloc 就会踩坏堆。",
+        "# -u _write 是为了让 osl 的 _write（把最近输出留在 g_last_write 里给调试器）真的进镜像：",
+        "# 当前没有任何调用方，--gc-sections 会把 _write 和 g_last_write 一起丢掉（实测 nm 里两者都无），",
+        "# 那样“留最近输出”就是空承诺。verify 会断言镜像里存在 _write。",
         "LDFLAGS = $(CPU_FLAGS) -T$(LDSCRIPT) -nostartfiles -Wl,--gc-sections -Wl,-Map=$(BUILD_DIR)/$(PROJECT_NAME).map "
-        "-Wl,-u,_sbrk -Wl,-u,__malloc_lock --specs=nano.specs --specs=nosys.specs",
+        "-Wl,-u,_sbrk -Wl,-u,__malloc_lock -Wl,-u,_write --specs=nano.specs --specs=nosys.specs",
         "LDLIBS := -lc -lm -lgcc",
         "",
     ]
@@ -1539,9 +1543,37 @@ def collect_artifact_errors() -> list[str]:
         errors.append(
             f"产物 {elf.name} 里链接了 newlib 分配器（{', '.join(alloc_used)}），"
             f"但 newlib 堆只有 {heap_bytes} 字节（下限 {NEWLIB_HEAP_FLOOR}）；"
-            "一次中等 malloc 就会越过 __heap_end__ 写进紧跟其后的栈区。"
+            "一次中等 malloc 就会越过 __heap_end__（它到 _estack 之间是约 159 KB 无保护真空，"
+            "既不会撞到栈也不会报错，只有 _sbrk 自己的边界判断在挡）。"
             "要么改用 pvPortMalloc（osl_alloc_guard.h 已编译期禁用 malloc），"
             "要么把 _Min_Heap_Size 提到下限以上并确认 RAM 预算"
+        )
+    # panic 记录必须落在 .noinit：链接脚本的 .noinit 段输出 _snoinit/_enoinit，
+    # 而 Reset_Handler 只清 _sbss.._ebss。若有人把 section 属性删掉，record 会退回
+    # .bss，复位后现场立刻归零 —— 这是本工程最贵的一条静默失效，只能用产物判。
+    noinit: dict[str, int] = {}
+    for match in re.finditer(
+        r"^([0-9a-fA-F]+)\s+[A-Za-z]\s+(_snoinit|_enoinit|g_panic_record)$",
+        symbols,
+        re.MULTILINE,
+    ):
+        noinit[match.group(2)] = int(match.group(1), 16)
+    if len(noinit) == 3:
+        if not (noinit["_snoinit"] <= noinit["g_panic_record"] < noinit["_enoinit"]):
+            errors.append(
+                f"产物 {elf.name} 里 g_panic_record（0x{noinit['g_panic_record']:08x}）不在 .noinit 段"
+                f" [0x{noinit['_snoinit']:08x}, 0x{noinit['_enoinit']:08x}) 内："
+                "Reset_Handler 会把它当 .bss 清零，上一次 panic 的现场保不下来"
+            )
+    else:
+        errors.append(
+            f"产物 {elf.name} 里缺少 _snoinit / _enoinit / g_panic_record 之一，"
+            "无法确认 panic 记录跨复位保留（查链接脚本 .noinit 段与 freertos_port_st.c 的 section 属性）"
+        )
+    if not re.search(r"^[0-9a-fA-F]+\s+T\s+_write$", symbols, re.MULTILINE):
+        errors.append(
+            f"产物 {elf.name} 里没有 _write：--gc-sections 把它和 g_last_write 一起丢了，"
+            "“把最近一段输出留给调试器”就是空承诺（检查 LDFLAGS 的 -Wl,-u,_write）"
         )
     if not errors:
         heap_note = ""
@@ -1595,6 +1627,11 @@ def collect_heap_errors() -> list[str]:
                 "toolchain.make 的 LDFLAGS 里没有 `-Wl,-u,__malloc_lock`；"
                 "libc_nano.a(mlock.o) 的空锁会先满足 _malloc_r 的引用，"
                 "本工程的锁进不了镜像（详见 osl/src/freertos_port_st.c 的锁注释）"
+            )
+        if "-Wl,-u,_write" not in text and "-u,_write" not in text:
+            errors.append(
+                "toolchain.make 的 LDFLAGS 里没有 `-Wl,-u,_write`；"
+                "osl 的 _write 无调用方，会被 --gc-sections 连同 g_last_write 一起丢掉"
             )
 
     return errors

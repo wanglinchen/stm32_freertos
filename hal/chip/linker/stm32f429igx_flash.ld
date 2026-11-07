@@ -179,6 +179,27 @@ SECTIONS
     __bss_end__ = _ebss;
   } >RAM
 
+  /* 复位不清的 RAM：panic 现场跨复位保留。
+   *
+   * startup_stm32f429xx.s 只清 _sbss.._ebss，本段落在 .bss 之外且是 NOLOAD，
+   * 因此 Reset_Handler 不会碰它，掉电以外的复位（IWDG / NRST / 软件复位）都能
+   * 把上一次的 g_panic_record 原样留在 RAM 里。上电时内容是随机的，判据是记录
+   * 自身 magic（0x50414E43），不是本段地址。
+   *
+   * 谁改这里都要同步：create-project.py 的 verify 会断言 g_panic_record 落在
+   * [ _snoinit, _enoinit ) 之内，挪回 .bss 会直接红。 */
+  .noinit (NOLOAD) :
+  {
+    . = ALIGN(4);
+    _snoinit = .;
+    . = . + 8;      /* 隔离带：.bss 清零循环目前是“先比后写”（bcc），这里再留 8 B，
+                       将来循环改成先写后判时也不会碰到 record 的第一个字 */
+    *(.noinit)
+    *(.noinit*)
+    . = ALIGN(4);
+    _enoinit = .;
+  } >RAM
+
   /* User_heap_stack section, used to check that there is enough "RAM" Ram  type memory left */
   ._user_heap_stack :
   {

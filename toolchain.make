@@ -41,8 +41,9 @@ DEBUG := -g3
 # -g3 又把源码路径写进 debug 段，两者都会让同一提交在不同目录/机器编出不同字节的镜像
 # （实测 Windows 与 Linux 的 .text 相差 136 字节，差异全部落在 .rodata 的路径字符串）。
 REPRO := -ffile-prefix-map=$(PROJECT_ROOT)=.
-# 编译期禁用 newlib 的分配入口：newlib 堆只有 512 B 且紧贴 1 KB 栈，
-# 任何大块 malloc 都会静默踩栈。用 -include 注入，避免依赖每个编译单元记得包含；
+# 编译期禁用 newlib 的分配入口：newlib 堆只有 512 B，而 __heap_end__ 到 _estack
+# 之间约 159 KB 空闲 RAM（栈从 _estack 向下长，并不紧贴堆），大块 malloc 越界后
+# 既不会撞到栈也不会报错。用 -include 注入，避免依赖每个编译单元记得包含；
 # 不进 ASFLAGS（汇编没有这个概念）。守卫头自己先包含 <stdlib.h>/<string.h> 再 poison，
 # 否则会在系统头的函数声明处报错而不是在真正的调用点报错。
 ALLOC_GUARD := -include $(PROJECT_ROOT)/osl/inc/osl_alloc_guard.h
@@ -57,5 +58,8 @@ LDSCRIPT := $(PROJECT_ROOT)/hal/chip/linker/stm32f429igx_flash.ld
 # 显式声明 _sbrk 为未定义，才会让 libosl.a 的那份强定义胜出；顺带保证它不被 --gc-sections 丢掉。
 # -u __malloc_lock 同理：不强制引用的话，libc_nano.a 的 mlock.o（空锁）会先满足 malloc 的引用，
 # 任务里并发 malloc 就会踩坏堆。
-LDFLAGS = $(CPU_FLAGS) -T$(LDSCRIPT) -nostartfiles -Wl,--gc-sections -Wl,-Map=$(BUILD_DIR)/$(PROJECT_NAME).map -Wl,-u,_sbrk -Wl,-u,__malloc_lock --specs=nano.specs --specs=nosys.specs
+# -u _write 是为了让 osl 的 _write（把最近输出留在 g_last_write 里给调试器）真的进镜像：
+# 当前没有任何调用方，--gc-sections 会把 _write 和 g_last_write 一起丢掉（实测 nm 里两者都无），
+# 那样“留最近输出”就是空承诺。verify 会断言镜像里存在 _write。
+LDFLAGS = $(CPU_FLAGS) -T$(LDSCRIPT) -nostartfiles -Wl,--gc-sections -Wl,-Map=$(BUILD_DIR)/$(PROJECT_NAME).map -Wl,-u,_sbrk -Wl,-u,__malloc_lock -Wl,-u,_write --specs=nano.specs --specs=nosys.specs
 LDLIBS := -lc -lm -lgcc

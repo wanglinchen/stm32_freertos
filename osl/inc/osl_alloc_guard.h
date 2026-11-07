@@ -1,9 +1,14 @@
 /* osl_alloc_guard.h -- 编译期禁用 newlib 的分配入口
  *
  * 本工程只有一个堆：FreeRTOS 的 heap_4（configTOTAL_HEAP_SIZE = 32 KB）。
- * newlib 侧只有链接脚本里的 _Min_Heap_Size = 512 B，而且紧贴后面 1 KB 的栈
- * （__heap_end__ 之后就是 ._user_heap_stack 的栈区），任何一次大块 malloc
- * 都会静默越过边界写进栈，链接期完全看不出来。
+ * newlib 侧只有链接脚本里的 _Min_Heap_Size = 512 B，这个边界就是唯一的墙：
+ * __heap_end__ 到 _estack 之间是约 159 KB 空闲 RAM（实测 __heap_end__ =
+ * 0x20008410、_estack = 0x20030000），而栈是从 _estack 向下长的，所以大块
+ * malloc 越界后既不会撞到栈、也不会报错，链接期同样看不出来 —— 越界只能靠
+ * _sbrk 自己的边界判断挡住（见 osl/src/freertos_port_st.c）。
+ *
+ * 以前这里写的是“__heap_end__ 之后就是 ._user_heap_stack 的栈区”，那是把段声明
+ * 的意向当成了实际布局：栈实际在 159 KB 之外，中间既无保护也无检测。
  *
  * 所以这里把 newlib 的分配入口在编译期毒掉：谁在 .c 里写 malloc / calloc /
  * realloc / free / strdup，编译直接失败，逼他改用 pvPortMalloc / vPortFree。

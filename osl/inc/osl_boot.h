@@ -48,9 +48,15 @@ void osl_watchdog_start(void);
 void osl_watchdog_feed(void);
 
 /*
- * panic 前调用：把超时拉到最长（PR=/256 + RLR=4095，约 32 s）并喂一次，
- * 让三灯播报与“全亮停机”能稳定保留到调试器连上。
- * 未启动看门狗时这些写是空操作，所以早期 panic（HAL_Init 之前）也能安全调用。
+ * panic 前调用：把超时拉到最长（PR=/256 + RLR=4095，约 32.7 s）并喂一次，
+ * 让三灯播报（168 MHz 下约 0.5 s）能完整播完。此后没人喂狗，32.7 s 时 IWDG
+ * 照样复位 —— 它争取的是“播完”，不是“永久停住”；真正跨复位留下来的是
+ * .noinit 里的 g_panic_record（见 osl/src/freertos_port_st.c 与链接脚本 .noinit 段）。
+ * 看门狗还没启动时写 PR/RLR 只是预置寄存器（计数器不跑），无害，因此早期
+ * panic（HAL_Init 之前）也能安全调用。
+ *
+ * g_reset_cause 的消费方在 osl_panic_report()：每次 panic 都把当前复位原因写进
+ * g_panic_record.reset_cause，调试器读 record 即可知道“这次 panic 之前是怎么重启的”。
  */
 void osl_watchdog_relax(void);
 
