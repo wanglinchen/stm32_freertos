@@ -64,7 +64,7 @@ python3 build/install-toolchain.py
 
 实现细节与链接顺序以 [工程规格.md](./工程规格.md) 及 `build/create-project.py` 中 `STATIC_LIB_DIRS` / `NORMAL_LINK_LIBS` 为准。
 
-**改过门禁就跑门禁自测**：`python build/gate-selftest.py` 会逐组破坏被测条件（flags 依赖 / `-Wl,-u,_sbrk` / `_Min_Heap_Size` 与产物边界 / BSP 接入 / `Default_Handler` 跳转 / `.noinit` 属性 / `-Wl,-u,_write` / panic 记录尺寸 / `iwdg_wait_sync` 的 `str` / 堆栈水位符号），要求 `verify` 报错后再还原。断言在代码正确时永远是绿的，绿一次证明不了它会拦人。全量 10 组双端实测：本机 Windows 461.5 s、云主机 Linux 1417.7 s，均 10 PASS（每组都要重编，`write` 组串行全量重编最慢），`--only <组>` 可单跑，`--list` 打印组名的 JSON 数组。CI 也在跑它：`.github/workflows/build.yml` 的 `gate-list` job 用 `--list` 输出组名，`gate-selftest` job 按矩阵并行，一组一个 job —— 组名只有 `CASES` 一份来源，不硬编码，新增一组自动进矩阵。
+**改过门禁就跑门禁自测**：`python build/gate-selftest.py` 会逐组破坏被测条件（flags 依赖 / `-Wl,-u,_sbrk` / `_Min_Heap_Size` 与产物边界 / BSP 接入 / `Default_Handler` 跳转 / `.noinit` 属性 / `-Wl,-u,_write` / panic 记录尺寸 / `iwdg_wait_sync` 的 `str` / 堆栈水位符号），要求 `verify` 报错后再还原。断言在代码正确时永远是绿的，绿一次证明不了它会拦人。全量 10 组双端实测：本机 Windows 461.5 s、云主机 Linux 1417.7 s，均 10 PASS（每组都要重编，`write` 组串行全量重编最慢），`--only <组>` 可单跑，`--list` 打印组名的 JSON 数组。CI 也在跑它：`.github/workflows/build.yml` 的 `gate-list` job 用 `--list` 输出组名，`gate-selftest` job 按矩阵并行，一组一个 job —— 组名只有 `CASES` 一份来源，不硬编码，新增一组自动进矩阵。实测（run `42376978059`）12 个 job 全绿、从创建到结束 32 s（工具链缓存命中时；首次要拉 ARM 工具链会再加十几秒）。
 
 ## 故障排查
 
