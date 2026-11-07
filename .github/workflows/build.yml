@@ -62,3 +62,53 @@ jobs:
           name: stm32-freertos-target
           path: out/target/
           if-no-files-found: error
+
+  # 门禁红测矩阵：`verify` 的产物断言在代码本来就正确时永远是绿的，
+  # 绿一次证明不了它在该报错时会报错 —— 只有把被测条件真破坏一次才叫证据。
+  # 组名由 `gate-selftest.py --list` 输出（`CASES` 是唯一来源），workflow 不硬编码，
+  # 新增一组会自动进矩阵；硬编码的话漏同步就是永远漏跑，而且不会有人发现。
+  # 每组各自重编（`--only` 不依赖其它组的产物），最慢的 `write` 组要做一次串行全量重编。
+  gate-list:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      groups: ${{ steps.list.outputs.groups }}
+    steps:
+      - name: 检出（跳过 LFS）
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: 列出红测组
+        id: list
+        run: echo "groups=$(python3 build/gate-selftest.py --list)" >> "$GITHUB_OUTPUT"
+
+  gate-selftest:
+    needs: gate-list
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        group: ${{ fromJSON(needs.gate-list.outputs.groups) }}
+    steps:
+      - name: 检出（跳过 LFS）
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: 缓存 ARM 工具链
+        uses: actions/cache@v4
+        with:
+          path: tool/linux_x86_64
+          key: arm-gnu-${{ runner.os }}-13.3.rel1
+      - name: 安装 ARM 工具链
+        run: python3 build/install-toolchain.py
+      - name: 红测 ${{ matrix.group }}
+        run: python3 build/gate-selftest.py --only "${{ matrix.group }}"

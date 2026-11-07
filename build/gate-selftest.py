@@ -33,6 +33,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import hashlib
+import json
 import os
 import re
 import shutil
@@ -463,10 +464,17 @@ CASES = {
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="给 verify 的四组断言做红测")
+    parser = argparse.ArgumentParser(description="给 verify 的产物断言做红测")
     parser.add_argument("--only", choices=sorted(CASES), help="只跑指定的一组")
     parser.add_argument("--keep-going", action="store_true", help="某组失败后继续跑其余组")
+    # CI 的矩阵靠它取组名：组名只有 CASES 这一份来源，workflow 不硬编码列表，
+    # 否则新增一组忘了同步 workflow 就永远漏跑（而且没人会发现）。
+    parser.add_argument("--list", action="store_true", help="只打印组名的 JSON 数组（给 CI 矩阵用）")
     args = parser.parse_args()
+
+    if args.list:
+        print(json.dumps(list(CASES), ensure_ascii=False))
+        return 0
 
     selected = [args.only] if args.only else list(CASES)
     results: list[tuple[str, str, str]] = []
