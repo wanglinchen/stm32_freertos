@@ -1210,6 +1210,7 @@ def verify(artifacts: bool = False, *, check_symbols: bool = True) -> None:
     errors.extend(collect_fault_errors())
     errors.extend(collect_warning_gate_errors())
     errors.extend(collect_isr_priority_errors())
+    errors.extend(collect_periodic_task_errors())
     errors.extend(collect_memory_metadata_errors())
     errors.extend(collect_doc_reference_errors())
     if check_symbols:
@@ -1902,6 +1903,28 @@ RTOS_ISR_API = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*FromISR|portYIELD_FROM_ISR)
 NVIC_PRIORITY_CALL = re.compile(
     r"HAL_NVIC_SetPriority\s*\(\s*[A-Za-z0-9_]+(?:_IRQn|[0-9]+)\s*,\s*([0-9]+|0x[0-9A-Fa-f]+)"
 )
+
+
+def collect_periodic_task_errors() -> list[str]:
+    """周期任务必须用 vTaskDelayUntil：vTaskDelay 会把循环体的耗时累加进周期。
+
+    和 isr-prio 同类：纯静态、不编译、不要产物。改回 vTaskDelay 不会让任何产物断言
+    变红（符号照样在、尺寸几乎不变），只能靠读源码守住。
+    """
+    errors: list[str] = []
+    relative = "fml/src/fml_led.c"
+    text = read_text(ROOT / "fml" / "src" / "fml_led.c")
+    if not text:
+        return [f"缺少 {relative}"]
+    body = _function_body(text, r"static\s+void\s+fml_led_blink_task\s*\(")
+    if body is None:
+        errors.append(f"{relative} 里找不到 fml_led_blink_task；无法确认周期基准是否固定")
+    elif "vTaskDelayUntil(" not in body:
+        errors.append(
+            f"{relative} 的 fml_led_blink_task 用了 vTaskDelay 而不是 vTaskDelayUntil："
+            "循环体的执行时间会累加进闪烁周期，1 s 会越走越慢"
+        )
+    return errors
 
 
 def collect_isr_priority_errors() -> list[str]:

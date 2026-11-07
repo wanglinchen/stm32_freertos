@@ -34,7 +34,15 @@ extern uint32_t SystemCoreClock;
 
 #define configSUPPORT_STATIC_ALLOCATION       0
 #define configSUPPORT_DYNAMIC_ALLOCATION      1
-#define configTOTAL_HEAP_SIZE                 (32 * 1024)
+/*
+ * 32 KB 是模板默认值，本工程从没有用到过：三个任务的栈（256/128/128 词）+ 三个 TCB
+ * 合计约 2.5 KB，堆上其余约 29 KB 一直空闲，却整块落在 .bss 里，把 RAM 占用虚报到
+ * 17.7%（34896 B 中 32768 B 就是 ucHeap）。降到 16 KB：仍有约 6 倍余量，真调大了
+ * 失败也不静默——vApplicationMallocFailedHook 走 code 2 并把现场写进 .noinit。
+ * 板上用 g_heap_free_min 复核真实低水位再决定是否继续收；改这个数字必须同步
+ * .skills/工程规格.md 的「两套堆的边界」表。
+ */
+#define configTOTAL_HEAP_SIZE                 (16 * 1024)
 #define configAPPLICATION_ALLOCATED_HEAP      0
 
 #ifdef __NVIC_PRIO_BITS

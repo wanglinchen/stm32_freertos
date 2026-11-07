@@ -49,6 +49,7 @@ MAIN_C = ROOT / "apl" / "src" / "main.c"
 STARTUP_S = ROOT / "hal" / "chip" / "startup" / "src" / "startup_stm32f429xx.s"
 PANIC_STORE_C = ROOT / "osl" / "src" / "freertos_port_st.c"
 FML_BUTTON_C = ROOT / "fml" / "src" / "fml_button.c"
+FML_LED_C = ROOT / "fml" / "src" / "fml_led.c"
 
 
 def run(args: list[str], *, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
@@ -520,6 +521,26 @@ def case_health() -> tuple[str, str]:
     return "PASS", "删掉栈采样调用后产物断言报水位不可观测，已还原并重建"
 
 
+def case_period() -> tuple[str, str]:
+    """周期基准：把 vTaskDelayUntil 换回 vTaskDelay 后，verify 必须报错。
+
+    纯静态（不编译、不要产物）——这组存在的理由正是"改回去不改变任何产物"：
+    符号照样在、尺寸几乎不变，只有时间基准悄悄变差。
+    """
+    before = digest(FML_LED_C)
+    with patched(
+        FML_LED_C,
+        lambda t: t.replace("vTaskDelayUntil(&last_wake,", "vTaskDelay(", 1),
+    ):
+        result = create_project("verify")
+        problem = expect_failure(result, "vTaskDelayUntil")
+    if before != digest(FML_LED_C):
+        return "ERROR", "fml_led.c 没有还原到原始字节"
+    if problem:
+        return "FAIL", problem
+    return "PASS", "把 vTaskDelayUntil 换回 vTaskDelay 后 verify 报错，已还原"
+
+
 CASES = {
     "flags": case_flags,
     "heap": case_heap,
@@ -532,6 +553,7 @@ CASES = {
     "record-size": case_record_size,
     "iwdg-str": case_iwdg_str,
     "isr-prio": case_isr_priority,
+    "period": case_period,
     "health": case_health,
 }
 

@@ -28,8 +28,15 @@ void fml_led_panic(unsigned code)
 static void fml_led_blink_task(void *argument)
 {
     int on = 0;
+    TickType_t last_wake;
 
     (void)argument;
+    /*
+     * 用 vTaskDelayUntil 而不是 vTaskDelay：基准点固定在首拍，循环里的执行时间
+     * （两次水位采样 + 四个灯脚写入）不会累加进周期。用 vTaskDelay 时每拍都把
+     * 这段开销叠在 1 s 上，闪烁会越走越慢且无法从外部察觉。
+     */
+    last_wake = xTaskGetTickCount();
     for (;;) {
         unsigned i;
 
@@ -44,7 +51,7 @@ static void fml_led_blink_task(void *argument)
          */
         (void)osl_health_heap_mark();
         osl_health_stack_mark(0U);
-        vTaskDelay(pdMS_TO_TICKS(FML_LED_BLINK_PERIOD_MS));
+        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(FML_LED_BLINK_PERIOD_MS));
     }
 }
 

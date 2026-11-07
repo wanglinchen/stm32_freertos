@@ -65,7 +65,7 @@ python3 build/install-toolchain.py
 
 实现细节与链接顺序以 [工程规格.md](./工程规格.md) 及 `build/create-project.py` 中 `STATIC_LIB_DIRS` / `NORMAL_LINK_LIBS` 为准。
 
-**改过门禁就跑门禁自测**：`python build/gate-selftest.py` 会逐组破坏被测条件（flags 依赖 / `-Wl,-u,_sbrk` / `_Min_Heap_Size` 与产物边界 / BSP 接入 / `Default_Handler` 跳转 / `.noinit` 属性 / `-Wl,-u,_write` / panic 记录尺寸 / `iwdg_wait_sync` 的 `str` / 堆栈水位符号 / 中断里用 ISR 版 API 是否给出优先级），要求 `verify` 报错后再还原。断言在代码正确时永远是绿的，绿一次证明不了它会拦人。全量 11 组实测：本机 Windows 494.8 s / 11 PASS（每组都要重编，`write` 组串行全量重编最慢；`isr-prio` 是纯静态检查，7.2 s 跑完），`--only <组>` 可单跑，`--list` 打印组名的 JSON 数组。CI 也在跑它：`.github/workflows/build.yml` 的 `gate-list` job 用 `--list` 输出组名，`gate-selftest` job 按矩阵并行，一组一个 job —— 组名只有 `CASES` 一份来源，不硬编码，新增一组自动进矩阵。实测（run `42379454954`）13 个 job 全绿、从创建到结束 38 s（工具链缓存命中时；首次要拉 ARM 工具链会再加十几秒）。
+**改过门禁就跑门禁自测**：`python build/gate-selftest.py` 会逐组破坏被测条件（flags 依赖 / `-Wl,-u,_sbrk` / `_Min_Heap_Size` 与产物边界 / BSP 接入 / `Default_Handler` 跳转 / `.noinit` 属性 / `-Wl,-u,_write` / panic 记录尺寸 / `iwdg_wait_sync` 的 `str` / 堆栈水位符号 / 中断里用 ISR 版 API 是否给出优先级 / 周期任务是否用 `vTaskDelayUntil` / panic 入口是否先关中断），要求 `verify` 报错后再还原。断言在代码正确时永远是绿的，绿一次证明不了它会拦人。全量 13 组实测：本机 Windows 550.3 s / 13 PASS（每组都要重编，`write` 组串行全量重编最慢；`isr-prio` / `panic-mask` / `period` 是纯静态检查，十几秒内跑完；每轮收尾还会按当前源码重建一次并跑 `verify --artifacts`），`--only <组>` 可单跑，`--list` 打印组名的 JSON 数组。CI 也在跑它：`.github/workflows/build.yml` 的 `gate-list` job 用 `--list` 输出组名，`gate-selftest` job 按矩阵并行，一组一个 job —— 组名只有 `CASES` 一份来源，不硬编码，新增一组自动进矩阵。实测（run `42379454954`）13 个 job 全绿、从创建到结束 38 s（工具链缓存命中时；首次要拉 ARM 工具链会再加十几秒）。
 
 ## 故障排查
 
