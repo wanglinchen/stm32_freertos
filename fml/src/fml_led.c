@@ -17,7 +17,7 @@ static void fml_led_busy_delay(void)
 }
 
 /*
- * 错误码（闪 N 次后常亮停机）：
+ * 错误码（闪 N 次后常亮停机，本函数永不返回）：
  *   1 = 调度器启动失败（IDLE/Timer 任务创建不出来，一般是 FreeRTOS 堆不足）
  *   2 = 应用任务创建失败
  *   3 = configASSERT 失败（由 osl 的 vAssertFailed 直接播报，不走这里）
@@ -42,7 +42,18 @@ void fml_led_panic(unsigned code)
         fml_led_busy_delay();
     }
     for (i = 0U; i < (unsigned)BOARD_LED_COUNT; i++) {
-        board_led_set((board_led_id_t)i, 1); /* 常亮 = 播报结束、已停机 */
+        board_led_set((board_led_id_t)i, 1); /* 常亮 = 故障已播报、系统已停机 */
+    }
+
+    /*
+     * 必须关中断再自旋：本函数可能从任务上下文调用（例如 blink_start 的
+     * xTaskCreate 失败），此时调度器还活着，blink 任务下一拍就会把常亮翻回灭，
+     * 故障证据当场消失。关中断后 SysTick 不再触发重调度，灯与被中断的现场一起冻住。
+     * 调度器未启动时 BASEPRI 同样可用，不需要判断 xTaskGetSchedulerState。
+     */
+    taskDISABLE_INTERRUPTS();
+    for (;;) {
+        __asm volatile("nop");
     }
 }
 

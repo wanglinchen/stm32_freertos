@@ -17,6 +17,8 @@ INCLUDE_DIRS += $(PROJECT_ROOT)/fml/inc
 INCLUDE_DIRS += $(PROJECT_ROOT)/bsl/inc
 INCLUDES := $(addprefix -I,$(INCLUDE_DIRS))
 
+FLAG_DEPS := $(wildcard $(PROJECT_ROOT)/toolchain.make) $(wildcard $(PROJECT_ROOT)/out/.config)
+
 LOCAL_OBJS :=
 -include $(BUILD_DIR)/apl/src/main.d
 
@@ -24,7 +26,7 @@ ifeq ($(CONFIG_APL),y)
 ifeq ($(CONFIG_APL_SRC),y)
 ifeq ($(CONFIG_APL_SRC_MAIN),y)
 LOCAL_OBJS += $(BUILD_DIR)/apl/src/main.o
-$(BUILD_DIR)/apl/src/main.o: $(PROJECT_ROOT)/apl/src/main.c
+$(BUILD_DIR)/apl/src/main.o: $(PROJECT_ROOT)/apl/src/main.c $(FLAG_DEPS)
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/apl/src/main.d -c $< -o $@

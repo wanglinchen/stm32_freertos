@@ -13,6 +13,8 @@ INCLUDE_DIRS += $(PROJECT_ROOT)/hal/periph/inc
 INCLUDE_DIRS += $(PROJECT_ROOT)/bsl/inc
 INCLUDES := $(addprefix -I,$(INCLUDE_DIRS))
 
+FLAG_DEPS := $(wildcard $(PROJECT_ROOT)/toolchain.make) $(wildcard $(PROJECT_ROOT)/out/.config)
+
 LOCAL_OBJS :=
 -include $(BUILD_DIR)/bsl/src/board_beep.d
 -include $(BUILD_DIR)/bsl/src/board_key.d
@@ -22,7 +24,7 @@ ifeq ($(CONFIG_BSL),y)
 ifeq ($(CONFIG_BSL_SRC),y)
 ifeq ($(CONFIG_BSL_SRC_BOARD_BEEP),y)
 LOCAL_OBJS += $(BUILD_DIR)/bsl/src/board_beep.o
-$(BUILD_DIR)/bsl/src/board_beep.o: $(PROJECT_ROOT)/bsl/src/board_beep.c
+$(BUILD_DIR)/bsl/src/board_beep.o: $(PROJECT_ROOT)/bsl/src/board_beep.c $(FLAG_DEPS)
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_beep.d -c $< -o $@
@@ -35,7 +37,7 @@ ifeq ($(CONFIG_BSL),y)
 ifeq ($(CONFIG_BSL_SRC),y)
 ifeq ($(CONFIG_BSL_SRC_BOARD_KEY),y)
 LOCAL_OBJS += $(BUILD_DIR)/bsl/src/board_key.o
-$(BUILD_DIR)/bsl/src/board_key.o: $(PROJECT_ROOT)/bsl/src/board_key.c
+$(BUILD_DIR)/bsl/src/board_key.o: $(PROJECT_ROOT)/bsl/src/board_key.c $(FLAG_DEPS)
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_key.d -c $< -o $@
@@ -48,7 +50,7 @@ ifeq ($(CONFIG_BSL),y)
 ifeq ($(CONFIG_BSL_SRC),y)
 ifeq ($(CONFIG_BSL_SRC_BOARD_LED),y)
 LOCAL_OBJS += $(BUILD_DIR)/bsl/src/board_led.o
-$(BUILD_DIR)/bsl/src/board_led.o: $(PROJECT_ROOT)/bsl/src/board_led.c
+$(BUILD_DIR)/bsl/src/board_led.o: $(PROJECT_ROOT)/bsl/src/board_led.c $(FLAG_DEPS)
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_led.d -c $< -o $@

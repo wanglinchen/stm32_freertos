@@ -102,6 +102,9 @@ volatile char g_last_write[64]; /* _write 的最近一段输出，调试器可�
  * 只写 BSRR 寄存器，栈开销为 0。
  */
 #define PANIC_LED_MASK 0x1C00U /* PH10 | PH11 | PH12 */
+/* 每脚在 MODER/OSPEEDR/PUPDR 里占 2 位：PH10→bit20、PH11→bit22、PH12→bit24 */
+#define PANIC_LED_MODE_MASK 0x03F00000UL
+#define PANIC_LED_MODE_OUT 0x01500000UL /* 每脚 01 = 通用输出 */
 #define PANIC_SPIN 2000000U    /* 未校时的粗延时：只求肉眼可辨，主频越高闪得越快 */
 
 static void panic_leds(uint16_t low_mask)
@@ -109,6 +112,21 @@ static void panic_leds(uint16_t low_mask)
     uint32_t spin;
 
     __HAL_RCC_GPIOH_CLK_ENABLE();
+
+    /*
+     * 复位后 GPIOH 的 MODER 是 0（输入态），此时只写 BSRR 不会驱动引脚，
+     * 三灯根本不会亮。故障如果发生在 board_led_init() 之前（HAL_Init /
+     * SystemClock_Config 阶段的 configASSERT、早期 HardFault、_sbrk 越界），
+     * 播报就完全失效，只剩一个没人看得见的死循环。
+     *
+     * 这里直接把三脚配成“推挽输出 / 低速 / 无上下拉”，与 bsl 的 board_led_init
+     * 一致，但只写寄存器、不走 HAL_GPIO_Init：栈溢出时不能再压栈调用多层函数。
+     */
+    GPIOH->MODER = (GPIOH->MODER & (uint32_t)~PANIC_LED_MODE_MASK) | (uint32_t)PANIC_LED_MODE_OUT;
+    GPIOH->OTYPER &= ~(uint32_t)PANIC_LED_MASK;
+    GPIOH->OSPEEDR &= ~(uint32_t)PANIC_LED_MODE_MASK;
+    GPIOH->PUPDR &= ~(uint32_t)PANIC_LED_MODE_MASK;
+
     /* BSRR 低 16 位给 1 = 该脚置高（共阳接法下为灭），高 16 位给 1 = 置低（亮）。 */
     GPIOH->BSRR = (uint32_t)PANIC_LED_MASK & ~(uint32_t)low_mask;              /* 置高：灭 */
     GPIOH->BSRR = ((uint32_t)low_mask & (uint32_t)PANIC_LED_MASK) << 16U;      /* 置低：亮 */

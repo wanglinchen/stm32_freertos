@@ -355,7 +355,7 @@ def write_toolchain(info: dict) -> None:
         "LDLIBS := -lc -lm -lgcc",
         "",
     ]
-    (ROOT / "toolchain.make").write_text("\n".join(lines), encoding="utf-8")
+    write_generated_text(ROOT / "toolchain.make", "\n".join(lines))
 
 
 def header_dirs() -> list[Path]:
@@ -411,7 +411,7 @@ def write_kconfig(directory: Path, project_name: str) -> None:
         lines.append("")
         lines.append("endmenu")
         lines.append("")
-    (directory / "Kconfig").write_text("\n".join(lines), encoding="utf-8")
+    write_generated_text(directory / "Kconfig", "\n".join(lines))
 
 
 def project_root_expr(directory: Path) -> str:
@@ -556,6 +556,13 @@ def write_dir_makefile(directory: Path) -> None:
     lines += [
         "INCLUDES := $(addprefix -I,$(INCLUDE_DIRS))",
         "",
+        # 编译参数（toolchain.make）和功能裁剪（out/.config）一改变，所有 .o 都必须重编：
+        # 只依赖源文件会让“改了 flags 却复用旧对象”静默混编。
+        # 用 wildcard 而不是直接列关键字：clean 之后 out/.config 不存在，
+        # 直接列路径会让 make 报 "No rule to make target ... out/.config"。
+        "FLAG_DEPS := $(wildcard $(PROJECT_ROOT)/toolchain.make) "
+        "$(wildcard $(PROJECT_ROOT)/out/.config)",
+        "",
         "LOCAL_OBJS :=",
     ]
     for source in sources:
@@ -578,7 +585,7 @@ def write_dir_makefile(directory: Path) -> None:
         src = f"$(PROJECT_ROOT)/{source.relative_to(ROOT).as_posix()}"
         body = [
             f"LOCAL_OBJS += {obj}",
-            f"{obj}: {src}",
+            f"{obj}: {src} $(FLAG_DEPS)",
             "\t@mkdir -p $(dir $@)",
             f'\t@echo "{tag} $<"',
             f"\t{tool} -MMD -MP -MF {dep} -c $< -o $@",
@@ -605,7 +612,7 @@ def write_dir_makefile(directory: Path) -> None:
     else:
         lines.append(f"\trm -rf $(BUILD_DIR)/{rel.as_posix()}")
     lines.append("")
-    (directory / "Makefile").write_text("\n".join(lines), encoding="utf-8")
+    write_generated_text(directory / "Makefile", "\n".join(lines))
 
 
 def root_makefile_body() -> list[str]:
@@ -670,7 +677,7 @@ def write_root_makefile() -> None:
         "",
     ]
     lines.extend(root_makefile_body())
-    (ROOT / "Makefile").write_text("\n".join(lines), encoding="utf-8")
+    write_generated_text(ROOT / "Makefile", "\n".join(lines))
 
 
 def collect_config_symbols() -> dict[str, list[str]]:
@@ -763,7 +770,7 @@ def write_defconfig(info: dict) -> None:
     text = "\n".join(lines)
     if not text.endswith("\n"):
         text += "\n"
-    path.write_text(text + user_block + suffix, encoding="utf-8")
+    write_generated_text(path, text + user_block + suffix)
 
 
 def parse_defconfig(text: str) -> str:
@@ -792,24 +799,41 @@ def write_config() -> None:
     defconfig = ROOT / "proj" / "project_defconfig"
     config = ROOT / "out" / ".config"
     config.parent.mkdir(parents=True, exist_ok=True)
-    config.write_text(parse_defconfig(read_text(defconfig)), encoding="utf-8")
+    write_generated_text(config, parse_defconfig(read_text(defconfig)))
+
+
+RESTAMP_DIRTY: list[Path] = []
+
+
+def write_generated_text(path: Path, text: str) -> None:
+    """写入生成物；内容未变则不动文件，保留原 mtime。
+
+    目录 Makefile 把 toolchain.make / out/.config 当成每个 .o 的前置依赖
+    （编译参数或 Kconfig 一变就必须重编）。因此这里必须“没变就不写”，
+    否则 update 每次刷新这两个文件的 mtime，会退化成每轮全量重编。
+    """
+    if path.is_file():
+        try:
+            if path.read_text(encoding="utf-8") == text:
+                return
+        except OSError:
+            pass
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    RESTAMP_DIRTY.append(path)
 
 
 def restamp_generated(info: dict) -> None:
-    """Windows 盘上新文件的时间戳会超前于 WSL 时钟，make 会因此报 clock skew。"""
+    """Windows 盘上新写出的文件时间戳会超前于 WSL 时钟，make 会因此报 clock skew。
+
+    只处理本次真正写过的生成物：没变的文件保持原 mtime，否则 flags 依赖会把所有 .o
+    变成过期对象，把所有增量构建吃掉。
+    """
     now = time.time()
-    paths = [
-        ROOT / "proj" / "project-info.json",
-        ROOT / "proj" / "project_defconfig",
-        ROOT / "toolchain.make",
-        ROOT / "out" / ".config",
-    ]
-    for directory in walk_dirs():
-        paths.append(directory / "Makefile")
-        paths.append(directory / "Kconfig")
-    for path in paths:
+    for path in RESTAMP_DIRTY:
         if path.is_file():
             os.utime(path, (now, now))
+    RESTAMP_DIRTY.clear()
 
 
 def remove_stale_build_files() -> None:
@@ -818,7 +842,11 @@ def remove_stale_build_files() -> None:
         directory = ROOT / name
         if not directory.is_dir():
             continue
-        for fname in ("Makefile", "Kconfig", ".config"):
+        # out/ 是构建输出目录，但 out/.config 是 update 正常生成的配置真源：
+        # 它不是“排除目录里残留的误生成”，删掉会让它每轮重新创建、mtime 刷新，
+        # 而目录 Makefile 已把 out/.config 作为 .o 的前置依赖 → 全量重编。
+        stale_names = ("Makefile", "Kconfig") if directory == ROOT / "out" else ("Makefile", "Kconfig", ".config")
+        for fname in stale_names:
             path = directory / fname
             if path.is_file():
                 path.unlink()

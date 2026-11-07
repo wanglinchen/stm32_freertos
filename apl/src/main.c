@@ -20,7 +20,8 @@ int main(void)
     /*
      * 系统时钟：HSE 25 MHz → PLL → HCLK 168 MHz（APB1 42 MHz / APB2 84 MHz）。
      * 168 MHz 是为了让 PLLQ 给出整数 48 MHz（336 / 7）给 USB/SDIO；180 MHz 做不到
-     * （360 / 48 = 7.5）。失败时停在 HSI 16 MHz —— 主频差 10.5 倍属于故障，不能静默降级。
+     * （360 / 48 = 7.5）。失败时按码 4 播报并停机（fml_led_panic 已标 noreturn）：
+     * 主频差 10.5 倍属于故障，不允许降级到 HSI 16 MHz 继续跑。
      */
     if (SystemClock_Config() != 0) {
         fml_led_panic(4U);
@@ -40,8 +41,10 @@ int main(void)
     vTaskStartScheduler();
 
     /*
-     * 正常情况下 vTaskStartScheduler 不会返回；返回意味着空闲任务/Timer 任务
-     * 创建失败（FreeRTOS 堆不足）。以前这里是空 for(;;)，现场只能看到“板子不动”。
+     * vTaskStartScheduler 正常不会返回；返回意味着空闲/Timer 任务创建失败
+     * （FreeRTOS 堆不足），按码 1 播报并停机。fml_led_panic 现在是 noreturn
+     * （内部关中断自旋），下面的 for(;;) 只是双保险：万一将来有人把 noreturn
+     * 与自旋删掉，这里仍然不会让 main 返回进 bx lr 的死循环。
      */
     fml_led_panic(1U);
     for (;;) {

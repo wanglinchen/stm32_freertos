@@ -17,6 +17,8 @@ INCLUDE_DIRS += $(PROJECT_ROOT)/fml/inc
 INCLUDE_DIRS += $(PROJECT_ROOT)/bsl/inc
 INCLUDES := $(addprefix -I,$(INCLUDE_DIRS))
 
+FLAG_DEPS := $(wildcard $(PROJECT_ROOT)/toolchain.make) $(wildcard $(PROJECT_ROOT)/out/.config)
+
 LOCAL_OBJS :=
 -include $(BUILD_DIR)/fml/src/fml_button.d
 -include $(BUILD_DIR)/fml/src/fml_led.d
@@ -25,7 +27,7 @@ ifeq ($(CONFIG_FML),y)
 ifeq ($(CONFIG_FML_SRC),y)
 ifeq ($(CONFIG_FML_SRC_FML_BUTTON),y)
 LOCAL_OBJS += $(BUILD_DIR)/fml/src/fml_button.o
-$(BUILD_DIR)/fml/src/fml_button.o: $(PROJECT_ROOT)/fml/src/fml_button.c
+$(BUILD_DIR)/fml/src/fml_button.o: $(PROJECT_ROOT)/fml/src/fml_button.c $(FLAG_DEPS)
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/fml/src/fml_button.d -c $< -o $@
@@ -38,7 +40,7 @@ ifeq ($(CONFIG_FML),y)
 ifeq ($(CONFIG_FML_SRC),y)
 ifeq ($(CONFIG_FML_SRC_FML_LED),y)
 LOCAL_OBJS += $(BUILD_DIR)/fml/src/fml_led.o
-$(BUILD_DIR)/fml/src/fml_led.o: $(PROJECT_ROOT)/fml/src/fml_led.c
+$(BUILD_DIR)/fml/src/fml_led.o: $(PROJECT_ROOT)/fml/src/fml_led.c $(FLAG_DEPS)
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/fml/src/fml_led.d -c $< -o $@

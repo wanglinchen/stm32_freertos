@@ -15,6 +15,8 @@ INCLUDE_DIRS += $(PROJECT_ROOT)/hal/chip/startup/inc
 INCLUDE_DIRS += $(PROJECT_ROOT)/hal/periph/inc
 INCLUDES := $(addprefix -I,$(INCLUDE_DIRS))
 
+FLAG_DEPS := $(wildcard $(PROJECT_ROOT)/toolchain.make) $(wildcard $(PROJECT_ROOT)/out/.config)
+
 LOCAL_OBJS :=
 -include $(BUILD_DIR)/osl/src/freertos/event_groups.d
 -include $(BUILD_DIR)/osl/src/freertos/list.d
@@ -27,7 +29,7 @@ ifeq ($(CONFIG_OSL),y)
 ifeq ($(CONFIG_OSL_SRC),y)
 ifeq ($(CONFIG_OSL_SRC_FREERTOS),y)
 LOCAL_OBJS += $(BUILD_DIR)/osl/src/freertos/event_groups.o
-$(BUILD_DIR)/osl/src/freertos/event_groups.o: $(PROJECT_ROOT)/osl/src/freertos/event_groups.c
+$(BUILD_DIR)/osl/src/freertos/event_groups.o: $(PROJECT_ROOT)/osl/src/freertos/event_groups.c $(FLAG_DEPS)
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/osl/src/freertos/event_groups.d -c $< -o $@
@@ -40,7 +42,7 @@ ifeq ($(CONFIG_OSL),y)
 ifeq ($(CONFIG_OSL_SRC),y)
 ifeq ($(CONFIG_OSL_SRC_FREERTOS),y)
 LOCAL_OBJS += $(BUILD_DIR)/osl/src/freertos/list.o
-$(BUILD_DIR)/osl/src/freertos/list.o: $(PROJECT_ROOT)/osl/src/freertos/list.c
+$(BUILD_DIR)/osl/src/freertos/list.o: $(PROJECT_ROOT)/osl/src/freertos/list.c $(FLAG_DEPS)
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/osl/src/freertos/list.d -c $< -o $@
@@ -53,7 +55,7 @@ ifeq ($(CONFIG_OSL),y)
 ifeq ($(CONFIG_OSL_SRC),y)
 ifeq ($(CONFIG_OSL_SRC_FREERTOS),y)
 LOCAL_OBJS += $(BUILD_DIR)/osl/src/freertos/queue.o
-$(BUILD_DIR)/osl/src/freertos/queue.o: $(PROJECT_ROOT)/osl/src/freertos/queue.c
+$(BUILD_DIR)/osl/src/freertos/queue.o: $(PROJECT_ROOT)/osl/src/freertos/queue.c $(FLAG_DEPS)
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/osl/src/freertos/queue.d -c $< -o $@
@@ -66,7 +68,7 @@ ifeq ($(CONFIG_OSL),y)
 ifeq ($(CONFIG_OSL_SRC),y)
 ifeq ($(CONFIG_OSL_SRC_FREERTOS),y)
 LOCAL_OBJS += $(BUILD_DIR)/osl/src/freertos/stream_buffer.o
-$(BUILD_DIR)/osl/src/freertos/stream_buffer.o: $(PROJECT_ROOT)/osl/src/freertos/stream_buffer.c
+$(BUILD_DIR)/osl/src/freertos/stream_buffer.o: $(PROJECT_ROOT)/osl/src/freertos/stream_buffer.c $(FLAG_DEPS)
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/osl/src/freertos/stream_buffer.d -c $< -o $@
@@ -79,7 +81,7 @@ ifeq ($(CONFIG_OSL),y)
 ifeq ($(CONFIG_OSL_SRC),y)
 ifeq ($(CONFIG_OSL_SRC_FREERTOS),y)
 LOCAL_OBJS += $(BUILD_DIR)/osl/src/freertos/tasks.o
-$(BUILD_DIR)/osl/src/freertos/tasks.o: $(PROJECT_ROOT)/osl/src/freertos/tasks.c
+$(BUILD_DIR)/osl/src/freertos/tasks.o: $(PROJECT_ROOT)/osl/src/freertos/tasks.c $(FLAG_DEPS)
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/osl/src/freertos/tasks.d -c $< -o $@
@@ -92,7 +94,7 @@ ifeq ($(CONFIG_OSL),y)
 ifeq ($(CONFIG_OSL_SRC),y)
 ifeq ($(CONFIG_OSL_SRC_FREERTOS),y)
 LOCAL_OBJS += $(BUILD_DIR)/osl/src/freertos/timers.o
-$(BUILD_DIR)/osl/src/freertos/timers.o: $(PROJECT_ROOT)/osl/src/freertos/timers.c
+$(BUILD_DIR)/osl/src/freertos/timers.o: $(PROJECT_ROOT)/osl/src/freertos/timers.c $(FLAG_DEPS)
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/osl/src/freertos/timers.d -c $< -o $@

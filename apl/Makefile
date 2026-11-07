@@ -17,6 +17,8 @@ INCLUDE_DIRS += $(PROJECT_ROOT)/fml/inc
 INCLUDE_DIRS += $(PROJECT_ROOT)/bsl/inc
 INCLUDES := $(addprefix -I,$(INCLUDE_DIRS))
 
+FLAG_DEPS := $(wildcard $(PROJECT_ROOT)/toolchain.make) $(wildcard $(PROJECT_ROOT)/out/.config)
+
 LOCAL_OBJS :=
 ARCHIVE_OBJS :=
 ifeq ($(CONFIG_APL),y)

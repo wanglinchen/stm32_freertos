@@ -12,6 +12,8 @@ INCLUDE_DIRS += $(PROJECT_ROOT)/hal/chip/startup/inc
 INCLUDE_DIRS += $(PROJECT_ROOT)/hal/periph/inc
 INCLUDES := $(addprefix -I,$(INCLUDE_DIRS))
 
+FLAG_DEPS := $(wildcard $(PROJECT_ROOT)/toolchain.make) $(wildcard $(PROJECT_ROOT)/out/.config)
+
 LOCAL_OBJS :=
 ARCHIVE_OBJS :=
 ifeq ($(CONFIG_HAL),y)

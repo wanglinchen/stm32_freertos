@@ -15,6 +15,8 @@ INCLUDE_DIRS += $(PROJECT_ROOT)/hal/chip/startup/inc
 INCLUDE_DIRS += $(PROJECT_ROOT)/hal/periph/inc
 INCLUDES := $(addprefix -I,$(INCLUDE_DIRS))
 
+FLAG_DEPS := $(wildcard $(PROJECT_ROOT)/toolchain.make) $(wildcard $(PROJECT_ROOT)/out/.config)
+
 LOCAL_OBJS :=
 -include $(BUILD_DIR)/osl/src/freertos/portable/GCC/ARM_CM4F/port.d
 
@@ -26,7 +28,7 @@ ifeq ($(CONFIG_OSL_SRC_FREERTOS_PORTABLE_GCC),y)
 ifeq ($(CONFIG_OSL_SRC_FREERTOS_PORTABLE_GCC_ARM_CM4F),y)
 ifeq ($(CONFIG_OSL_SRC_FREERTOS_PORTABLE_GCC_ARM_CM4F_PORT),y)
 LOCAL_OBJS += $(BUILD_DIR)/osl/src/freertos/portable/GCC/ARM_CM4F/port.o
-$(BUILD_DIR)/osl/src/freertos/portable/GCC/ARM_CM4F/port.o: $(PROJECT_ROOT)/osl/src/freertos/portable/GCC/ARM_CM4F/port.c
+$(BUILD_DIR)/osl/src/freertos/portable/GCC/ARM_CM4F/port.o: $(PROJECT_ROOT)/osl/src/freertos/portable/GCC/ARM_CM4F/port.c $(FLAG_DEPS)
 	@mkdir -p $(dir $@)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/osl/src/freertos/portable/GCC/ARM_CM4F/port.d -c $< -o $@
