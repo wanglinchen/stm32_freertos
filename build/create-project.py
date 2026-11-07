@@ -1853,6 +1853,17 @@ FAULT_HANDLER_NAMES = (
 
 FAULT_SOURCE = ROOT / "osl" / "src" / "freertos_port_st.c"
 
+# panic 的全部入口：每一个都在写 record 之前就先关掉外部中断。
+# _sbrk 的关中断只能放在 exhausted: 之后——放在函数开头会让每次 malloc 都屏蔽全部中断。
+PANIC_ENTRY_POINTS = (
+    ("fault_report", r"void\s+fault_report\s*\("),
+    ("UnhandledIRQ_Handler", r"void\s+UnhandledIRQ_Handler\s*\("),
+    ("vApplicationStackOverflowHook", r"void\s+vApplicationStackOverflowHook\s*\("),
+    ("vApplicationMallocFailedHook", r"void\s+vApplicationMallocFailedHook\s*\("),
+    ("vAssertFailed", r"void\s+vAssertFailed\s*\("),
+    ("_sbrk", r"void\s*\*\s*_sbrk\s*\("),
+)
+
 DOC_SCAN_SKIP_PREFIXES = ("tool/", "out/", "examples/", "doc/reference/")
 """文档里这些路径属于工具链目录、上游示例或未跟踪的大体积参考资料，不做存在性断言。"""
 
@@ -1959,6 +1970,32 @@ def collect_isr_priority_errors() -> list[str]:
     return errors
 
 
+def _function_body(text: str, signature: str) -> str | None:
+    """取 C 函数体：从签名后的第一个 '{' 起按花括号配平到对应的 '}'。
+
+    先剥注释再配平——注释里出现的花括号会让配平提前或延后结束。块注释和行注释都剥：
+    只剥块注释时，函数体里写一行 `// g_panic_reporting` 就能让下面的断言假绿。
+    """
+    code = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
+    code = re.sub(r"//.*", "", code)
+    match = re.search(signature, code)
+    if match is None:
+        return None
+    start = code.find("{", match.end())
+    if start < 0:
+        return None
+    depth = 0
+    for index in range(start, len(code)):
+        char = code[index]
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return code[start : index + 1]
+    return None
+
+
 def collect_fault_errors() -> list[str]:
     """硬件异常必须由本工程接管；未实现的中断也必须留下证据。
 
@@ -2016,6 +2053,51 @@ def collect_fault_errors() -> list[str]:
             errors.append(
                 f"{rel} 里仍有 `b Infinite_Loop` 自旋；Default_Handler 必须转发到 "
                 "UnhandledIRQ_Handler（记录中断号并播报 code 6）"
+            )
+
+    # panic 通道自己必须不可重入。写 record 与 0.5 s 三灯播报期间，0..4 优先级的中断
+    # 不受 BASEPRI 约束（taskDISABLE_INTERRUPTS 只把 BASEPRI 提到 0x50，而且它在播报
+    # 之后才调），第二路 panic 会与第一路交错写同一个 g_panic_record，把现场撕成
+    # 一半旧一半新，栈也继续往 __heap_end__ 压。这里只断言"入口是否全局屏蔽 + 是否有
+    # 重入闸"，不试图证明运行时行为——那需要真机。
+    panic_rel = FAULT_SOURCE.relative_to(ROOT).as_posix()
+    panic_body = _function_body(text, r"void\s+osl_panic_report\s*\(")
+    mask_body = _function_body(text, r"void\s+panic_mask_all_irqs\s*\(")
+    if panic_body is None:
+        errors.append(f"{panic_rel} 里找不到 osl_panic_report 的函数体；无法确认 panic 通道是否防重入")
+    else:
+        if "g_panic_reporting" not in panic_body:
+            errors.append(
+                f"{panic_rel} 的 osl_panic_report 没有 g_panic_reporting 重入闸："
+                "两路 panic 同时进来会交错写 g_panic_record，现场字段一半新一半旧"
+            )
+        if "panic_mask_all_irqs(" not in panic_body:
+            errors.append(
+                f"{panic_rel} 的 osl_panic_report 没有先调 panic_mask_all_irqs()："
+                "写 record 与播报期间，优先级 0..4 的未实现中断仍可重入"
+            )
+    if mask_body is None:
+        errors.append(f"{panic_rel} 里没有 panic_mask_all_irqs 函数；无法确认是否关掉全部外部中断")
+    elif "NVIC->ICER" not in mask_body or "NVIC->ICPR" not in mask_body:
+        errors.append(
+            f"{panic_rel} 的 panic_mask_all_irqs 没有同时清 NVIC->ICER 与 ICPR："
+            "只关使能会留下挂起位，重入路径仍未完全关闭"
+        )
+
+    # 关中断必须早于写 record，而且要落在**每个入口**里。只把屏蔽放进 osl_panic_report
+    # 是不够的：各入口自己会先写 magic / fault_pc / task_name，那一段仍然在 0..4 优先级
+    # 中断可打断的窗口里，两路 panic 交错写同一份现场，字段就会一半旧一半新。
+    for entry, signature in PANIC_ENTRY_POINTS:
+        body = _function_body(text, signature)
+        if body is None:
+            errors.append(f"{panic_rel} 里找不到 {entry}；无法确认该 panic 入口是否先关中断")
+            continue
+        masked = body.find("panic_mask_all_irqs(")
+        writes = [pos for pos in (body.find("g_panic_record"), body.find("g_last_write")) if pos >= 0]
+        if writes and (masked < 0 or masked > min(writes)):
+            errors.append(
+                f"{panic_rel} 的 {entry} 在写 record 之前没有关中断（panic_mask_all_irqs 缺失或晚于首次写入）："
+                "预写窗口里优先级 0..4 的中断重入会交错改写同一份现场"
             )
     return errors
 

@@ -115,6 +115,33 @@ volatile panic_record_t g_panic_record __attribute__((section(".noinit")));
 volatile char g_last_write[64]; /* _write 的最近一段输出，调试器可直接读 */
 
 /*
+ * panic 通道的重入闸。放 .bss 而不是 .noinit：.noinit 跨复位保留，第二次真 panic
+ * 会被当成"已在播报"直接停住，记录永远写不进去；.bss 由 Reset_Handler 清零，
+ * 正好只挡"同一次运行内"的重入。
+ */
+static volatile uint32_t g_panic_reporting;
+
+/*
+ * 关掉全部外部中断。写 record 与三灯播报（约 0.5 s）期间，0..4 优先级的中断不受
+ * BASEPRI 约束，而 taskDISABLE_INTERRUPTS 只把 BASEPRI 提到 0x50、且是在播报之后
+ * 才调——这段时间里第二个未实现外设一旦触发，就会重入 UnhandledIRQ_Handler 再走
+ * 一遍 osl_panic_report，把同一份 record 交错写坏。
+ *
+ * NVIC 只有 ICER[0..7]（最多 240 个 IRQ），F429 的 90 个全在范围内，不会越界。
+ * 16 号以下是系统异常（HardFault / SVC / PendSV / SysTick），不在 ICER 里，
+ * 它们由 panic 记录里的 IPSR 反映，这里不处理。ICPR 一起清：只关使能会留下挂起位。
+ */
+static void panic_mask_all_irqs(void)
+{
+    uint32_t index;
+
+    for (index = 0U; index < 8U; index++) {
+        NVIC->ICER[index] = 0xFFFFFFFFU;
+        NVIC->ICPR[index] = 0xFFFFFFFFU;
+    }
+}
+
+/*
  * 故障指示灯：PH10/PH11/PH12（共阳、低电平点亮），与 bsl/src/board_led.c 的接法一致。
  * 这里故意绕过 HAL_GPIO / 板级驱动：栈已经溢出时不能再压栈调用多层函数，
  * 只写 BSRR 寄存器，栈开销为 0。
@@ -165,6 +192,21 @@ void osl_panic_report(osl_panic_code_t code)
     uint32_t round;
     uint32_t raw = (uint32_t)code;
     uint16_t mask;
+
+    /*
+     * 入口先做两件事，顺序不能换：
+     *   1) 重入闸——已在播报中的第二个上下文到此停住，不再碰 record；
+     *   2) 关掉全部外部中断——必须早于写 record，否则写的途中就可能有 0..4
+     *      优先级的中断进来再走一遍本函数，把同一份 record 撕成一半旧一半新。
+     * 两步都不依赖 SysTick：播报用 nop 粗延时，HAL_GetTick 走 DWT 的 CYCCNT。
+     */
+    if (g_panic_reporting != 0U) {
+        for (;;) {
+            __asm volatile("nop");
+        }
+    }
+    g_panic_reporting = 1U;
+    panic_mask_all_irqs();
 
     /* 先把看门狗超时拉到最长再播报：否则 1 s 后就复位，三灯还没来得及闪完。 */
     osl_watchdog_relax();
@@ -256,6 +298,7 @@ static void fault_report(uint32_t kind, uint32_t exc_return)
     uint32_t frame_type;
     uint32_t frame_offset;
 
+    panic_mask_all_irqs();
     g_panic_record.magic = PANIC_MAGIC;
     g_panic_record.fault_kind = kind;
     g_panic_record.fault_cfsr = SCB->CFSR;
@@ -325,6 +368,8 @@ void UnhandledIRQ_Handler(void)
 {
     uint32_t irq = SCB->ICSR & SCB_ICSR_VECTACTIVE_Msk;
 
+    /* 全局屏蔽要早于下面两条写：只关 VECTACTIVE 那一个源，挡不住其它未实现外设。 */
+    panic_mask_all_irqs();
     g_panic_record.magic = PANIC_MAGIC;
     g_panic_record.unhandled_irq = irq;
 
@@ -352,6 +397,7 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
 {
     uint32_t i;
 
+    panic_mask_all_irqs();
     g_panic_record.magic = PANIC_MAGIC;
     g_panic_record.task = xTask;
     if (pcTaskName != NULL) {
@@ -369,6 +415,7 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
 /* 任务/堆创建失败：同样要看得见，否则“什么都没发生”是唯一的症状。 */
 void vApplicationMallocFailedHook(void)
 {
+    panic_mask_all_irqs();
     g_panic_record.magic = PANIC_MAGIC;
     g_panic_record.code = (uint32_t)OSL_PANIC_CREATE_FAILED;
     osl_panic_report(OSL_PANIC_CREATE_FAILED);
@@ -377,6 +424,7 @@ void vApplicationMallocFailedHook(void)
 /* configASSERT 的落点：记录文件名/行号（调试器可读 g_panic_record）后播报。 */
 void vAssertFailed(const char *file, uint32_t line)
 {
+    panic_mask_all_irqs();
     g_panic_record.magic = PANIC_MAGIC;
     g_panic_record.assert_file = file;
     g_panic_record.assert_line = line;
@@ -443,6 +491,8 @@ void *_sbrk(ptrdiff_t incr)
     return (void *)previous;
 
 exhausted:
+    /* 只在越界出口关中断：放到函数开头会让每次 malloc 都屏蔽全部中断。 */
+    panic_mask_all_irqs();
     g_panic_record.magic = PANIC_MAGIC;
     g_panic_record.code = (uint32_t)OSL_PANIC_HEAP_EXHAUSTED;
     osl_panic_report(OSL_PANIC_HEAP_EXHAUSTED);

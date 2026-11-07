@@ -232,6 +232,50 @@ def case_isr_priority() -> tuple[str, str]:
     return "PASS", "插入 ISR 版 API 调用而不给优先级后 verify 报错，已还原"
 
 
+def case_panic_mask() -> tuple[str, str]:
+    """panic 通道重入：两处关中断各自都要在破坏态下变红。
+
+    1) osl_panic_report 入口的全局屏蔽（删掉那次调用）；
+    2) fault_report 在写 record 之前的屏蔽（删掉那一行）。
+    纯静态（不编译、不要产物）。只删调用、保留函数定义——测的是"入口有没有真的
+    屏蔽"，而不是"函数还在不在"。
+    """
+    before = digest(PANIC_STORE_C)
+    problems: list[str] = []
+
+    with patched(
+        PANIC_STORE_C,
+        lambda t: t.replace(
+            "    g_panic_reporting = 1U;\n    panic_mask_all_irqs();\n",
+            "    g_panic_reporting = 1U;\n",
+            1,
+        ),
+    ):
+        result = create_project("verify")
+        problems.append(expect_failure(result, "panic_mask_all_irqs()"))
+
+    with patched(
+        PANIC_STORE_C,
+        lambda t: t.replace(
+            "    panic_mask_all_irqs();\n"
+            "    g_panic_record.magic = PANIC_MAGIC;\n"
+            "    g_panic_record.fault_kind = kind;\n",
+            "    g_panic_record.magic = PANIC_MAGIC;\n"
+            "    g_panic_record.fault_kind = kind;\n",
+            1,
+        ),
+    ):
+        result = create_project("verify")
+        problems.append(expect_failure(result, "fault_report"))
+
+    if before != digest(PANIC_STORE_C):
+        return "ERROR", "freertos_port_st.c 没有还原到原始字节"
+    for problem in problems:
+        if problem:
+            return "FAIL", problem
+    return "PASS", "删掉 report 入口 / fault_report 预写前的关中断后，verify 都报错，已还原"
+
+
 def case_fault() -> tuple[str, str]:
     """未实现中断：startup 改回自旋后，产物断言必须报 Default_Handler 不跳 handler。
 
@@ -482,6 +526,7 @@ CASES = {
     "heap-bound": case_heap_bound,
     "bsp": case_bsp,
     "fault": case_fault,
+    "panic-mask": case_panic_mask,
     "noinit": case_noinit,
     "write": case_write,
     "record-size": case_record_size,
@@ -489,6 +534,25 @@ CASES = {
     "isr-prio": case_isr_priority,
     "health": case_health,
 }
+
+
+def restore_artifacts() -> str | None:
+    """收尾：按当前源码重建一次产物，并做产物级校验。
+
+    patched() 只还原源码字节与 mtime，管不到 out/。任何一组删过链接参数、改过段边界
+    再重建之后，产物就停在破坏版本上：跑完整套时后一组会顺带重建掩盖掉，但单跑一组
+    （--only）就会留下一个坏 elf，此后任何产物级断言都可能假红或假绿。
+    进程被 SIGKILL（任务被打断、设备掉线）时本函数同样不会执行——那种情况只能人工重建。
+    """
+    build = create_project("build")
+    if build.returncode != 0:
+        tail = "\n".join((build.stdout + build.stderr).strip().splitlines()[-4:])
+        return f"收尾重建失败：{tail}"
+    check = create_project("verify", "--artifacts")
+    if check.returncode != 0:
+        tail = "\n".join((check.stdout + check.stderr).strip().splitlines()[-4:])
+        return f"收尾产物校验失败（产物可能仍是破坏态）：{tail}"
+    return None
 
 
 def main() -> int:
@@ -516,6 +580,15 @@ def main() -> int:
             status, detail = "ERROR", f"{type(exc).__name__}: {exc}"
         results.append((name, status, detail))
         print(f"{status}: {detail}", flush=True)
+
+    # 不管上面各组结果如何都重建一次：否则破坏态产物会留给下一次运行（见 restore_artifacts）。
+    print("== restore ==", flush=True)
+    problem = restore_artifacts()
+    if problem:
+        results.append(("restore", "ERROR", problem))
+        print(f"ERROR: {problem}", flush=True)
+    else:
+        print("PASS: 产物已按当前源码重建，verify --artifacts 通过", flush=True)
 
     failed = [r for r in results if r[1] in ("FAIL", "ERROR")]
     elapsed = time.time() - started
