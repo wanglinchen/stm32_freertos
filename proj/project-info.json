@@ -8,5 +8,55 @@
     "flash_kb": 1024,
     "sram_kb": 192,
     "ccm_kb": 64
+  },
+  "board": {
+    "dts": "device/dts/boards/apollo-f429.dts",
+    "compatible": "alientek,apollo-f429",
+    "pinmap_xlsx": "doc/hardware/pinmap/阿波罗V2 STM32F429开发板IO引脚分配表.xlsx",
+    "gpio_bind": {
+      "leds": {
+        "active_low": true,
+        "led_names": ["R", "G", "B"],
+        "pinmap_labels": ["LED0", "LED1", "BOOT1"]
+      },
+      "keys": [
+        {
+          "key_id": "WK_UP",
+          "node": "key-wk-up",
+          "label": "WK_UP",
+          "pinmap_label": "WK_UP",
+          "pressed_high": true
+        },
+        {
+          "key_id": "KEY0",
+          "node": "key0",
+          "label": "KEY0",
+          "pinmap_label": "KEY0",
+          "pressed_high": false
+        },
+        {
+          "key_id": "KEY1",
+          "node": "key1",
+          "label": "KEY1",
+          "pinmap_label": "KEY1",
+          "pressed_high": false
+        },
+        {
+          "key_id": "KEY2",
+          "node": "key2",
+          "label": "KEY2",
+          "pinmap_label": "KEY2",
+          "pressed_high": false
+        }
+      ],
+      "beep": {
+        "via": "pcf8574",
+        "pcf8574_addr_7bit": 32,
+        "pcf8574_pin": 0,
+        "active_low": true,
+        "i2c_scl": { "port": "H", "pin": 4 },
+        "i2c_sda": { "port": "H", "pin": 5 }
+      }
+    }
   }
 }

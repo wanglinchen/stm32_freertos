@@ -33,8 +33,17 @@ static void fml_button_task(void *argument)
      * 用 vTaskDelay 时周期会随负载浮动，30 ms 的去抖窗口跟着变长变短。
      */
     last_wake = xTaskGetTickCount();
+    /*
+     * 上电短鸣：区分「蜂鸣器/PI11 路径」与「按键读数」—— 无短鸣先查蜂鸣，有短鸣再查键。
+     */
+    board_beep_set(1);
+    vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(80));
+    board_beep_set(0);
     for (;;) {
-        int held = board_key_pressed(BOARD_KEY1) || board_key_pressed(BOARD_KEY2);
+        int held = board_key_pressed(BOARD_WK_UP)
+                || board_key_pressed(BOARD_KEY0)
+                || board_key_pressed(BOARD_KEY1)
+                || board_key_pressed(BOARD_KEY2);
 
         if (held == candidate) {
             if (agree < FML_BUTTON_DEBOUNCE_SAMPLES) {
@@ -68,7 +77,7 @@ void fml_button_start(void)
     if (xTaskCreate(
             fml_button_task,
             "button",
-            configMINIMAL_STACK_SIZE,
+            configMINIMAL_STACK_SIZE * 2U,
             NULL,
             tskIDLE_PRIORITY + 1U,
             NULL) != pdPASS) {

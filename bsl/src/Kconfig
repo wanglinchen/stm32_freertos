@@ -5,6 +5,10 @@ config BSL_SRC_BOARD_BEEP
 	bool "board_beep.c"
 	default y
 
+config BSL_SRC_BOARD_DEBUG_UART
+	bool "board_debug_uart.c"
+	default y
+
 config BSL_SRC_BOARD_KEY
 	bool "board_key.c"
 	default y

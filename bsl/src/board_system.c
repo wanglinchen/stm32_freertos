@@ -1,5 +1,7 @@
 #include "board_system.h"
 
+#include "board_debug_uart.h"
+
 #include "stm32f4xx_hal.h"
 #include "system_stm32f4xx.h"
 
@@ -23,5 +25,7 @@ int board_system_init(void)
     }
 
     SystemCoreClockUpdate();
+
+    board_debug_uart_init();
     return 0;
 }

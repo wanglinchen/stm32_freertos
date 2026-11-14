@@ -506,18 +506,29 @@ void __malloc_unlock(struct _reent *ptr)
 }
 
 /*
- * newlib 的 _write 最小实现：没有串口，就把最近一段输出留在内存里给调试器看。
- * 返回 len 让 printf 认为写成功，避免返回错误码导致重试或异常路径。
+ * bsl 可实现强符号 osl_debug_uart_write，把字节送到 USART1（CH340）。
+ * 本层不 include bsl；未接 UART 时 weak 默认不写外设。
+ */
+__attribute__((weak)) int osl_debug_uart_write(const char *buf, int len)
+{
+    (void)buf;
+    (void)len;
+    return 0;
+}
+
+/*
+ * newlib _write：优先走串口，同时把最近一段抄进 g_last_write 给调试器/panic 用。
+ * 返回 len 让 printf 认为写成功。
  *
- * 注意：本函数没有调用方，--gc-sections 会把它和 g_last_write 一起丢掉
- * （实测 nm 里两者都不存在，等于"留最近输出"是空承诺）。所以 toolchain.make
- * 的 LDFLAGS 里加了 -Wl,-u,_write 强制保留，verify 也会断言镜像里有该符号。
+ * 注意：若全镜像没有任何 printf 调用方，--gc-sections 仍可能丢掉 _write；
+ * toolchain.make 的 -Wl,-u,_write 强制保留，verify 也会断言镜像里有该符号。
  */
 int _write(int file, char *ptr, int len)
 {
     int i;
 
     (void)file;
+    (void)osl_debug_uart_write(ptr, len);
     for (i = 0; i < len; i++) {
         g_last_write[i] = ptr[i];
         if (i + 1 >= (int)(sizeof(g_last_write) / sizeof(g_last_write[0]))) {

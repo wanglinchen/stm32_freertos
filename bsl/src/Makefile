@@ -19,6 +19,7 @@ FLAG_DEPS := $(wildcard $(PROJECT_ROOT)/toolchain.make) $(wildcard $(PROJECT_ROO
 
 LOCAL_OBJS :=
 -include $(BUILD_DIR)/bsl/src/board_beep.d
+-include $(BUILD_DIR)/bsl/src/board_debug_uart.d
 -include $(BUILD_DIR)/bsl/src/board_key.d
 -include $(BUILD_DIR)/bsl/src/board_led.d
 -include $(BUILD_DIR)/bsl/src/board_system.d
@@ -32,6 +33,19 @@ $(BUILD_DIR)/bsl/src/board_beep.o: $(PROJECT_ROOT)/bsl/src/board_beep.c $(FLAG_D
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_beep.d -c $< -o $@
 	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_beep.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BOARD_DEBUG_UART),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/board_debug_uart.o
+$(BUILD_DIR)/bsl/src/board_debug_uart.o: $(PROJECT_ROOT)/bsl/src/board_debug_uart.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_debug_uart.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_debug_uart.d
 endif
 endif
 endif

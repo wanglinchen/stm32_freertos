@@ -28,6 +28,13 @@ endif
 endif
 ifeq ($(CONFIG_BSL),y)
 ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BOARD_DEBUG_UART),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/board_debug_uart.o
+endif
+endif
+endif
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
 ifeq ($(CONFIG_BSL_SRC_BOARD_KEY),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/board_key.o
 endif

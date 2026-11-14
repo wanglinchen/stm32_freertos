@@ -1,0 +1,57 @@
+/* 自动生成，勿手改。来源：proj/project-info.json board.gpio_bind + pinmap；刷新：python build/build.py update */
+/* 绑定：proj/project-info.json → board.gpio_bind */
+
+leds {
+    compatible = "brd,gpio-leds";
+    gpio-port = "B";
+    active-low;
+    /* 顺序须与 bsl/inc/board_led.h 中 BOARD_LED_* 枚举一致 */
+    led-names = "R", "G", "B";
+    pins = <1 0 2>;
+};
+
+keys {
+    compatible = "brd,gpio-keys";
+    /* 顺序须与 bsl/inc/board_key.h 中 BOARD_KEY* 枚举一致 */
+    key-names = "WK_UP", "KEY0", "KEY1", "KEY2";
+
+    key0: key-wk-up {
+        gpio-port = "A";
+        gpio-pin = <0>;
+        pressed-high;
+        label = "WK_UP";
+        key-id = "WK_UP";
+    };
+    key1: key0 {
+        gpio-port = "H";
+        gpio-pin = <3>;
+        pressed-low;
+        label = "KEY0";
+        key-id = "KEY0";
+    };
+    key2: key1 {
+        gpio-port = "H";
+        gpio-pin = <2>;
+        pressed-low;
+        label = "KEY1";
+        key-id = "KEY1";
+    };
+    key3: key2 {
+        gpio-port = "C";
+        gpio-pin = <13>;
+        pressed-low;
+        label = "KEY2";
+        key-id = "KEY2";
+    };
+};
+
+beep {
+    compatible = "brd,pcf8574-beep";
+    pcf8574-addr = <32>;
+    pcf8574-pin = <0>;
+    i2c-scl-port = "H";
+    i2c-scl-pin = <4>;
+    i2c-sda-port = "H";
+    i2c-sda-pin = <5>;
+    active-low;
+};

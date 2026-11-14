@@ -405,38 +405,49 @@ def collect_board_polarity_errors() -> list[str]:
     if led_count is None:
         errors.append("board_led.h 的枚举里找不到 BOARD_LED_COUNT，无法核对灯数量")
     else:
+        import dts as dts_mod
+
+        try:
+            led_pins = list(dts_mod.effective_led_pins_from_c())
+        except (OSError, ValueError) as exc:
+            errors.append(str(exc))
+            led_pins = []
         block = re.search(
-            r"led_pin\s*\[\s*BOARD_LED_COUNT\s*\]\s*=\s*\{(.*?)\}", led_c, re.S
+            r"led_pin\s*\[\s*BOARD_(?:LED_COUNT|DTS_LED_PIN_COUNT)\s*\]\s*=\s*\{",
+            led_c,
         )
         if block is None:
-            errors.append("board_led.c 里找不到 led_pin[BOARD_LED_COUNT] 的初始化块")
-        else:
-            pins = re.findall(r"GPIO_PIN_\d+", block.group(1))
-            led_pins = [int(p.rsplit("_", 1)[1]) for p in pins]
-            if len(pins) != led_count:
-                errors.append(
-                    f"board_led.c 的 led_pin[] 有 {len(pins)} 个引脚，"
-                    f"但 BOARD_LED_COUNT = {led_count}：多出来的脚不会被 init "
-                    "拿到的掩码覆盖（led_pins_mask 只按 COUNT 遍历）"
-                )
-    if "on ? GPIO_PIN_RESET : GPIO_PIN_SET" not in led_c:
+            errors.append(
+                "board_led.c 里找不到 led_pin[BOARD_DTS_LED_PIN_COUNT] 初始化块"
+            )
+        elif len(led_pins) != led_count:
+            errors.append(
+                f"board_led.c 的 led_pin[] 有 {len(led_pins)} 个引脚，"
+                f"但 BOARD_LED_COUNT = {led_count}：多出来的脚不会被 init "
+                "拿到的掩码覆盖（led_pins_mask 只按 COUNT 遍历）"
+            )
+        if '#include "board_dts.h"' not in (
+            ROOT / "bsl/src/board_led.c"
+        ).read_text(encoding="utf-8"):
+            errors.append("board_led.c 必须 include board_dts.h")
+    if "on ? BOARD_DTS_LED_LEVEL_ON : BOARD_DTS_LED_LEVEL_OFF" not in led_c:
         errors.append(
-            "board_led_set 不是 `on ? GPIO_PIN_RESET : GPIO_PIN_SET`："
-            "灯是共阳低电平点亮，极性反了会表现为灯常亮/常灭"
+            "board_led_set 未使用 BOARD_DTS_LED_LEVEL_ON/OFF（极性须由 DTS 生成宏决定）"
         )
-    if "HAL_GPIO_WritePin(GPIOB, pins, GPIO_PIN_SET)" not in led_c:
-        errors.append(
-            "board_led_init 没有把 led 引脚预置为 GPIO_PIN_SET（上电应熄灭）"
-        )
+    if "BOARD_DTS_LED_LEVEL_IDLE" not in led_c:
+        errors.append("board_led_init 未使用 BOARD_DTS_LED_LEVEL_IDLE 预置熄灭态")
 
-    # --- panic 播报的三份掩码必须与 led_pin[] 指向同一组脚 ---
-    # panic_leds 故意绕过 bsl 与 HAL（栈可能已经溢出，不能再压栈调用多层函数），
-    # 所以 PANIC_LED_MASK / PANIC_LED_MODE_MASK / PANIC_LED_MODE_OUT 是同一组脚的
-    # 第三份独立定义 —— 而这三份之间没有任何东西在比对。只把 led_pin[] 里的一个脚
-    # 改掉（例如 PB2 → PB9）时：上面那两条断言看的是"数量"与"极性"、panic-beep 组看的是
-    # PI11，全都过；而 panic 仍写旧 PANIC_LED_MASK，播报就去闪一个已经不是灯的脚。
-    # 按 led_pin[] 正着把三个掩码算一遍再逐位比对，才锁得住这份重复。
+    # panic 掩码由 board_panic_hw.h 生成；与 led_pin[] 生效表对拍。
+    panic_hw = read("osl/inc/board_panic_hw.h")
     fault_c = read("osl/src/osl_panic.c")
+    if re.search(r"#define\s+PANIC_LED_MASK\b", fault_c):
+        errors.append(
+            "osl/src/osl_panic.c 不得再手定义 PANIC_LED_MASK（应用 board_panic_hw.h）"
+        )
+    if '#include "board_panic_hw.h"' not in (
+        ROOT / "osl/src/osl_panic.c"
+    ).read_text(encoding="utf-8"):
+        errors.append("osl_panic.c 必须 include board_panic_hw.h")
 
     def _hex_define(where: str, name: str) -> int | None:
         found = re.search(rf"#define\s+{name}\s+0x([0-9A-Fa-f]+)", where)
@@ -450,31 +461,30 @@ def collect_board_polarity_errors() -> list[str]:
         ("PANIC_LED_MODE_MASK", want_mode_mask, "MODER/OSPEEDR/PUPDR 每脚 2 位的掩码"),
         ("PANIC_LED_MODE_OUT", want_mode_out, "每脚 01 = 通用输出的取值"),
     ):
-        actual = _hex_define(fault_c, define_name)
+        actual = _hex_define(panic_hw, define_name)
         if actual is None:
             errors.append(
-                f"osl/src/osl_panic.c 里找不到 {define_name}："
-                "panic 播报与 bsl 的灯脚无从比对，改一处漏一处将无人发现"
+                f"osl/inc/board_panic_hw.h 里找不到 {define_name}："
+                "panic 播报与 bsl 的灯脚无从比对"
             )
         elif led_pins and actual != want:
             errors.append(
-                f"osl/src/osl_panic.c 的 {define_name} = 0x{actual:08X}，"
-                f"但按 bsl/src/board_led.c 的 led_pin[] 算应当是 0x{want:08X}（{hint}）："
-                "两处是同一组脚的独立定义，改一处、漏一处会让 panic 播报闪错灯，"
-                "而 board-polarity 与 panic-beep 两组都看不出来"
+                f"board_panic_hw.h 的 {define_name} = 0x{actual:08X}，"
+                f"但按 board_led.c 的 led_pin[] 算应当是 0x{want:08X}（{hint}）"
             )
 
-    # --- 蜂鸣器：PI11 经 SS8050 驱动，高电平导通 ---
+    # --- 蜂鸣器：极性由 DTS 宏 ---
     beep_c = read("bsl/src/board_beep.c")
-    if "on ? GPIO_PIN_SET : GPIO_PIN_RESET" not in beep_c:
+    if "on ? BOARD_DTS_BEEP_LEVEL_ON : BOARD_DTS_BEEP_LEVEL_OFF" not in beep_c:
         errors.append(
-            "board_beep_set 不是 `on ? GPIO_PIN_SET : GPIO_PIN_RESET`："
-            "蜂鸣器高电平导通，极性反了会表现为上电一直响"
+            "board_beep_set 未使用 BOARD_DTS_BEEP_LEVEL_ON/OFF（极性须由 DTS 决定）"
         )
-    if "HAL_GPIO_WritePin(GPIOI, GPIO_PIN_11, GPIO_PIN_RESET)" not in beep_c:
-        errors.append(
-            "board_beep_init 没有把 PI11 预置为 GPIO_PIN_RESET（上电应静音）"
-        )
+    if "BOARD_DTS_BEEP_LEVEL_IDLE" not in beep_c:
+        errors.append("board_beep_init 未使用 BOARD_DTS_BEEP_LEVEL_IDLE 预置静音")
+    if '#include "board_dts.h"' not in (
+        ROOT / "bsl/src/board_beep.c"
+    ).read_text(encoding="utf-8"):
+        errors.append("board_beep.c 必须 include board_dts.h")
 
     # --- 按键：外部 4.7K 下拉，按下接 3.3V 读高 ---
     key_h = (ROOT / "bsl" / "inc" / "board_key.h").read_text(encoding="utf-8")
@@ -484,13 +494,19 @@ def collect_board_polarity_errors() -> list[str]:
         errors.append("board_key.h 的枚举里找不到 BOARD_KEY_COUNT，无法核对按键数量")
     else:
         block = re.search(
-            r"key_hw\s*\[\s*BOARD_KEY_COUNT\s*\]\s*=\s*\{(.*?)\}\s*;", key_c, re.S
+            r"key_hw\s*\[\s*BOARD_(?:KEY_COUNT|DTS_KEY_COUNT)\s*\]\s*=\s*\{(.*?)\}\s*;",
+            key_c,
+            re.S,
         )
         if block is None:
-            errors.append("board_key.c 里找不到 key_hw[BOARD_KEY_COUNT] 的初始化块")
+            errors.append(
+                "board_key.c 里找不到 key_hw[BOARD_DTS_KEY_COUNT] 的初始化块"
+            )
         else:
             triples = re.findall(
-                r"\{\s*(GPIO\w+)\s*,\s*(GPIO_PIN_\d+)\s*,\s*(GPIO_PIN_(?:SET|RESET))\s*\}",
+                r"\{\s*(GPIO\w+|BOARD_DTS_KEY_\d+_PORT)\s*,\s*"
+                r"(GPIO_PIN_\d+|BOARD_DTS_KEY_\d+_PIN)\s*,\s*"
+                r"(GPIO_PIN_(?:SET|RESET)|BOARD_DTS_KEY_\d+_PRESSED)\s*\}",
                 block.group(1),
             )
             if len(triples) != key_count:
@@ -498,12 +514,23 @@ def collect_board_polarity_errors() -> list[str]:
                     f"board_key.c 的 key_hw[] 有 {len(triples)} 项，"
                     f"但 BOARD_KEY_COUNT = {key_count}"
                 )
-            for port, pin, level in triples:
-                if level != "GPIO_PIN_SET":
+            for _port, pin_tok, level in triples:
+                if level == "GPIO_PIN_RESET":
                     errors.append(
-                        f"board_key.c 的 {port}/{pin} 按下电平写成 {level}："
-                        "两块按键都是按下接 3.3V 读高，写成 RESET 会反相"
+                        f"board_key.c 的 {pin_tok} 按下电平写成 GPIO_PIN_RESET："
+                        "按键按下接 3.3V 读高，写成 RESET 会反相"
                     )
+                elif level == "GPIO_PIN_SET":
+                    continue
+                elif not re.fullmatch(r"BOARD_DTS_KEY_\d+_PRESSED", level):
+                    errors.append(
+                        f"board_key.c 的 {pin_tok} 按下电平写成 {level}："
+                        "须为 GPIO_PIN_SET 或 BOARD_DTS_KEY_n_PRESSED"
+                    )
+        if '#include "board_dts.h"' not in (
+            ROOT / "bsl/src/board_key.c"
+        ).read_text(encoding="utf-8"):
+            errors.append("board_key.c 必须 include board_dts.h")
     if "== key->pressed_level" not in key_c:
         errors.append(
             "board_key_pressed 不是 `HAL_GPIO_ReadPin(...) == key->pressed_level`："
@@ -898,6 +925,10 @@ def verify(artifacts: bool = False, *, check_symbols: bool = True) -> None:
     errors.extend(collect_eol_contract_errors())
     errors.extend(collect_line_ending_errors())
     errors.extend(collect_board_polarity_errors())
+    import dts as dts_mod
+
+    errors.extend(dts_mod.collect_device_dts_errors())
+    errors.extend(dts_mod.collect_host_dts_unittest_errors())
     errors.extend(collect_layer_dependency_errors())
     tools_ok = True
     if check_symbols or artifacts:
@@ -3148,9 +3179,9 @@ def collect_fault_errors() -> list[str]:
     buzz_body = _function_body(text, r"static\s+void\s+panic_leds\s*\(")
     if buzz_body is None:
         errors.append(f"{panic_rel} 里找不到 panic_leds；无法确认 panic 期间是否让蜂鸣器静音")
-    elif "GPIOI->BSRR" not in buzz_body:
+    elif "board_panic_beep_silence" not in buzz_body:
         errors.append(
-            f"{panic_rel} 的 panic_leds 没有把蜂鸣器（PI11）拉低："
+            f"{panic_rel} 的 panic_leds 未调用 board_panic_beep_silence()："
             "panic 时要一直响到 IWDG 复位，故障信号被持续蜂鸣盖住"
         )
 
@@ -4693,10 +4724,12 @@ def case_board_polarity() -> tuple[str, str]:
     """
     before = digest(BOARD_LED_C)
     with patched(BOARD_LED_C, lambda t: t.replace(
-        "on ? GPIO_PIN_RESET : GPIO_PIN_SET",
-        "on ? GPIO_PIN_SET : GPIO_PIN_RESET",
+        "on ? BOARD_DTS_LED_LEVEL_ON : BOARD_DTS_LED_LEVEL_OFF",
+        "on ? BOARD_DTS_LED_LEVEL_OFF : BOARD_DTS_LED_LEVEL_ON",
     )):
-        problem = expect_failure(create_project("verify"), "board_led_set 不是")
+        problem = expect_failure(
+            create_project("verify"), "BOARD_DTS_LED_LEVEL_ON/OFF"
+        )
     if before != digest(BOARD_LED_C):
         return "ERROR", "board_led.c 没有还原到原始字节"
     if problem:
@@ -4704,10 +4737,12 @@ def case_board_polarity() -> tuple[str, str]:
 
     before = digest(BOARD_BEEP_C)
     with patched(BOARD_BEEP_C, lambda t: t.replace(
-        "on ? GPIO_PIN_SET : GPIO_PIN_RESET",
-        "on ? GPIO_PIN_RESET : GPIO_PIN_SET",
+        "on ? BOARD_DTS_BEEP_LEVEL_ON : BOARD_DTS_BEEP_LEVEL_OFF",
+        "on ? BOARD_DTS_BEEP_LEVEL_OFF : BOARD_DTS_BEEP_LEVEL_ON",
     )):
-        problem = expect_failure(create_project("verify"), "board_beep_set 不是")
+        problem = expect_failure(
+            create_project("verify"), "BOARD_DTS_BEEP_LEVEL_ON/OFF"
+        )
     if before != digest(BOARD_BEEP_C):
         return "ERROR", "board_beep.c 没有还原到原始字节"
     if problem:
@@ -4721,13 +4756,13 @@ def case_board_polarity() -> tuple[str, str]:
     before = digest(BOARD_LED_C)
 
     def shift_one_led(text: str) -> str:
-        anchor = "GPIO_PIN_2,"
+        anchor = "BOARD_DTS_LED_PIN_2,"
         if anchor not in text:
-            raise RuntimeError("board_led.c 里没有 GPIO_PIN_2 锚点")
+            raise RuntimeError("board_led.c 里没有 BOARD_DTS_LED_PIN_2 锚点")
         return text.replace(anchor, "GPIO_PIN_9,", 1)
 
     with patched(BOARD_LED_C, shift_one_led):
-        problem = expect_failure(create_project("verify"), "PANIC_LED_MASK = ")
+        problem = expect_failure(create_project("verify"), "board_panic_hw.h 的 PANIC_LED_MASK")
     if before != digest(BOARD_LED_C):
         return "ERROR", "board_led.c 没有还原到原始字节"
     if problem:
@@ -4744,10 +4779,16 @@ def case_board_key() -> tuple[str, str]:
     before = digest(BOARD_KEY_C)
 
     def flip_key2(text: str) -> str:
-        anchor = "{GPIOC, GPIO_PIN_13, GPIO_PIN_SET}"
+        anchor = (
+            "{BOARD_DTS_KEY_3_PORT, BOARD_DTS_KEY_3_PIN, BOARD_DTS_KEY_3_PRESSED}"
+        )
         if anchor not in text:
-            raise RuntimeError("board_key.c 的 KEY2 初始化项没找到")
-        return text.replace(anchor, "{GPIOC, GPIO_PIN_13, GPIO_PIN_RESET}", 1)
+            raise RuntimeError("board_key.c 的 KEY2(PC13) 初始化项没找到")
+        return text.replace(
+            anchor,
+            "{BOARD_DTS_KEY_3_PORT, BOARD_DTS_KEY_3_PIN, GPIO_PIN_RESET}",
+            1,
+        )
 
     with patched(BOARD_KEY_C, flip_key2):
         problem = expect_failure(create_project("verify"), "按下电平写成")
@@ -5724,7 +5765,7 @@ def case_panic_beep() -> tuple[str, str]:
     with patched(
         PANIC_STORE_C,
         lambda t: t.replace(
-            "    GPIOI->BSRR = (uint32_t)GPIO_PIN_11 << 16U; /* 置复位位 = 输出低 = 静音 */\n",
+            "    board_panic_beep_silence();\n",
             "",
             1,
         ),

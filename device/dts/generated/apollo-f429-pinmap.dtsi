@@ -1,0 +1,1146 @@
+/* 自动生成，勿手改。来源：doc/hardware/pinmap/*.xlsx；刷新：build/build.py update */
+/* 源：doc/hardware/pinmap/阿波罗V2 STM32F429开发板IO引脚分配表.xlsx */
+
+pinmap {
+    compatible = "brd,apollo-f429-pinmap";
+    pin-count = <140>;
+
+    pin-40 {
+        gpio-port = "A";
+        gpio-pin = <0>;
+        label = "WK_UP";
+        independent;
+        /* 1，按键KEY_UP 2，可以做待机唤醒脚(WKUP) */
+    };
+
+    pin-41 {
+        gpio-port = "A";
+        gpio-pin = <1>;
+        label = "RMII_REF_CLK";
+        shared;
+        /* 接YT8512C的TXC脚 */
+    };
+
+    pin-42 {
+        gpio-port = "A";
+        gpio-pin = <2>;
+        label = "USART2_TX";
+        alt-label = "ETH_MDIO";
+        shared;
+        /* 1，RS232串口2(COM2)RX脚(P7设置) 2，RS485 RX脚(P8设置) 3，YT8512C的MDIO脚 */
+    };
+
+    pin-47 {
+        gpio-port = "A";
+        gpio-pin = <3>;
+        label = "USART2_RX";
+        alt-label = "PWM_DAC";
+        shared;
+        /* 1，RS232串口2(COM2)TX脚(P7设置) 2，RS485 TX脚(P8设置) 3，PWM_DAC输出脚 */
+    };
+
+    pin-50 {
+        gpio-port = "A";
+        gpio-pin = <4>;
+        label = "STM_DAC";
+        alt-label = "GBC_LED";
+        independent;
+        /* 1，DAC输出脚 2，ATK-MODULE接口的LED引脚 */
+    };
+
+    pin-51 {
+        gpio-port = "A";
+        gpio-pin = <5>;
+        label = "STM_ADC";
+        independent;
+        /* ADC输入引脚，同时做TPAD检测脚 */
+    };
+
+    pin-52 {
+        gpio-port = "A";
+        gpio-pin = <6>;
+        label = "DCMI_PCLK";
+        independent;
+        /* OLED/CAMERA接口的PCLK脚 */
+    };
+
+    pin-53 {
+        gpio-port = "A";
+        gpio-pin = <7>;
+        label = "RMII_CRS_DV";
+        shared;
+        /* 接YT8512C的CRS_DV脚 */
+    };
+
+    pin-119 {
+        gpio-port = "A";
+        gpio-pin = <8>;
+        label = "REMOTE_IN";
+        alt-label = "DCMI_XCLK";
+        shared;
+        /* 1，接LF0038红外接收头 2，OLED/CAMERA接口的XCLK脚 */
+    };
+
+    pin-120 {
+        gpio-port = "A";
+        gpio-pin = <9>;
+        label = "USART1_TX";
+        independent;
+        /* 串口1 TX脚，默认连接CH340的RX(P11设置) */
+    };
+
+    pin-121 {
+        gpio-port = "A";
+        gpio-pin = <10>;
+        label = "USART1_RX";
+        independent;
+        /* 串口1 RX脚，默认连接CH340的TX(P11设置) */
+    };
+
+    pin-122 {
+        gpio-port = "A";
+        gpio-pin = <11>;
+        label = "USB_D-";
+        alt-label = "CAN_RX";
+        independent;
+        /* 1，USB D-引脚(P9设置) 2，CAN_RX引脚(P9设置) */
+    };
+
+    pin-123 {
+        gpio-port = "A";
+        gpio-pin = <12>;
+        label = "USB_D+";
+        alt-label = "CAN_TX";
+        independent;
+        /* 1，USB D+引脚(P9设置) 2，CAN_TX引脚(P9设置) */
+    };
+
+    pin-124 {
+        gpio-port = "A";
+        gpio-pin = <13>;
+        label = "JTMS";
+        alt-label = "SWDIO";
+        shared;
+        /* JTAG/SWD仿真接口,没接任何外设 */
+    };
+
+    pin-137 {
+        gpio-port = "A";
+        gpio-pin = <14>;
+        label = "JTCK";
+        alt-label = "SWDCLK";
+        shared;
+        /* JTAG/SWD仿真接口,没接任何外设 */
+    };
+
+    pin-138 {
+        gpio-port = "A";
+        gpio-pin = <15>;
+        label = "JTDI";
+        alt-label = "DCMI_RESET";
+        shared;
+        /* 1，JTAG仿真口(JTDI) 2，OLED/CAMERA接口的RESET脚 */
+    };
+
+    pin-56 {
+        gpio-port = "B";
+        gpio-pin = <0>;
+        label = "LED1";
+        shared;
+        /* 接DS1 LED灯(绿色) */
+    };
+
+    pin-57 {
+        gpio-port = "B";
+        gpio-pin = <1>;
+        label = "LED0";
+        shared;
+        /* 接DS0 LED灯(红色) */
+    };
+
+    pin-58 {
+        gpio-port = "B";
+        gpio-pin = <2>;
+        label = "BOOT1";
+        shared;
+        /* BOOT1,启动选择配置引脚(仅上电时用) */
+    };
+
+    pin-161 {
+        gpio-port = "B";
+        gpio-pin = <3>;
+        label = "JTDO";
+        alt-label = "DCMI_SDA";
+        shared;
+        /* 1，JTAG仿真口(JTDO) 2，OLED/CAMERA接口的SDA脚 */
+    };
+
+    pin-162 {
+        gpio-port = "B";
+        gpio-pin = <4>;
+        label = "JTRST";
+        alt-label = "DCMI_SCL";
+        shared;
+        /* 1，JTAG仿真口(JTRST) 2，OLED/CAMERA接口的SCL脚 */
+    };
+
+    pin-163 {
+        gpio-port = "B";
+        gpio-pin = <5>;
+        label = "LCD_BL";
+        independent;
+        /* TFTLCD接口背光控制脚 */
+    };
+
+    pin-164 {
+        gpio-port = "B";
+        gpio-pin = <6>;
+        label = "NC";
+        independent;
+        /* 未连接任何设备 */
+    };
+
+    pin-165 {
+        gpio-port = "B";
+        gpio-pin = <7>;
+        label = "DCMI_VSYNC";
+        independent;
+        /* OLED/CAMERA接口的VSYNC脚 */
+    };
+
+    pin-167 {
+        gpio-port = "B";
+        gpio-pin = <8>;
+        label = "DCMI_D6";
+        independent;
+        /* OLED/CAMERA接口的D6脚 */
+    };
+
+    pin-168 {
+        gpio-port = "B";
+        gpio-pin = <9>;
+        label = "DCMI_D7";
+        independent;
+        /* OLED/CAMERA接口的D7脚 */
+    };
+
+    pin-79 {
+        gpio-port = "B";
+        gpio-pin = <10>;
+        label = "USART3_TX";
+        independent;
+        /* 1，RS232串口3(COM3)RX脚(P8设置)  2，ATK-MODULE接口的RXD脚(P8设置) */
+    };
+
+    pin-80 {
+        gpio-port = "B";
+        gpio-pin = <11>;
+        label = "USART3_RX";
+        alt-label = "RMII_TX_EN";
+        shared;
+        /* 1，RS232串口3(COM3)TX脚(P8设置)  2，ATK-MODULE接口的TXD脚(P8设置) 3，接YT8512C的TXEN脚 */
+    };
+
+    pin-92 {
+        gpio-port = "B";
+        gpio-pin = <12>;
+        label = "IIC_INT";
+        alt-label = "1WIRE_DQ";
+        shared;
+        /* 1，接PCF8574的INT脚 2，接单总线接口(U10),即DHT11/DS18B20 */
+    };
+
+    pin-93 {
+        gpio-port = "B";
+        gpio-pin = <13>;
+        label = "SPI2_SCK";
+        independent;
+        /* 接WIRELESS接口的SCK信号 */
+    };
+
+    pin-94 {
+        gpio-port = "B";
+        gpio-pin = <14>;
+        label = "SPI2_MISO";
+        independent;
+        /* 接WIRELESS接口的MISO信号 */
+    };
+
+    pin-95 {
+        gpio-port = "B";
+        gpio-pin = <15>;
+        label = "SPI2_MOSI";
+        independent;
+        /* 接WIRELESS接口的MOSI信号 */
+    };
+
+    pin-32 {
+        gpio-port = "C";
+        gpio-pin = <0>;
+        label = "FMC_SDNWE";
+        shared;
+        /* 接SDRAM的WE脚 */
+    };
+
+    pin-33 {
+        gpio-port = "C";
+        gpio-pin = <1>;
+        label = "ETH_MDC";
+        shared;
+        /* 接YT8512C的MDC脚 */
+    };
+
+    pin-34 {
+        gpio-port = "C";
+        gpio-pin = <2>;
+        label = "FMC_SDNE0";
+        shared;
+        /* 接SDRAM的CS脚 */
+    };
+
+    pin-35 {
+        gpio-port = "C";
+        gpio-pin = <3>;
+        label = "FMC_SDCKE0";
+        shared;
+        /* 接SDRAM的CKE脚 */
+    };
+
+    pin-54 {
+        gpio-port = "C";
+        gpio-pin = <4>;
+        label = "RMII_RXD0";
+        shared;
+        /* 接YT8512C的RXD0脚 */
+    };
+
+    pin-55 {
+        gpio-port = "C";
+        gpio-pin = <5>;
+        label = "RMII_RXD1";
+        shared;
+        /* 接YT8512C的RXD1脚 */
+    };
+
+    pin-115 {
+        gpio-port = "C";
+        gpio-pin = <6>;
+        label = "DCMI_D0";
+        independent;
+        /* OLED/CAMERA接口的D0脚 */
+    };
+
+    pin-116 {
+        gpio-port = "C";
+        gpio-pin = <7>;
+        label = "DCMI_D1";
+        independent;
+        /* OLED/CAMERA接口的D1脚 */
+    };
+
+    pin-117 {
+        gpio-port = "C";
+        gpio-pin = <8>;
+        label = "SDIO_D0";
+        alt-label = "DCMI_D2";
+        shared;
+        /* 1，TF卡接口的D0 2，OLED/CAMERA接口的D2脚 */
+    };
+
+    pin-118 {
+        gpio-port = "C";
+        gpio-pin = <9>;
+        label = "SDIO_D1";
+        alt-label = "DCMI_D3";
+        shared;
+        /* 1，TF卡接口的D1 2，OLED/CAMERA接口的D3脚 */
+    };
+
+    pin-139 {
+        gpio-port = "C";
+        gpio-pin = <10>;
+        label = "SDIO_D2";
+        shared;
+        /* TF卡接口的D2 */
+    };
+
+    pin-140 {
+        gpio-port = "C";
+        gpio-pin = <11>;
+        label = "SDIO_D3";
+        alt-label = "DCMI_D4";
+        shared;
+        /* 1，TF卡接口的D3 2，OLED/CAMERA接口的D4脚 */
+    };
+
+    pin-141 {
+        gpio-port = "C";
+        gpio-pin = <12>;
+        label = "SDIO_SCK";
+        independent;
+        /* TF卡接口的CLK */
+    };
+
+    pin-8 {
+        gpio-port = "C";
+        gpio-pin = <13>;
+        label = "KEY2";
+        independent;
+        /* 接按键KEY2 */
+    };
+
+    pin-9 {
+        gpio-port = "C";
+        gpio-pin = <14>;
+        label = "RTC晶振";
+        shared;
+        /* 接32.768K晶振，不可用做IO */
+    };
+
+    pin-10 {
+        gpio-port = "C";
+        gpio-pin = <15>;
+        label = "RTC晶振";
+        shared;
+        /* 接32.768K晶振，不可用做IO */
+    };
+
+    pin-142 {
+        gpio-port = "D";
+        gpio-pin = <0>;
+        label = "FMC_D2";
+        shared;
+        /* FMC总线数据线D2(LCD/SDRAM/NAND共用) */
+    };
+
+    pin-143 {
+        gpio-port = "D";
+        gpio-pin = <1>;
+        label = "FMC_D3";
+        shared;
+        /* FMC总线数据线D3(LCD/SDRAM/NAND共用) */
+    };
+
+    pin-144 {
+        gpio-port = "D";
+        gpio-pin = <2>;
+        label = "SDIO_CMD";
+        shared;
+        /* TF卡接口的CMD */
+    };
+
+    pin-145 {
+        gpio-port = "D";
+        gpio-pin = <3>;
+        label = "DCMI_D5";
+        independent;
+        /* OLED/CAMERA接口的D5脚 */
+    };
+
+    pin-146 {
+        gpio-port = "D";
+        gpio-pin = <4>;
+        label = "FMC_NOE";
+        shared;
+        /* FMC总线NOE(RD)(LCD/NAND共用) */
+    };
+
+    pin-147 {
+        gpio-port = "D";
+        gpio-pin = <5>;
+        label = "FMC_NWE";
+        shared;
+        /* FMC总线NWE(WR)(LCD/NAND共用) */
+    };
+
+    pin-150 {
+        gpio-port = "D";
+        gpio-pin = <6>;
+        label = "FMC_NWAIT";
+        shared;
+        /* FMC总线NWAIT(NAND用) */
+    };
+
+    pin-151 {
+        gpio-port = "D";
+        gpio-pin = <7>;
+        label = "FMC_NE1";
+        independent;
+        /* FMC总线的片选信号1，为TFTLCD片选信号 */
+    };
+
+    pin-96 {
+        gpio-port = "D";
+        gpio-pin = <8>;
+        label = "FMC_D13";
+        shared;
+        /* FMC总线数据线D13(LCD/SDRAM共用) */
+    };
+
+    pin-97 {
+        gpio-port = "D";
+        gpio-pin = <9>;
+        label = "FMC_D14";
+        shared;
+        /* FMC总线数据线D14(LCD/SDRAM共用) */
+    };
+
+    pin-98 {
+        gpio-port = "D";
+        gpio-pin = <10>;
+        label = "FMC_D15";
+        shared;
+        /* FMC总线数据线D15(LCD/SDRAM共用) */
+    };
+
+    pin-99 {
+        gpio-port = "D";
+        gpio-pin = <11>;
+        label = "FMC_A16_CLE";
+        shared;
+        /* FMC总线地址线A16_CLE(NAND专用) */
+    };
+
+    pin-100 {
+        gpio-port = "D";
+        gpio-pin = <12>;
+        label = "FMC_A17_ALE";
+        shared;
+        /* FMC总线地址线A17_ALE(NAND专用) */
+    };
+
+    pin-101 {
+        gpio-port = "D";
+        gpio-pin = <13>;
+        label = "FMC_A18";
+        shared;
+        /* FMC总线地址线A18(LCD专用) */
+    };
+
+    pin-104 {
+        gpio-port = "D";
+        gpio-pin = <14>;
+        label = "FMC_D0";
+        shared;
+        /* FMC总线数据线D0(LCD/SDRAM/NAND共用) */
+    };
+
+    pin-105 {
+        gpio-port = "D";
+        gpio-pin = <15>;
+        label = "FMC_D1";
+        shared;
+        /* FMC总线数据线D1(LCD/SDRAM/NAND共用) */
+    };
+
+    pin-169 {
+        gpio-port = "E";
+        gpio-pin = <0>;
+        label = "FMC_NBL0";
+        shared;
+        /* FMC总线NBL0(SDRAM专用) */
+    };
+
+    pin-170 {
+        gpio-port = "E";
+        gpio-pin = <1>;
+        label = "FMC_NBL1";
+        shared;
+        /* FMC总线NBL1(SDRAM专用) */
+    };
+
+    pin-1 {
+        gpio-port = "E";
+        gpio-pin = <2>;
+        label = "SAI1_MCLKA";
+        shared;
+        /* ES8388的MCLK信号 */
+    };
+
+    pin-2 {
+        gpio-port = "E";
+        gpio-pin = <3>;
+        label = "SAI1_SDB";
+        shared;
+        /* ES8388的SDOUT信号 */
+    };
+
+    pin-3 {
+        gpio-port = "E";
+        gpio-pin = <4>;
+        label = "SAI1_FSA";
+        shared;
+        /* ES8388的LRCK信号 */
+    };
+
+    pin-4 {
+        gpio-port = "E";
+        gpio-pin = <5>;
+        label = "SAI1_SCKA";
+        shared;
+        /* ES8388的SCLK信号 */
+    };
+
+    pin-5 {
+        gpio-port = "E";
+        gpio-pin = <6>;
+        label = "SAI1_SDA";
+        shared;
+        /* ES8388的SDIN信号 */
+    };
+
+    pin-68 {
+        gpio-port = "E";
+        gpio-pin = <7>;
+        label = "FMC_D4";
+        shared;
+        /* FMC总线数据线D4(LCD/SDRAM/NAND共用) */
+    };
+
+    pin-69 {
+        gpio-port = "E";
+        gpio-pin = <8>;
+        label = "FMC_D5";
+        shared;
+        /* FMC总线数据线D5(LCD/SDRAM/NAND共用) */
+    };
+
+    pin-70 {
+        gpio-port = "E";
+        gpio-pin = <9>;
+        label = "FMC_D6";
+        shared;
+        /* FMC总线数据线D6(LCD/SDRAM/NAND共用) */
+    };
+
+    pin-73 {
+        gpio-port = "E";
+        gpio-pin = <10>;
+        label = "FMC_D7";
+        shared;
+        /* FMC总线数据线D7(LCD/SDRAM/NAND共用) */
+    };
+
+    pin-74 {
+        gpio-port = "E";
+        gpio-pin = <11>;
+        label = "FMC_D8";
+        shared;
+        /* FMC总线数据线D8(LCD/SDRAM共用) */
+    };
+
+    pin-75 {
+        gpio-port = "E";
+        gpio-pin = <12>;
+        label = "FMC_D9";
+        shared;
+        /* FMC总线数据线D9(LCD/SDRAM共用) */
+    };
+
+    pin-76 {
+        gpio-port = "E";
+        gpio-pin = <13>;
+        label = "FMC_D10";
+        shared;
+        /* FMC总线数据线D10(LCD/SDRAM共用) */
+    };
+
+    pin-77 {
+        gpio-port = "E";
+        gpio-pin = <14>;
+        label = "FMC_D11";
+        shared;
+        /* FMC总线数据线D11(LCD/SDRAM共用) */
+    };
+
+    pin-78 {
+        gpio-port = "E";
+        gpio-pin = <15>;
+        label = "FMC_D12";
+        shared;
+        /* FMC总线数据线D12(LCD/SDRAM共用) */
+    };
+
+    pin-16 {
+        gpio-port = "F";
+        gpio-pin = <0>;
+        label = "FMC_A0";
+        shared;
+        /* FMC总线地址线A0(SDRAM专用) */
+    };
+
+    pin-17 {
+        gpio-port = "F";
+        gpio-pin = <1>;
+        label = "FMC_A1";
+        shared;
+        /* FMC总线地址线A1(SDRAM专用) */
+    };
+
+    pin-18 {
+        gpio-port = "F";
+        gpio-pin = <2>;
+        label = "FMC_A2";
+        shared;
+        /* FMC总线地址线A2(SDRAM专用) */
+    };
+
+    pin-19 {
+        gpio-port = "F";
+        gpio-pin = <3>;
+        label = "FMC_A3";
+        shared;
+        /* FMC总线地址线A3(SDRAM专用) */
+    };
+
+    pin-20 {
+        gpio-port = "F";
+        gpio-pin = <4>;
+        label = "FMC_A4";
+        shared;
+        /* FMC总线地址线A4(SDRAM专用) */
+    };
+
+    pin-21 {
+        gpio-port = "F";
+        gpio-pin = <5>;
+        label = "FMC_A5";
+        shared;
+        /* FMC总线地址线A5(SDRAM专用) */
+    };
+
+    pin-24 {
+        gpio-port = "F";
+        gpio-pin = <6>;
+        label = "F_CS";
+        shared;
+        /* W25Q256的片选信号 */
+    };
+
+    pin-25 {
+        gpio-port = "F";
+        gpio-pin = <7>;
+        label = "SPI5_SCK";
+        shared;
+        /* W25Q256的SCK信号 */
+    };
+
+    pin-26 {
+        gpio-port = "F";
+        gpio-pin = <8>;
+        label = "SPI5_MISO";
+        shared;
+        /* W25Q256的MISO信号 */
+    };
+
+    pin-27 {
+        gpio-port = "F";
+        gpio-pin = <9>;
+        label = "SPI5_MOSI";
+        shared;
+        /* W25Q256的MOSI信号 */
+    };
+
+    pin-28 {
+        gpio-port = "F";
+        gpio-pin = <10>;
+        label = "LCD_DE";
+        independent;
+        /* RGBLCD接口的DE信号 */
+    };
+
+    pin-59 {
+        gpio-port = "F";
+        gpio-pin = <11>;
+        label = "FMC_SDNRAS";
+        shared;
+        /* 接SDRAM的RAS脚 */
+    };
+
+    pin-60 {
+        gpio-port = "F";
+        gpio-pin = <12>;
+        label = "FMC_A6";
+        shared;
+        /* FMC总线地址线A6(SDRAM专用) */
+    };
+
+    pin-63 {
+        gpio-port = "F";
+        gpio-pin = <13>;
+        label = "FMC_A7";
+        shared;
+        /* FMC总线地址线A7(SDRAM专用) */
+    };
+
+    pin-64 {
+        gpio-port = "F";
+        gpio-pin = <14>;
+        label = "FMC_A8";
+        shared;
+        /* FMC总线地址线A8(SDRAM专用) */
+    };
+
+    pin-65 {
+        gpio-port = "F";
+        gpio-pin = <15>;
+        label = "FMC_A9";
+        shared;
+        /* FMC总线地址线A9(SDRAM专用) */
+    };
+
+    pin-66 {
+        gpio-port = "G";
+        gpio-pin = <0>;
+        label = "FMC_A10";
+        shared;
+        /* FMC总线地址线A10(SDRAM专用) */
+    };
+
+    pin-67 {
+        gpio-port = "G";
+        gpio-pin = <1>;
+        label = "FMC_A11";
+        shared;
+        /* FMC总线地址线A11(SDRAM专用) */
+    };
+
+    pin-106 {
+        gpio-port = "G";
+        gpio-pin = <2>;
+        label = "FMC_A12";
+        shared;
+        /* FMC总线地址线A12(SDRAM专用) */
+    };
+
+    pin-107 {
+        gpio-port = "G";
+        gpio-pin = <3>;
+        label = "T_MISO";
+        independent;
+        /* TFTLCD/RGBLCD接口触摸屏MISO信号 */
+    };
+
+    pin-108 {
+        gpio-port = "G";
+        gpio-pin = <4>;
+        label = "FMC_BA0";
+        shared;
+        /* 接SDRAM的BA0脚 */
+    };
+
+    pin-109 {
+        gpio-port = "G";
+        gpio-pin = <5>;
+        label = "FMC_BA1";
+        shared;
+        /* 接SDRAM的BA1脚 */
+    };
+
+    pin-110 {
+        gpio-port = "G";
+        gpio-pin = <6>;
+        label = "LCD_R7";
+        independent;
+        /* RGBLCD接口的R7数据线 */
+    };
+
+    pin-111 {
+        gpio-port = "G";
+        gpio-pin = <7>;
+        label = "LCD_CLK";
+        independent;
+        /* RGBLCD接口的CLK信号 */
+    };
+
+    pin-112 {
+        gpio-port = "G";
+        gpio-pin = <8>;
+        label = "FMC_SDCLK";
+        shared;
+        /* 接SDRAM的CLK脚 */
+    };
+
+    pin-152 {
+        gpio-port = "G";
+        gpio-pin = <9>;
+        label = "FMC_NCE3";
+        shared;
+        /* FMC总线的片选信号3，为NAND片选信号 */
+    };
+
+    pin-153 {
+        gpio-port = "G";
+        gpio-pin = <10>;
+        label = "NRF_CS";
+        independent;
+        /* WIRELESS接口CS信号 */
+    };
+
+    pin-154 {
+        gpio-port = "G";
+        gpio-pin = <11>;
+        label = "LCD_B3";
+        independent;
+        /* RGBLCD接口的B3数据线 */
+    };
+
+    pin-155 {
+        gpio-port = "G";
+        gpio-pin = <12>;
+        label = "NRF_CE";
+        alt-label = "SPDIF_RX";
+        shared;
+        /* 1，WIRELESS接口CE信号 2，SPDIF输入引脚（仅F7/H7芯片支持） */
+    };
+
+    pin-156 {
+        gpio-port = "G";
+        gpio-pin = <13>;
+        label = "RMII_TXD0";
+        shared;
+        /* 接YT8512C的TXD0脚 */
+    };
+
+    pin-157 {
+        gpio-port = "G";
+        gpio-pin = <14>;
+        label = "RMII_TXD1";
+        shared;
+        /* 接YT8512C的TXD1脚 */
+    };
+
+    pin-160 {
+        gpio-port = "G";
+        gpio-pin = <15>;
+        label = "FMC_SDNCAS";
+        shared;
+        /* 接SDRAM的CAS脚 */
+    };
+
+    pin-29 {
+        gpio-port = "H";
+        gpio-pin = <0>;
+        label = "系统晶振";
+        shared;
+        /* 接25M外部晶振 */
+    };
+
+    pin-30 {
+        gpio-port = "H";
+        gpio-pin = <1>;
+        label = "系统晶振";
+        shared;
+        /* 接25M外部晶振 */
+    };
+
+    pin-43 {
+        gpio-port = "H";
+        gpio-pin = <2>;
+        label = "KEY1";
+        independent;
+        /* 接按键KEY1 */
+    };
+
+    pin-44 {
+        gpio-port = "H";
+        gpio-pin = <3>;
+        label = "KEY0";
+        independent;
+        /* 接按键KEY0 */
+    };
+
+    pin-45 {
+        gpio-port = "H";
+        gpio-pin = <4>;
+        label = "IIC_SCL";
+        shared;
+        /* 接24C02、PCF8574、ST480MC、SH3001、AP3216C和ES8388的SCL */
+    };
+
+    pin-46 {
+        gpio-port = "H";
+        gpio-pin = <5>;
+        label = "IIC_SDA";
+        shared;
+        /* 接24C02、PCF8574、ST480MC、SH3001、AP3216C和ES8388的SDA */
+    };
+
+    pin-83 {
+        gpio-port = "H";
+        gpio-pin = <6>;
+        label = "T_SCK";
+        independent;
+        /* TFTLCD/RGBLCD接口触摸屏SCK信号 */
+    };
+
+    pin-84 {
+        gpio-port = "H";
+        gpio-pin = <7>;
+        label = "T_PEN";
+        independent;
+        /* TFTLCD/RGBLCD接口触摸屏PEN信号 */
+    };
+
+    pin-85 {
+        gpio-port = "H";
+        gpio-pin = <8>;
+        label = "DCMI_HREF";
+        independent;
+        /* OLED/CAMERA接口的HREF脚 */
+    };
+
+    pin-86 {
+        gpio-port = "H";
+        gpio-pin = <9>;
+        label = "LCD_R3";
+        independent;
+        /* RGBLCD接口的R3数据线 */
+    };
+
+    pin-87 {
+        gpio-port = "H";
+        gpio-pin = <10>;
+        label = "LCD_R4";
+        independent;
+        /* RGBLCD接口的R4数据线 */
+    };
+
+    pin-88 {
+        gpio-port = "H";
+        gpio-pin = <11>;
+        label = "LCD_R5";
+        independent;
+        /* RGBLCD接口的R5数据线 */
+    };
+
+    pin-89 {
+        gpio-port = "H";
+        gpio-pin = <12>;
+        label = "LCD_R6";
+        independent;
+        /* RGBLCD接口的R6数据线 */
+    };
+
+    pin-128 {
+        gpio-port = "H";
+        gpio-pin = <13>;
+        label = "LCD_G2";
+        independent;
+        /* RGBLCD接口的G2数据线 */
+    };
+
+    pin-129 {
+        gpio-port = "H";
+        gpio-pin = <14>;
+        label = "LCD_G3";
+        independent;
+        /* RGBLCD接口的G3数据线 */
+    };
+
+    pin-130 {
+        gpio-port = "H";
+        gpio-pin = <15>;
+        label = "LCD_G4";
+        independent;
+        /* RGBLCD接口的G4数据线 */
+    };
+
+    pin-131 {
+        gpio-port = "I";
+        gpio-pin = <0>;
+        label = "LCD_G5";
+        independent;
+        /* RGBLCD接口的G5数据线 */
+    };
+
+    pin-132 {
+        gpio-port = "I";
+        gpio-pin = <1>;
+        label = "LCD_G6";
+        independent;
+        /* RGBLCD接口的G6数据线 */
+    };
+
+    pin-133 {
+        gpio-port = "I";
+        gpio-pin = <2>;
+        label = "LCD_G7";
+        independent;
+        /* RGBLCD接口的G7数据线 */
+    };
+
+    pin-134 {
+        gpio-port = "I";
+        gpio-pin = <3>;
+        label = "T_MOSI";
+        independent;
+        /* TFTLCD/RGBLCD接口触摸屏MOSI信号 */
+    };
+
+    pin-173 {
+        gpio-port = "I";
+        gpio-pin = <4>;
+        label = "LCD_B4";
+        independent;
+        /* RGBLCD接口的B4数据线 */
+    };
+
+    pin-174 {
+        gpio-port = "I";
+        gpio-pin = <5>;
+        label = "LCD_B5";
+        independent;
+        /* RGBLCD接口的B5数据线 */
+    };
+
+    pin-175 {
+        gpio-port = "I";
+        gpio-pin = <6>;
+        label = "LCD_B6";
+        independent;
+        /* RGBLCD接口的B6数据线 */
+    };
+
+    pin-176 {
+        gpio-port = "I";
+        gpio-pin = <7>;
+        label = "LCD_B7";
+        independent;
+        /* RGBLCD接口的B7数据线 */
+    };
+
+    pin-7 {
+        gpio-port = "I";
+        gpio-pin = <8>;
+        label = "T_CS";
+        independent;
+        /* TFTLCD/RGBLCD接口触摸屏CS信号 */
+    };
+
+    pin-11 {
+        gpio-port = "I";
+        gpio-pin = <9>;
+        label = "LCD_VSYNC";
+        independent;
+        /* RGBLCD接口的VSYNC信号线 */
+    };
+
+    pin-12 {
+        gpio-port = "I";
+        gpio-pin = <10>;
+        label = "LCD_HSYNC";
+        independent;
+        /* RGBLCD接口的HSYNC信号线 */
+    };
+
+    pin-13 {
+        gpio-port = "I";
+        gpio-pin = <11>;
+        label = "NRF_IRQ";
+        alt-label = "GBC_KEY";
+        independent;
+        /* 1，WIRELESS接口IRQ信号 2，ATK-MODULE接口的KEY引脚 */
+    };
+
+};

@@ -4,6 +4,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "stm32f4xx_hal.h"
+#include "board_panic_hw.h"
 #include "system_stm32f4xx.h"
 #include "osl_panic.h"
 #include "osl_boot.h"
@@ -100,33 +101,19 @@ void panic_mask_all_irqs(void)
 }
 
 /*
- * 故障指示灯：PB1/PB0（板载红/绿，低电平点亮）+ PB2（码位，无蓝灯），与
- * bsl/src/board_led.c 的 led_pin[] 一致。这里故意绕过 HAL_GPIO / 板级驱动：
- * 栈已经溢出时不能再压栈调用多层函数，只写 BSRR 寄存器，栈开销为 0。
+ * 灯脚 / 掩码 / 蜂鸣器静音：见 osl/inc/board_panic_hw.h（由 device DTS 生成）。
+ * 这里故意绕过 HAL_GPIO / 板级驱动：栈可能已溢出，只写寄存器。
  */
-#define PANIC_LED_MASK 0x0007U /* PB0 | PB1 | PB2 */
-/* 每脚在 MODER/OSPEEDR/PUPDR 里占 2 位：PB0→bit0、PB1→bit2、PB2→bit4 */
-#define PANIC_LED_MODE_MASK 0x0000003FUL
-#define PANIC_LED_MODE_OUT 0x00000015UL /* 每脚 01 = 通用输出 */
-/* 与 bsl led_pin[] 同序：码 bit0=红(PB1)、bit1=绿(PB0)、bit2=蓝段位(PB2) */
-static const uint8_t panic_led_pin[3] = {1U, 0U, 2U};
 #define PANIC_SPIN 2000000U    /* 未校时的粗延时：只求肉眼可辨，主频越高闪得越快 */
 
 static void panic_leds(uint16_t low_mask)
 {
     uint32_t spin;
 
-    __HAL_RCC_GPIOB_CLK_ENABLE();
+    PANIC_LED_RCC_CLK_ENABLE();
 
-    /*
-     * 蜂鸣器同步静音。PI11 经 1 kΩ 驱动 SS8050、高电平导通：按住按键时
-     * board_beep_set(1) 已经把它拉高，而 panic 要一直响到 IWDG 复位（relax 后
-     * 32.7 s）——故障信号会被持续蜂鸣盖住，而且此时中断已屏蔽、任务已停，
-     * 没有任何调用方能把它关掉。与三灯一样只写寄存器，不走 HAL_GPIO_WritePin
-     * （栈可能已经溢出）。时钟要自己开：panic 可能发生在 board_beep_init() 之前。
-     */
-    __HAL_RCC_GPIOI_CLK_ENABLE();
-    GPIOI->BSRR = (uint32_t)GPIO_PIN_11 << 16U; /* 置复位位 = 输出低 = 静音 */
+    /* 蜂鸣器静音：阿波罗 V2 经 PCF8574，其它走 GPIO BSRR（实现于 bsl/board_beep.c）。 */
+    board_panic_beep_silence();
 
     /*
      * 复位后 GPIOB 的 MODER 是 0（输入态），此时只写 BSRR 不会驱动引脚，
@@ -137,14 +124,15 @@ static void panic_leds(uint16_t low_mask)
      * 这里直接把三脚配成“推挽输出 / 低速 / 无上下拉”，与 bsl 的 board_led_init
      * 一致，但只写寄存器、不走 HAL_GPIO_Init：栈溢出时不能再压栈调用多层函数。
      */
-    GPIOB->MODER = (GPIOB->MODER & (uint32_t)~PANIC_LED_MODE_MASK) | (uint32_t)PANIC_LED_MODE_OUT;
-    GPIOB->OTYPER &= ~(uint32_t)PANIC_LED_MASK;
-    GPIOB->OSPEEDR &= ~(uint32_t)PANIC_LED_MODE_MASK;
-    GPIOB->PUPDR &= ~(uint32_t)PANIC_LED_MODE_MASK;
+    PANIC_LED_GPIO->MODER = (PANIC_LED_GPIO->MODER & (uint32_t)~PANIC_LED_MODE_MASK)
+        | (uint32_t)PANIC_LED_MODE_OUT;
+    PANIC_LED_GPIO->OTYPER &= ~(uint32_t)PANIC_LED_MASK;
+    PANIC_LED_GPIO->OSPEEDR &= ~(uint32_t)PANIC_LED_MODE_MASK;
+    PANIC_LED_GPIO->PUPDR &= ~(uint32_t)PANIC_LED_MODE_MASK;
 
     /* BSRR 低 16 位给 1 = 该脚置高（共阳接法下为灭），高 16 位给 1 = 置低（亮）。 */
-    GPIOB->BSRR = (uint32_t)PANIC_LED_MASK & ~(uint32_t)low_mask;              /* 置高：灭 */
-    GPIOB->BSRR = ((uint32_t)low_mask & (uint32_t)PANIC_LED_MASK) << 16U;      /* 置低：亮 */
+    PANIC_LED_GPIO->BSRR = (uint32_t)PANIC_LED_MASK & ~(uint32_t)low_mask;
+    PANIC_LED_GPIO->BSRR = ((uint32_t)low_mask & (uint32_t)PANIC_LED_MASK) << 16U;
     for (spin = 0U; spin < PANIC_SPIN; spin++) {
         __asm volatile("nop");
     }

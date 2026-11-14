@@ -1,0 +1,156 @@
+/*
+ * 阿波罗 V2 主板外设资源摘要（非完整引脚表；逐脚见 generated/apollo-f429-pinmap.dtsi）。
+ * 依据 doc/hardware/pinmap 与主板原理图；本子工程未启用的外设 status = "disabled"。
+ */
+
+board-resources {
+    compatible = "brd,apollo-f429-board";
+
+    chosen {
+        stdout-path = "usart1_debug";
+    };
+
+    usart1_debug: serial@40011000 {
+        compatible = "brd,usart-ch340";
+        status = "okay";
+        tx-port = "A";
+        tx-pin = <9>;
+        rx-port = "A";
+        rx-pin = <10>;
+        label = "USART1_CH340";
+    };
+
+    usart2: serial@40004400 {
+        compatible = "ns16550";
+        status = "disabled";
+        tx-port = "A";
+        tx-pin = <2>;
+        rx-port = "A";
+        rx-pin = <3>;
+        label = "USART2_COM2_RS485";
+    };
+
+    usart3: serial@40004800 {
+        compatible = "ns16550";
+        status = "disabled";
+        tx-port = "B";
+        tx-pin = <10>;
+        rx-port = "B";
+        rx-pin = <11>;
+        label = "USART3_COM3_ATK";
+    };
+
+    ethernet: eth@40028000 {
+        compatible = "brd,rmii-yt8512c";
+        status = "disabled";
+        phy-mode = "rmii";
+        label = "YT8512C";
+    };
+
+    usb_otg_fs: usb@50000000 {
+        compatible = "brd,usb-otg-fs";
+        status = "disabled";
+        dm-port = "A";
+        dm-pin = <11>;
+        dp-port = "A";
+        dp-pin = <12>;
+    };
+
+    can1: can@40006400 {
+        compatible = "brd,can-transceiver";
+        status = "disabled";
+        rx-port = "A";
+        rx-pin = <11>;
+        tx-port = "A";
+        tx-pin = <12>;
+    };
+
+    sdram: memory@d0000000 {
+        compatible = "brd,sdram-w9825g6kh";
+        status = "disabled";
+        reg = <0xd0000000 0x00800000>;
+        bus-width = <16>;
+        size-mb = <32>;
+    };
+
+    nor_flash: memory@60000000 {
+        compatible = "brd,nor-s29gl";
+        status = "disabled";
+        reg = <0x60000000 0x04000000>;
+        bus = "fmc";
+    };
+
+    sdmmc1: mmc@40012c00 {
+        compatible = "brd,sdio-sd";
+        status = "disabled";
+        bus-width = <4>;
+        label = "SD_CARD";
+    };
+
+    lcd_fmc: display@60000000 {
+        compatible = "brd,tft-fsmc";
+        status = "disabled";
+        bl-port = "B";
+        bl-pin = <5>;
+        label = "TFT_LCD";
+    };
+
+    dcmi: camera@50050000 {
+        compatible = "brd,dcmi-ov5640";
+        status = "disabled";
+        label = "OLED_CAMERA";
+    };
+
+    spi_flash: spi-flash@0 {
+        compatible = "jedec,spi-nor";
+        status = "disabled";
+        bus = "spi5";
+        label = "SPI_FLASH";
+    };
+
+    wireless: spi@0 {
+        compatible = "brd,wireless-spi";
+        status = "disabled";
+        sck-port = "B";
+        sck-pin = <13>;
+        miso-port = "B";
+        miso-pin = <14>;
+        mosi-port = "B";
+        mosi-pin = <15>;
+    };
+
+    touch: i2c@0 {
+        compatible = "brd,i2c-touch-pcf8574";
+        status = "disabled";
+        label = "TPAD_PCF8574";
+    };
+
+    onewire: w1@0 {
+        compatible = "brd,w1-dq";
+        status = "disabled";
+        dq-port = "B";
+        dq-pin = <12>;
+        label = "DS18B20_DHT11";
+    };
+
+    dac_out: dac@0 {
+        compatible = "brd,dac-out";
+        status = "disabled";
+        pa4-dac;
+        pa3-pwm-dac;
+    };
+
+    adc_in: adc@0 {
+        compatible = "brd,adc-in";
+        status = "disabled";
+        pa5-channel;
+        label = "ADC_TPAD";
+    };
+
+    infrared: ir@0 {
+        compatible = "brd,ir-lf0038";
+        status = "disabled";
+        in-port = "A";
+        in-pin = <8>;
+    };
+};

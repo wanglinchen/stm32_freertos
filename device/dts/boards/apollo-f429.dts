@@ -1,0 +1,25 @@
+/*
+ * 正点原子 Apollo V2（STM32F429IGT6）整板描述。
+ * - 逐脚资源：generated/apollo-f429-pinmap.dtsi（update 从 xlsx 生成）
+ * - 外设摘要：include/apollo-f429-peripherals.dtsi
+ * - 本子工程已驱动：generated/*-gpio.dtsi（由 gpio_bind+pinmap 生成）/ clocks
+ */
+
+/dts-v1/;
+
+#include "../include/stm32f429.dtsi"
+
+/ {
+    model = "Alientek Apollo STM32F429";
+    compatible = "alientek,apollo-f429", "st,stm32f429";
+
+    #include "../generated/apollo-f429-pinmap.dtsi"
+    #include "../include/apollo-f429-peripherals.dtsi"
+
+    clocks {
+        hse-frequency = <25000000>;
+        lse-frequency = <32768>;
+    };
+
+    #include "../generated/apollo-f429-gpio.dtsi"
+};

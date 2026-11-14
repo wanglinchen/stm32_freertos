@@ -101,6 +101,7 @@ RELEASE_BUCKET_DAYS = 5
 RELEASE_DIR_NAME_RE = re.compile(r"^\d{4}_\d{2}_\d{2}-\d{2}_\d{2}_\d{2}$")
 EXCLUDE_DIRS = {
     "debug",
+    "device",
     "doc",
     "flash",
     "proj",
@@ -134,6 +135,7 @@ LAYER_DIRS = (
     "bsl",
     "hal",
     "osl",
+    "device",
     "doc",
     "proj",
     "build",
@@ -143,6 +145,8 @@ LAYER_DIRS = (
 USER_BEGIN = "# >>> USER_CUSTOM"
 USER_END = "# <<< USER_CUSTOM"
 GEN_BANNER = "# 自动生成，勿手改。刷新：python3 build/build.py update"
+BOARD_DTS_GEN_BANNER = "/* 自动生成，勿手改。刷新：python3 build/build.py update */"
+BOARD_PANIC_GEN_BANNER = "/* 自动生成，勿手改。刷新：python3 build/build.py update */"
 ASSIGN_RE = re.compile(r"^\s*(CONFIG_[A-Z0-9_]+)\s*=")
 CONFIG_VALUE_RE = re.compile(r"^\s*(CONFIG_[A-Z0-9_]+)\s*=\s*(.*?)\s*$")
 DISABLED_RE = re.compile(r"^\s*#\s*(CONFIG_[A-Z0-9_]+)\s+is not set\s*$")

@@ -1,5 +1,6 @@
 #include "fml_led.h"
 
+#include "board_debug_uart.h"
 #include "board_led.h"
 #include "fml_panic.h"
 #include "FreeRTOS.h"
@@ -13,8 +14,13 @@ static void fml_led_blink_task(void *argument)
 {
     int red_on = 1;
     TickType_t last_wake;
+    static int uart_banner_done;
 
     (void)argument;
+    if (uart_banner_done == 0) {
+        uart_banner_done = 1;
+        board_debug_uart_puts("\r\nstm32-freertos: USART1 115200 debug ready\r\n");
+    }
     /*
      * 用 vTaskDelayUntil 而不是 vTaskDelay：基准点固定在首拍，循环里的执行时间
      * （一次水位采样 + 灯脚写入）不会累加进周期。用 vTaskDelay 时每拍都把

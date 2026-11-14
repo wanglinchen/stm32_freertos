@@ -37,6 +37,51 @@ def default_info() -> dict:
             "sram_kb": 192,
             "ccm_kb": 64,
         },
+        "board": {
+            "dts": "device/dts/boards/apollo-f429.dts",
+            "compatible": "alientek,apollo-f429",
+            "pinmap_xlsx": (
+                "doc/hardware/pinmap/阿波罗V2 STM32F429开发板IO引脚分配表.xlsx"
+            ),
+            "gpio_bind": {
+                "leds": {
+                    "active_low": True,
+                    "led_names": ["R", "G", "B"],
+                    "pinmap_labels": ["LED0", "LED1", "BOOT1"],
+                },
+                "keys": [
+                    {
+                        "key_id": "WK_UP",
+                        "node": "key-wk-up",
+                        "label": "WK_UP",
+                        "pinmap_label": "WK_UP",
+                        "pressed_high": True,
+                    },
+                    {
+                        "key_id": "KEY0",
+                        "node": "key0",
+                        "label": "KEY0",
+                        "pinmap_label": "KEY0",
+                        "pressed_high": True,
+                    },
+                    {
+                        "key_id": "KEY1",
+                        "node": "key1",
+                        "label": "KEY1",
+                        "pinmap_label": "KEY1",
+                        "pressed_high": True,
+                    },
+                    {
+                        "key_id": "KEY2",
+                        "node": "key2",
+                        "label": "KEY2",
+                        "pinmap_label": "KEY2",
+                        "pressed_high": True,
+                    },
+                ],
+                "beep": {"port": "I", "pin": 11, "active_high": True},
+            },
+        },
     }
 def ensure_layout() -> None:
     for name in LAYER_DIRS:
@@ -53,6 +98,9 @@ def load_info() -> dict:
     data.setdefault("project_name", base["project_name"])
     for key, value in base["cpu"].items():
         cpu.setdefault(key, value)
+    board = data.setdefault("board", {})
+    for key, value in base["board"].items():
+        board.setdefault(key, value)
     return data
 def linker_script_path(info: dict) -> Path:
     directory = ROOT / "hal" / "chip" / "linker"
@@ -1012,6 +1060,9 @@ def update() -> None:
     write_defconfig(info)
     write_config()
     restamp_generated(info)
+    import dts as dts_mod
+
+    dts_mod.sync_board_dts(info)
     import verify as verify_mod
 
     verify_mod.verify(check_symbols=False)

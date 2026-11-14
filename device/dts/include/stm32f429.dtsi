@@ -1,0 +1,32 @@
+/*
+ * SoC 级片段（本工程 DTS 子集，非 Linux 内核设备树）。
+ * 板级实例见 device/dts/boards/*.dts
+ */
+
+/dts-v1/;
+
+/ {
+    compatible = "st,stm32f429";
+
+    cpus {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        cpu0: cpu@0 {
+            compatible = "arm,cortex-m4";
+            device_type = "cpu";
+            reg = <0>;
+        };
+    };
+
+    soc {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        compatible = "simple-bus";
+        ranges;
+
+        rcc: rcc@40023800 {
+            compatible = "st,stm32f4-rcc";
+            reg = <0x40023800 0x400>;
+        };
+    };
+};
