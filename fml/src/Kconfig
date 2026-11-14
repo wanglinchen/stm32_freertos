@@ -1,0 +1,16 @@
+# 自动生成，勿手改。刷新：python3 build/build.py update
+menu "src"
+
+config FML_SRC_FML_BUTTON
+	bool "fml_button.c"
+	default y
+
+config FML_SRC_FML_LED
+	bool "fml_led.c"
+	default y
+
+config FML_SRC_FML_PANIC
+	bool "fml_panic.c"
+	default y
+
+endmenu

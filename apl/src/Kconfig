@@ -1,0 +1,8 @@
+# 自动生成，勿手改。刷新：python3 build/build.py update
+menu "src"
+
+config APL_SRC_MAIN
+	bool "main.c"
+	default y
+
+endmenu

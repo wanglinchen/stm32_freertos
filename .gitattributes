@@ -1,0 +1,32 @@
+# 全局默认：所有文件按文本处理、行尾钉 LF；二进制靠 text=auto 的探测排除。
+# 逐个扩展名枚举正是这条规则连续漏人的原因 —— 漏掉 *.s 让 startup 汇编的行尾
+# 跟着本机 core.autocrlf 变，漏掉 *.md 让 .skills 目录里 3 个 CRLF 与 1 个 LF
+# 并存，而枚举永远追不上新增的文件类型。这一行必须排在所有 -text 规则之前：
+# gitattributes 是"后匹配的覆盖先匹配的"，LFS 的 -text 要能盖掉这里的 text=auto。
+*       text=auto eol=lf
+
+# 大体积参考资料走 Git LFS：仓库里只存 131 B 指针，checkout 时还原真实文件。
+# 新机器必须先 git lfs install，否则拿到指针而 git status 仍显示干净。
+# 显式列出后缀、不整目录通配：目录里的 .md 索引必须留在 git 里。
+doc/reference/*.pdf     filter=lfs diff=lfs merge=lfs -text
+doc/reference/**/*.pdf  filter=lfs diff=lfs merge=lfs -text
+doc/reference/*.png     filter=lfs diff=lfs merge=lfs -text
+doc/reference/**/*.png  filter=lfs diff=lfs merge=lfs -text
+# doc/hardware 的原理图与数据手册连同历史版本一起迁入 LFS（43 个 PDF / 66.5 MB）。
+doc/hardware/*.pdf      filter=lfs diff=lfs merge=lfs -text
+doc/hardware/**/*.pdf   filter=lfs diff=lfs merge=lfs -text
+
+# 行尾归一：core.autocrlf=true 时 git checkout 会把工作区文件改写成 CRLF，
+# 而 build/gate-selftest.py 的破坏锚点全部按 LF 写——一次 checkout 就能让所有
+# 锚点静默失配，整组门禁报「锚点没匹配上」，与真实缺陷无关。把源码、脚本与
+# 链接脚本钉死成 LF，锚点与文件行尾从此不依赖本机 git 配置。
+*.c     text eol=lf
+*.h     text eol=lf
+*.py    text eol=lf
+*.ld    text eol=lf
+
+# 打包产物是纯 ASCII 文本：Intel HEX 是可读的记录行，map 是链接器打印的文本。
+# 显式声明而不是靠上面的 * 兜底 —— 把「它们是文本」这个口径写进仓库，而不是留给
+# 下一个人从文件名去推；一旦被当成二进制，行尾就再也不归任何人管。
+*.hex   text eol=lf
+*.map   text eol=lf

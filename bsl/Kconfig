@@ -1,0 +1,11 @@
+# 自动生成，勿手改。刷新：python3 build/build.py update
+menu "bsl"
+
+config BSL_SRC
+	bool "src"
+	default y
+if BSL_SRC
+source "bsl/src/Kconfig"
+endif
+
+endmenu

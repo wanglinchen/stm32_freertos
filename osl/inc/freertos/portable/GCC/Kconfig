@@ -1,0 +1,6 @@
+# 自动生成，勿手改。刷新：python3 build/build.py update
+menu "GCC"
+
+comment "无子目录、无源文件"
+
+endmenu

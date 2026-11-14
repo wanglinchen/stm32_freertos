@@ -1,0 +1,11 @@
+# 自动生成，勿手改。刷新：python3 build/build.py update
+menu "src"
+
+config OSL_SRC_FREERTOS
+	bool "freertos"
+	default y
+if OSL_SRC_FREERTOS
+source "osl/src/freertos/Kconfig"
+endif
+
+endmenu

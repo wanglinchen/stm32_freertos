@@ -1,0 +1,11 @@
+# 自动生成，勿手改。刷新：python3 build/build.py update
+menu "periph"
+
+config HAL_PERIPH_SRC
+	bool "src"
+	default y
+if HAL_PERIPH_SRC
+source "hal/periph/src/Kconfig"
+endif
+
+endmenu

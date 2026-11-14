@@ -1,0 +1,11 @@
+# 自动生成，勿手改。刷新：python3 build/build.py update
+menu "apl"
+
+config APL_SRC
+	bool "src"
+	default y
+if APL_SRC
+source "apl/src/Kconfig"
+endif
+
+endmenu

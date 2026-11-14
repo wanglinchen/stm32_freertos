@@ -1,0 +1,9 @@
+out/object/
+out/tmp/
+.vscode/
+**/__pycache__/
+*.py[cod]
+tool/.cache/
+tool/tmp/
+tool/win_x86_64/tmp/
+tool/linux_x86_64/tmp/

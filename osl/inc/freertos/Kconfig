@@ -1,0 +1,11 @@
+# 自动生成，勿手改。刷新：python3 build/build.py update
+menu "freertos"
+
+config OSL_INC_FREERTOS_PORTABLE
+	bool "portable"
+	default y
+if OSL_INC_FREERTOS_PORTABLE
+source "osl/inc/freertos/portable/Kconfig"
+endif
+
+endmenu

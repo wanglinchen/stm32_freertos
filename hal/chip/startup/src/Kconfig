@@ -1,0 +1,12 @@
+# 自动生成，勿手改。刷新：python3 build/build.py update
+menu "src"
+
+config HAL_CHIP_STARTUP_SRC_STARTUP_STM32F429XX
+	bool "startup_stm32f429xx.s"
+	default y
+
+config HAL_CHIP_STARTUP_SRC_SYSTEM_STM32F4XX
+	bool "system_stm32f4xx.c"
+	default y
+
+endmenu

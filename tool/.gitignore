@@ -1,0 +1,5 @@
+# 安装脚本下载的压缩包与解压中间目录（勿提交）
+.cache/
+arm-gnu-toolchain-*/
+# STM32CubeProgrammer 解压体含 >100MB 可执行文件，仅本地使用（见 setenv / 搭建环境.md）
+win_x86_64/cubeprg/

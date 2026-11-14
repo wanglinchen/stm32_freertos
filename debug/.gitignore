@@ -1,0 +1,3 @@
+# 本目录报告由 capture.py 按需生成
+*.md
+!README.md

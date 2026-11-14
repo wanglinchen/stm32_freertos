@@ -1,0 +1,36 @@
+# 自动生成，勿手改。刷新：python3 build/build.py update
+menu "freertos"
+
+config OSL_SRC_FREERTOS_EVENT_GROUPS
+	bool "event_groups.c"
+	default y
+
+config OSL_SRC_FREERTOS_HEAP_4
+	bool "heap_4.c"
+	default y
+
+config OSL_SRC_FREERTOS_LIST
+	bool "list.c"
+	default y
+
+config OSL_SRC_FREERTOS_PORT_M4
+	bool "port_m4.c"
+	default y
+
+config OSL_SRC_FREERTOS_QUEUE
+	bool "queue.c"
+	default y
+
+config OSL_SRC_FREERTOS_STREAM_BUFFER
+	bool "stream_buffer.c"
+	default y
+
+config OSL_SRC_FREERTOS_TASKS
+	bool "tasks.c"
+	default y
+
+config OSL_SRC_FREERTOS_TIMERS
+	bool "timers.c"
+	default y
+
+endmenu

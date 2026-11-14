@@ -1,0 +1,25 @@
+# 自动生成，勿手改。刷新：python3 build/build.py update
+menu "hal"
+
+config HAL_ARCH
+	bool "arch"
+	default y
+if HAL_ARCH
+source "hal/arch/Kconfig"
+endif
+
+config HAL_CHIP
+	bool "chip"
+	default y
+if HAL_CHIP
+source "hal/chip/Kconfig"
+endif
+
+config HAL_PERIPH
+	bool "periph"
+	default y
+if HAL_PERIPH
+source "hal/periph/Kconfig"
+endif
+
+endmenu

@@ -1,0 +1,11 @@
+# 自动生成，勿手改。刷新：python3 build/build.py update
+menu "fml"
+
+config FML_SRC
+	bool "src"
+	default y
+if FML_SRC
+source "fml/src/Kconfig"
+endif
+
+endmenu

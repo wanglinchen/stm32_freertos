@@ -1,0 +1,18 @@
+# 自动生成，勿手改。刷新：python3 build/build.py update
+menu "osl"
+
+config OSL_INC
+	bool "inc"
+	default y
+if OSL_INC
+source "osl/inc/Kconfig"
+endif
+
+config OSL_SRC
+	bool "src"
+	default y
+if OSL_SRC
+source "osl/src/Kconfig"
+endif
+
+endmenu
