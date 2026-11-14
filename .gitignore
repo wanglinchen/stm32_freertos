@@ -1,5 +1,5 @@
-out/user/
-out/userdebug/
+out/user/objects/
+out/userdebug/objects/
 out/tmp/
 .vscode/
 **/__pycache__/
