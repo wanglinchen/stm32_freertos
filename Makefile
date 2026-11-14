@@ -1,17 +1,18 @@
 # 自动生成，勿手改。刷新：python3 build/build.py update
 PROJECT_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
-BUILD_DIR := $(PROJECT_ROOT)/out/object
+BUILD_VARIANT ?= userdebug
+BUILD_DIR := $(PROJECT_ROOT)/out/$(BUILD_VARIANT)/objects
 TARGET_DIR := $(BUILD_DIR)/target
 .DEFAULT_GOAL := all
 include $(PROJECT_ROOT)/toolchain.make
--include $(PROJECT_ROOT)/out/.config
+-include $(PROJECT_ROOT)/out/$(BUILD_VARIANT)/.config
 
 PROJECT_NAME := $(CONFIG_PROJECT_NAME)
 ELF := $(TARGET_DIR)/$(PROJECT_NAME).elf
 HEX := $(TARGET_DIR)/$(PROJECT_NAME).hex
 BIN := $(TARGET_DIR)/$(PROJECT_NAME).bin
 
-.PHONY: all clean modules release osl apl fml bsl hal
+.PHONY: all clean modules user userdebug release osl apl fml bsl hal
 
 all:
 	@mkdir -p $(BUILD_DIR) $(TARGET_DIR)
@@ -44,11 +45,11 @@ apl: fml bsl osl
 fml: bsl osl
 bsl: hal
 
-release:
-	@$(MAKE) --no-print-directory -B -C $(PROJECT_ROOT) OPT=-Os DEBUG=-g1 all
-	@echo "发布构建完成（-Os -g1，尺寸见上面的 SIZE 行）。"
-	@echo "注意：3 条指令形态断言在 -Os 下会跳过（osl_reset_cause_capture 早退 / osl_panic_report 重入闸 / iwdg_wait_sync 符号）；"
-	@echo "verify --artifacts 会逐条列出被跳过的判据，其余判据照跑。这些机制只在 -Og 下强制，发版前仍需人工核对一遍。"
+userdebug:
+	@$(MAKE) --no-print-directory -B BUILD_VARIANT=userdebug OPT=-Og DEBUG=-g3 all
+user:
+	@$(MAKE) --no-print-directory -B BUILD_VARIANT=user OPT=-Os DEBUG=-g0 all
+release: user
 
 clean:
-	rm -rf $(PROJECT_ROOT)/out
+	rm -rf $(PROJECT_ROOT)/out/user $(PROJECT_ROOT)/out/userdebug

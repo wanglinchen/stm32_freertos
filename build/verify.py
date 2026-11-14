@@ -111,10 +111,12 @@ def collect_makefile_errors() -> list[str]:
         errors.append("缺少根 Makefile，请先运行 update")
     else:
         link_text = read_text(root_makefile)
-        if "BUILD_DIR := $(PROJECT_ROOT)/out/object" not in link_text:
-            errors.append("根 Makefile 的构建输出目录不是 out/object")
-        if "-include $(PROJECT_ROOT)/out/.config" not in link_text:
-            errors.append("根 Makefile 未加载 out/.config")
+        if BUILD_DIR_MAKE_EXPR not in link_text:
+            errors.append(f"根 Makefile 缺少 {BUILD_DIR_MAKE_EXPR}")
+        if BUILD_VARIANT_MAKE_EXPR not in link_text:
+            errors.append(f"根 Makefile 缺少 {BUILD_VARIANT_MAKE_EXPR}")
+        if KCONFIG_INCLUDE_MAKE_EXPR not in link_text:
+            errors.append(f"根 Makefile 缺少 {KCONFIG_INCLUDE_MAKE_EXPR}")
         for name in NORMAL_LINK_LIBS:
             if name in modules:
                 lib = f"lib{name}.a"
@@ -124,7 +126,18 @@ def collect_makefile_errors() -> list[str]:
     if obsolete_linker_script.exists():
         errors.append("旧链接脚本 proj/project-target.ld 应删除；链接脚本应位于 hal/chip/linker/")
     if (ROOT / "out" / "build").exists():
-        errors.append("旧构建输出目录 out/build/ 应迁移并清理；当前输出目录为 out/object/")
+        errors.append("旧构建输出目录 out/build/ 应迁移并清理")
+    legacy_object = ROOT / "out" / "object"
+    if legacy_object.exists():
+        errors.append(
+            "旧输出目录 out/object/ 仍存在；请运行 update 迁移到 out/userdebug/objects/"
+        )
+    for variant in BUILD_VARIANTS:
+        legacy_profile_obj = out_profile_root(variant) / "object"
+        if legacy_profile_obj.exists():
+            errors.append(
+                f"out/{variant}/object/ 应迁为 objects/；请运行 update"
+            )
     toolchain_text = read_text(ROOT / "toolchain.make")
     if selected_linker is not None:
         selected_rel = selected_linker.relative_to(ROOT).as_posix()
@@ -144,6 +157,14 @@ def collect_makefile_errors() -> list[str]:
             errors.append(f"{name}/Makefile 仍引用已移除的 Depend.make")
 
     root_makefile_text = read_text(ROOT / "Makefile")
+    for variant, opts in VARIANT_MAKE_OPTS.items():
+        expected = (
+            f"BUILD_VARIANT={variant} OPT={opts['OPT']} DEBUG={opts['DEBUG']}"
+        )
+        if expected not in root_makefile_text:
+            errors.append(
+                f"根 Makefile 的 {variant} 目标应使用 OPT={opts['OPT']} DEBUG={opts['DEBUG']}"
+            )
     if (ROOT / "startup").exists():
         errors.append("根目录 startup/ 已移除；启动文件应放在 hal/startup/")
     startup_sources = startup_asm_sources()
@@ -173,10 +194,12 @@ def collect_makefile_errors() -> list[str]:
             continue
         makefile = directory / "Makefile"
         makefile_text = read_text(makefile)
-        if "BUILD_DIR := $(PROJECT_ROOT)/out/object" not in makefile_text:
-            errors.append(f"{makefile.relative_to(ROOT)} 的构建输出目录不是 out/object")
-        if "-include $(PROJECT_ROOT)/out/.config" not in makefile_text:
-            errors.append(f"{makefile.relative_to(ROOT)} 未加载 out/.config")
+        if BUILD_DIR_MAKE_EXPR not in makefile_text:
+            errors.append(
+                f"{makefile.relative_to(ROOT)} 缺少 {BUILD_DIR_MAKE_EXPR}"
+            )
+        if KCONFIG_INCLUDE_MAKE_EXPR not in makefile_text:
+            errors.append(f"{makefile.relative_to(ROOT)} 缺少 {KCONFIG_INCLUDE_MAKE_EXPR}")
         if "Depend.make" in makefile_text:
             errors.append(f"{makefile.relative_to(ROOT)} 仍引用已移除的 Depend.make")
         layer = directory.relative_to(ROOT).parts[0]
@@ -202,28 +225,38 @@ def collect_makefile_errors() -> list[str]:
 
     return errors
 def collect_config_errors() -> list[str]:
-    """配置一致性：project_defconfig / out/.config / project-info.json 的交叉核对。"""
+    """配置一致性：分档 defconfig / out/<variant>/.config / project-info.json 交叉核对。"""
     errors: list[str] = []
     modules = active_modules()
     info = load_info()
-    defconfig = ROOT / "proj" / "project_defconfig"
-    if defconfig.is_file():
+    legacy_dc = ROOT / "proj" / "project_defconfig"
+    if legacy_dc.is_file():
+        errors.append(
+            "proj/project_defconfig 已废弃；请 update 迁为 proj/project_defconfig_userdebug 与 "
+            "proj/project_defconfig_user"
+        )
+    for variant in BUILD_VARIANTS:
+        defconfig = project_defconfig_path(variant)
+        rel = defconfig.relative_to(ROOT).as_posix()
+        if not defconfig.is_file():
+            errors.append(f"缺少 {rel}")
+            continue
         dc = read_text(defconfig)
         for name in modules:
             if f"# {name}" not in dc:
-                errors.append(f"project_defconfig 缺少分类注释 # {name}")
-    else:
-        errors.append("缺少 proj/project_defconfig")
-    config = ROOT / "out" / ".config"
-    if not config.is_file():
-        errors.append("缺少解析后的 out/.config，请先运行 update")
-    elif defconfig.is_file():
-        try:
-            expected_config = parse_defconfig(read_text(defconfig))
-            if read_text(config) != expected_config:
-                errors.append("out/.config 与 proj/project_defconfig 解析结果不一致")
-        except ValueError as error:
-            errors.append(str(error))
+                errors.append(f"{rel} 缺少分类注释 # {name}")
+        config = out_config_path(variant)
+        if not config.is_file():
+            errors.append(f"缺少 {config.relative_to(ROOT).as_posix()}，请先运行 update")
+        else:
+            try:
+                expected_config = parse_defconfig(
+                    read_text(defconfig), source_rel=rel
+                )
+                if read_text(config) != expected_config:
+                    errors.append(f"{config.relative_to(ROOT)} 与 {rel} 解析结果不一致")
+            except ValueError as error:
+                errors.append(str(error))
 
     project_name = info.get("project_name", "")
     if not same_project_name(project_name, ROOT.name):
@@ -231,19 +264,50 @@ def collect_config_errors() -> list[str]:
             f"proj/project-info.json 的 project_name={project_name!r} 与工程根目录名 {ROOT.name!r} 不一致"
             "（比较时忽略大小写，并把 -/_ 视为同一分隔符）"
         )
-    if defconfig.is_file() and f"CONFIG_PROJECT_NAME={project_name}" not in read_text(defconfig):
-        errors.append("project_defconfig 中 CONFIG_PROJECT_NAME 与 project-info.json 不一致")
+    for variant in BUILD_VARIANTS:
+        defconfig = project_defconfig_path(variant)
+        if defconfig.is_file() and f"CONFIG_PROJECT_NAME={project_name}" not in read_text(
+            defconfig
+        ):
+            errors.append(
+                f"{defconfig.relative_to(ROOT)} 中 CONFIG_PROJECT_NAME 与 project-info.json 不一致"
+            )
 
     toolchain_make = ROOT / "toolchain.make"
     if not toolchain_make.is_file():
         errors.append("缺少根目录 toolchain.make，请先运行 update")
     if (ROOT / "build" / "toolchain.make").exists():
         errors.append("build/toolchain.make 已移至工程根目录")
+    if (ROOT / "out" / ".config").is_file():
+        errors.append(
+            "out/.config 已废弃；有效配置为 out/<variant>/.config（由 update 从分档 defconfig 生成）"
+        )
     if (ROOT / "build" / ".config").exists():
-        errors.append("build/.config 已废弃，有效配置仅 out/.config（由 update 从 project_defconfig 解析生成）")
+        errors.append("build/.config 已废弃，有效配置为 out/<variant>/.config")
+    errors.extend(collect_defconfig_user_custom_sync_errors())
     if (ROOT / "build" / "Depend.make").exists():
         errors.append("build/Depend.make 已废弃，应由各层 Makefile 管理头文件和 .d 依赖")
     return errors
+
+
+def collect_defconfig_user_custom_sync_errors() -> list[str]:
+    """两档 defconfig 的 USER_CUSTOM 须一致（HAL/源裁剪同步改，优化档位不同走 VARIANT_MAKE_OPTS）。"""
+    blocks: list[str] = []
+    names: list[str] = []
+    for variant in BUILD_VARIANTS:
+        path = project_defconfig_path(variant)
+        if not path.is_file():
+            return []
+        names.append(path.relative_to(ROOT).as_posix())
+        text = read_text(path)
+        user_block, _ = split_user_region(text)
+        blocks.append(user_block.strip())
+    if len(blocks) < 2 or blocks[0] == blocks[1]:
+        return []
+    return [
+        f"{names[0]} 与 {names[1]} 的 # >>> USER_CUSTOM 区块不一致；"
+        "功能裁剪（HAL 源文件等）须两档同步修改，发布/调试差异只用 OPT/DEBUG（见 build.py build）"
+    ]
 def collect_topology_errors() -> list[str]:
     """顶层目录是否都在 LAYER_DIRS / STATIC_LIB_DIRS 里（空壳目录不算）。"""
     errors: list[str] = []
@@ -839,22 +903,34 @@ def verify(artifacts: bool = False, *, check_symbols: bool = True) -> None:
     if check_symbols or artifacts:
         tool_errors, tools_ok = artifact_tool_errors()
         errors.extend(tool_errors)
-    if check_symbols and tools_ok:
-        errors.extend(collect_heap_artifact_errors())
-        errors.extend(collect_lib_member_errors())
-        errors.extend(collect_freertos_unit_errors())
-        errors.extend(collect_unlinked_member_errors())
-        errors.extend(collect_fault_artifact_errors())
-        errors.extend(collect_observ_artifact_errors())
-        errors.extend(collect_persist_record_errors())
-        errors.extend(collect_boot_init_errors())
-        errors.extend(collect_tick_source_errors())
-        errors.extend(collect_startup_guard_errors())
-        errors.extend(collect_last_write_errors())
-        errors.extend(collect_panic_order_errors())
-        errors.extend(collect_bsp_artifact_errors())
+    elf_variants = list(BUILD_VARIANTS) if artifacts else [DEFAULT_BUILD_VARIANT]
     if artifacts and tools_ok:
-        errors.extend(collect_artifact_errors())
+        errors.extend(collect_build_variant_buildflags_errors())
+    if (check_symbols or artifacts) and tools_ok:
+        for variant in elf_variants:
+            set_build_variant(variant)
+            if variant != DEFAULT_BUILD_VARIANT:
+                RELEASE_SKIPPED.clear()
+            variant_errors: list[str] = []
+            if check_symbols:
+                variant_errors.extend(collect_heap_artifact_errors())
+                variant_errors.extend(collect_lib_member_errors())
+                variant_errors.extend(collect_freertos_unit_errors())
+                variant_errors.extend(collect_unlinked_member_errors())
+                variant_errors.extend(collect_fault_artifact_errors())
+                variant_errors.extend(collect_observ_artifact_errors())
+                variant_errors.extend(collect_persist_record_errors())
+                variant_errors.extend(collect_boot_init_errors())
+                variant_errors.extend(collect_tick_source_errors())
+                variant_errors.extend(collect_startup_guard_errors())
+                variant_errors.extend(collect_last_write_errors())
+                variant_errors.extend(collect_panic_order_errors())
+                variant_errors.extend(collect_bsp_artifact_errors())
+            if artifacts:
+                variant_errors.extend(collect_artifact_errors())
+            if len(elf_variants) > 1:
+                variant_errors = [f"[{variant}] {item}" for item in variant_errors]
+            errors.extend(variant_errors)
     if errors:
         print("自检失败：", file=sys.stderr)
         for item in errors:
@@ -873,13 +949,34 @@ def verify(artifacts: bool = False, *, check_symbols: bool = True) -> None:
             print(f"  [跳过] {item}")
     else:
         print("自检通过")
+
+
+def collect_build_variant_buildflags_errors() -> list[str]:
+    """现有产物目录里的 .buildflags 须与 VARIANT_MAKE_OPTS 一致（仅在有产物时检查）。"""
+    errors: list[str] = []
+    for variant, opts in VARIANT_MAKE_OPTS.items():
+        flags_path = out_object_dir(variant) / ".buildflags"
+        if not flags_path.is_file():
+            continue
+        text = flags_path.read_text(encoding="utf-8")
+        if opts["OPT"] not in text:
+            errors.append(
+                f"out/{variant}/objects/.buildflags 未含 {opts['OPT']}（{text.strip()!r}）"
+            )
+        if opts["DEBUG"] not in text:
+            errors.append(
+                f"out/{variant}/objects/.buildflags 未含 {opts['DEBUG']}（{text.strip()!r}）"
+            )
+    return errors
+
+
 def _artifact_is_release_build() -> bool:
-    """当前 `out/object/*.elf` 是不是 `make release`（-Os -g1）产出的。
+    """当前档位的 elf 是否为 user（-Os）构建。
 
     证据只能取自构建过程写下的标记，不能取自 map：map 里有没有 `_aeabi_ldivmod.o`
     恰恰是本判据要判的东西，用它来判档位等于自证清白（破坏态一出现就自动合法）。
     根 Makefile 每次 `all` 都会把本次的 `$(OPT) $(DEBUG)` 写进
-    `out/object/.buildflags`，所以这里读的是一个独立事实。
+    `out/<档位>/objects/.buildflags`，所以这里读的是一个独立事实。
     读不到标记时按默认（-Og）处理：宁可报红，也不静默放行。
     """
     flags = OUT_OBJECT_DIR / ".buildflags"
@@ -936,7 +1033,7 @@ def collect_hal_module_errors() -> list[str]:
         )
     )
     src_dir = conf.parent.parent / "src"
-    obj_dir = ROOT / "out" / "object" / "hal" / "periph" / "src"
+    obj_dir = out_object_dir(DEFAULT_BUILD_VARIANT) / "hal" / "periph" / "src"
 
     missing_include = sorted(enabled - guarded)
     if missing_include:
@@ -1055,12 +1152,16 @@ def collect_stale_dependency_errors() -> list[str]:
     tasks.o 仍然是几天前的产物，而 make 全程沉默。实测出现过 77 个这样的 .d。
     """
     errors: list[str] = []
-    objdir = ROOT / "out" / "object"
-    if not objdir.is_dir():
-        return errors
     missing_examples: list[str] = []
     broken = 0
-    for dep in sorted(objdir.rglob("*.d")):
+    dep_files: list[Path] = []
+    for variant in BUILD_VARIANTS:
+        objdir = out_object_dir(variant)
+        if objdir.is_dir():
+            dep_files.extend(sorted(objdir.rglob("*.d")))
+    if not dep_files:
+        return errors
+    for dep in dep_files:
         try:
             text = dep.read_text(encoding="utf-8", errors="replace")
         except OSError:
@@ -1599,7 +1700,7 @@ def collect_freertos_unit_errors() -> list[str]:
     if not config.is_file():
         return ["缺少 osl/inc/FreeRTOSConfig.h，无法核对 FreeRTOS 编译单元"]
     text = _strip_comments_keep_offsets(config.read_text(encoding="utf-8"))
-    obj_dir = ROOT / "out" / "object" / "osl" / "src" / "freertos"
+    obj_dir = out_object_dir(DEFAULT_BUILD_VARIANT) / "osl" / "src" / "freertos"
     if not obj_dir.is_dir():
         return errors
     for filename, macro in FREERTOS_CONFIG_GATED:
@@ -3853,7 +3954,8 @@ def collect_last_write_errors() -> list[str]:
     errors: list[str] = []
     elfs = sorted(OUT_ARTIFACT_DIR.glob("*.elf"))
     if not elfs:
-        return ["找不到 out/object/target/*.elf，无法校验 g_last_write 的生产者"]
+        rel = OUT_ARTIFACT_DIR.relative_to(ROOT).as_posix()
+        return [f"找不到 {rel}/*.elf，无法校验 g_last_write 的生产者"]
 
     nm_bin = tool_binary("nm")
     objdump = tool_binary("objdump")
@@ -4170,7 +4272,7 @@ def collect_eol_contract_errors() -> list[str]:
 
     errors: list[str] = []
     for suffix, kind in ((".hex", "Intel HEX"), (".map", "链接 map")):
-        sample = f"out/release/2026_11_06-12_00_00/sample{suffix}"
+        sample = f"out/userdebug/release/2026_11_06-12_00_00/sample{suffix}"
         explicit = [
             pattern
             for _, pattern, attrs in entries
@@ -4666,7 +4768,7 @@ def case_isr_priority() -> tuple[str, str]:
     `collect_isr_priority_errors()` 自 N46 起先剥注释再匹配，所以探针必须写进代码。
 
     这一组是纯静态（不编译），但**仍要先建一次产物**：`verify` 默认还会跑
-    `collect_last_write_errors()`，它要读 `out/object/*.elf`；CI 每个 job 都是干净
+    `collect_last_write_errors()`，它要读 `out/<档位>/objects/target/*.elf`；CI 每个 job 都是干净
     检出、没有 elf，于是第一条「期望成功」会被「找不到 *.elf」顶成失败。此前这组
     只有「期望失败」一条，退出码恰好对上，在 CI 上一直是假绿 —— 加了这条才暴露。
     """
@@ -5185,7 +5287,7 @@ def case_heap_bound() -> tuple[str, str]:
     if not script.is_file():
         return "SKIP", f"找不到 {script.name}"
     # 这一组必须“有产物、且产物是用旧脚本链出来的”。干净检出（CI 的每个 job 都是）
-    # 没有 out/object/*.elf，若不先构建一次，verify --artifacts 只会因为“没产物”报错，
+    # 没有 out/<档位>/objects/target/*.elf，若不先构建一次，verify --artifacts 只会因为“没产物”报错，
     # 测到的就不是“边界与脚本不一致”这条断言了。
     built = create_project("build")
     if built.returncode != 0:
@@ -6056,7 +6158,7 @@ def case_line_ending() -> tuple[str, str]:
             raise RuntimeError("README.md 已经不是纯 LF，破坏前提不成立")
         return text.replace("\n", "\r\n", 1)
 
-    # 干净检出（CI 每个 job）没有 out/object/*.elf，verify 会先报「找不到 *.elf」。
+    # 干净检出（CI 每个 job）没有 out/<档位>/objects/target/*.elf，verify 会先报「找不到 *.elf」。
     # 判定顺序因此固定为：先无条件重建一次拿到产物，再看断言 —— 否则破坏态下 verify
     # 无论断言有没有叫都会非 0，等于什么都没测（n29 组第一次跑就是这么 FAIL 的）。
     baseline = expect_success(create_project("build"))
@@ -6412,7 +6514,7 @@ def case_ccmram_state() -> tuple[str, str]:
     script = ROOT / "hal" / "chip" / "linker" / "stm32f429igx_flash.ld"
     if not script.is_file():
         return "SKIP", f"找不到 {script.name}"
-    # 干净检出（CI 的每个 job 都是）没有 out/object/*.elf，而还原后那条 `verify`
+    # 干净检出（CI 的每个 job 都是）没有 out/<档位>/objects/target/*.elf，而还原后那条 `verify`
     # 仍会去校验产物里 g_last_write 的生产者 —— 没有产物它只会报「找不到 *.elf」，
     # 测到的就不是「还原后自检通过」。所以先构建一次，与 heap-bound 组同理。
     built = create_project("build")
@@ -6612,7 +6714,7 @@ def primary_map_file() -> Path:
 
 
 SPEC_MARKDOWN = ROOT / ".skills" / "工程规格.md"
-DEP_SAMPLE = ROOT / "out" / "object" / "apl" / "src" / "main.d"
+DEP_SAMPLE = out_object_dir(DEFAULT_BUILD_VARIANT) / "apl" / "src" / "main.d"
 
 
 def ensure_artifacts() -> str | None:
@@ -6675,7 +6777,9 @@ def case_hal_module() -> tuple[str, str]:
     blocked = ensure_artifacts()
     if blocked:
         return "SKIP", blocked
-    adc_obj = ROOT / "out" / "object" / "hal" / "periph" / "src" / "stm32f4xx_hal_adc.o"
+    adc_obj = (
+        out_object_dir(DEFAULT_BUILD_VARIANT) / "hal" / "periph" / "src" / "stm32f4xx_hal_adc.o"
+    )
     adc_obj.write_bytes(b"")
     try:
         problem = expect_failure(
@@ -6723,7 +6827,7 @@ def case_freertos_unit() -> tuple[str, str]:
     """`configUSE_*` 与编译单元同进同退：开关改成 0 但 .o 还在，verify 必须报。
 
     产物级断言看不见这个状态：event_groups.c / timers.c 内部被 `#if` 掉之后符号
-    自然消失，`--gc-sections` 再丢一遍，镜像一片干净 —— 只有 out/object 里那份
+    自然消失，`--gc-sections` 再丢一遍，镜像一片干净 —— 只有 objects/target 里那份
     永远进不了镜像的对象文件还在，每个 job 都在白编它。纯静态（不编译）。
     """
     blocked = ensure_artifacts()
@@ -6861,7 +6965,7 @@ def case_makefile() -> tuple[str, str]:
     UNCOVERED 的「已知缺口」里）。这里取三个互不依赖的点各造一次最小破坏：
       ① 造 proj/project-target.ld —— 「旧链接脚本应删除」只判文件存在，不受
          Makefile 模板变动影响，也不会被 update 自愈；
-      ② 删根 Makefile 的 `-include $(PROJECT_ROOT)/out/.config` —— 「根 Makefile 未加载」；
+      ② 删根 Makefile 的分档 Kconfig include —— 「根 Makefile 缺少 …」；
       ③ 把 apl/Makefile 里的 libapl.a 全部改名 —— 「未产出 libapl.a」。
     `verify` 不生成 Makefile（生成在 `update` 里跑），所以三处破坏都不会自愈。
     """
@@ -6888,13 +6992,13 @@ def case_makefile() -> tuple[str, str]:
     root_before = digest(root_makefile)
     with patched(
         root_makefile,
-        lambda text: text.replace("-include $(PROJECT_ROOT)/out/.config", "", 1),
+        lambda text: text.replace(KCONFIG_INCLUDE_MAKE_EXPR, "", 1),
     ):
-        two = expect_failure(create_project("verify"), "根 Makefile 未加载 out/.config")
+        two = expect_failure(create_project("verify"), "根 Makefile 缺少")
     if digest(root_makefile) != root_before:
         return "ERROR", "根 Makefile 没有按字节还原"
     if two:
-        return "FAIL", f"② 根 Makefile 未加载 out/.config：{two}"
+        return "FAIL", f"② 根 Makefile 分档 .config include：{two}"
 
     apl_before = digest(apl_makefile)
     with patched(apl_makefile, lambda text: text.replace("libapl.a", "libapl_probe.a")):
@@ -6906,7 +7010,7 @@ def case_makefile() -> tuple[str, str]:
 
     return "PASS", (
         "三处破坏各自报出预期文案：①造旧链接脚本 → 应删除；"
-        "②根 Makefile 去掉 -include out/.config；③apl/Makefile 把 libapl.a 全部改名 —— "
+        "②根 Makefile 去掉分档 Kconfig include；③apl/Makefile 把 libapl.a 全部改名 —— "
         "全部按字节还原"
     )
 
@@ -6952,26 +7056,25 @@ def case_doc_contract() -> tuple[str, str]:
 def case_config() -> tuple[str, str]:
     """配置一致性：两处破坏，验证 collect_config_errors 的两类判据都会叫。
 
-    `collect_config_errors` 有 11 个 errors.append 点（守 project_defconfig /
-    out/.config / project-info.json 三方交叉），此前零门禁覆盖，登记文案还被误写成
-    「50 条」。这一条之所以长期没人补，是担心「破坏会被 update 自动修」—— 但
-    `verify` 本身**不跑 update**（生成只在 update 里），所以破坏态能被 verify 看到。
+    `collect_config_errors` 守分档 defconfig / out/<variant>/.config /
+    project-info.json 交叉，此前零门禁覆盖。
     这里取两个互不依赖的点：
-      ① 从 project_defconfig 删掉分类注释 `# apl` —— 「缺少分类注释」；
+      ① 从 project_defconfig_userdebug 删掉分类注释 `# apl` —— 「缺少分类注释」；
       ② 把 project-info.json 的 project_name 改成 gate-probe —— 「与工程根目录名不一致」。
     两份被改的文件都用 digest 做按字节还原校验。
     """
-    defconfig = ROOT / "proj" / "project_defconfig"
+    defconfig = project_defconfig_path(DEFAULT_BUILD_VARIANT)
     info = ROOT / "proj" / "project-info.json"
     for path in (defconfig, info):
         if not path.is_file():
             return "ERROR", f"{path.relative_to(ROOT)} 不存在，先跑一次 update"
 
     defconfig_before = digest(defconfig)
+    rel = defconfig.relative_to(ROOT).as_posix()
     with patched(defconfig, lambda text: text.replace("\n# apl\n", "\n", 1)):
-        one = expect_failure(create_project("verify"), "缺少分类注释 # apl")
+        one = expect_failure(create_project("verify"), f"{rel} 缺少分类注释 # apl")
     if digest(defconfig) != defconfig_before:
-        return "ERROR", "project_defconfig 没有按字节还原"
+        return "ERROR", f"{rel} 没有按字节还原"
     if one:
         return "FAIL", f"① 缺少分类注释：{one}"
 
@@ -6999,7 +7102,7 @@ def case_config() -> tuple[str, str]:
         return "FAIL", f"② project_name 不一致：{two}"
 
     return "PASS", (
-        "两处破坏各自报出预期文案：①project_defconfig 删掉分类注释 # apl；"
+        f"两处破坏各自报出预期文案：①{rel} 删掉分类注释 # apl；"
         "②project-info.json 的 project_name 改成 gate-probe —— 两份文件都按字节还原"
     )
 
@@ -7104,8 +7207,8 @@ def case_doc_reference() -> tuple[str, str]:
     if problem:
         return "FAIL", problem
 
-    # 干净检出（CI 每个 job 都是一份）没有 out/object/*.elf，`verify` 会先报「找不到
-    # out/object/*.elf，无法校验 g_last_write 的生产者」—— 与「待建」标记无关，但会把
+    # 干净检出（CI 每个 job 都是一份）没有 out/<档位>/objects/target/*.elf，`verify` 会先报「找不到
+    # out/<档位>/objects/target/*.elf，无法校验 g_last_write 的生产者」—— 与「待建」标记无关，但会把
     # 下面的 expect_success 判成失败。本地有残留产物时看不到这条，所以必须先 build 一次。
     blocked = ensure_artifacts()
     if blocked:

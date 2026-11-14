@@ -539,7 +539,7 @@ def flash_main(argv: list[str] | None = None) -> None:
         epilog="""\
 示例:
   python flash/flash.py flash
-  python flash/flash.py flash out/object/target/stm32-freertos.elf
+  python flash/flash.py flash out/userdebug/objects/target/stm32-freertos.elf
   python flash/flash.py flash --interface interface/stlink-v2-1.cfg
 """,
     )
@@ -547,7 +547,7 @@ def flash_main(argv: list[str] | None = None) -> None:
         "elf",
         nargs="?",
         type=Path,
-        help="固件 ELF（默认 out/object/target/<CONFIG_PROJECT_NAME>.elf）",
+        help="固件 ELF（默认 out/userdebug/objects/target/<CONFIG_PROJECT_NAME>.elf）",
     )
     _interface_target_args(parser)
     args = parser.parse_args([] if argv is None else argv)

@@ -207,9 +207,7 @@ def write_toolchain(info: dict) -> None:
     rel = script.relative_to(ROOT).as_posix()
     lines = [
         GEN_BANNER,
-        "# 头文件目录和 .d 依赖由各层 Makefile 管理。",
-        "# 若 build/build.py install-toolchain 已安装到 tool/，优先使用工程内工具链。",
-        "# 可由 build/build.py set-buildenv 设置 STM32_TOOLCHAIN_ROOT；Windows 优先 tool/win_x86_64。",
+        "# 工具链：优先 STM32_TOOLCHAIN_ROOT，否则 tool/<平台>；include 由各层 Makefile 管。",
         "ifdef STM32_TOOLCHAIN_ROOT",
         "TOOLCHAIN_ROOT := $(STM32_TOOLCHAIN_ROOT)",
         "else ifeq ($(OS),Windows_NT)",
@@ -237,27 +235,15 @@ def write_toolchain(info: dict) -> None:
         "OBJCOPY := $(PREFIX)objcopy",
         "GDB := $(PREFIX)gdb",
         "SIZE := $(PREFIX)size",
-        "# 编译规则收尾（回写时间戳）用的解释器：Windows 的 MSYS sh 里 python3 多为失效别名。",
         "ifeq ($(OS),Windows_NT)",
         "PYTHON := python",
         "else",
         "PYTHON := python3",
         "endif",
-        # 默认构建是调试版：-Og 既不是 -O0 的逐句搬运，也不是 -O2 的激进重排，
-        # 反汇编级断言（tick-source 的 `add #1`、iwdg-str 的 `str`、observ 的 `bl`）
-        # 依赖的正是这种可读且不内联的落地形态。发布版要更小，用 `make release`
-        # （即 OPT=-Os DEBUG=-g1），这里用 ?= 让命令行可覆盖。
+        "# 默认对齐 userdebug（-Og/-g3）；user 用 make user 或 build.py build（-Os/-g0）。?= 可被命令行覆盖。",
         "OPT ?= -Og",
         "DEBUG ?= -g3",
-        "# 可复现构建：把工程根的绝对前缀折叠成 '.'。configASSERT 把 __FILE__ 传给 vAssertFailed，",
-        "# -g3 又把源码路径写进 debug 段，两者都会让同一提交在不同目录/机器编出不同字节的镜像",
-        "# （实测 Windows 与 Linux 的 .text 相差 136 字节，差异全部落在 .rodata 的路径字符串）。",
         "REPRO := -ffile-prefix-map=$(PROJECT_ROOT)=.",
-        "# 编译期禁用 newlib 的分配入口：newlib 堆只有 512 B，而 __heap_end__ 到 _estack",
-        "# 之间约 159 KB 空闲 RAM（栈从 _estack 向下长，并不紧贴堆），大块 malloc 越界后",
-        "# 既不会撞到栈也不会报错。用 -include 注入，避免依赖每个编译单元记得包含；",
-        "# 不进 ASFLAGS（汇编没有这个概念）。守卫头自己先包含 <stdlib.h>/<string.h> 再 poison，",
-        "# 否则会在系统头的函数声明处报错而不是在真正的调用点报错。",
         "ALLOC_GUARD := -include $(PROJECT_ROOT)/osl/inc/osl_alloc_guard.h",
         f"CPU_FLAGS := {cpu_flags(info)}",
         "CHIP_DEFS = $(foreach config,$(filter CONFIG_STM32%,$(.VARIABLES)),$(if $(filter y,$($(config))),-D$(subst XX,xx,$(patsubst CONFIG_%,%,$(config)))))",
@@ -265,14 +251,7 @@ def write_toolchain(info: dict) -> None:
         "CXXFLAGS = $(CPU_FLAGS) $(CHIP_DEFS) $(OPT) $(DEBUG) $(REPRO) $(ALLOC_GUARD) -std=c++17 -ffunction-sections -fdata-sections -fno-exceptions -fno-rtti -Wall -Wextra -Werror -fstack-usage $(INCLUDES)",
         "ASFLAGS = $(CPU_FLAGS) $(CHIP_DEFS) $(OPT) $(DEBUG) $(REPRO) $(INCLUDES)",
         f"LDSCRIPT := $(PROJECT_ROOT)/{rel}",
-        "# -u _sbrk：make 在 --start-group 扫描时还没有 _sbrk 这个未定义符号（那时只有 malloc 未定义），",
-        "# 等 -lc 把 _sbrk_r 拉进来，-lnosys 的空桩已经先满足了它，libosl.a 里不会再有提取机会。",
-        "# 显式声明 _sbrk 为未定义，才会让 libosl.a 的那份强定义胜出；顺带保证它不被 --gc-sections 丢掉。",
-        "# -u __malloc_lock 同理：不强制引用的话，libc_nano.a 的 mlock.o（空锁）会先满足 malloc 的引用，",
-        "# 任务里并发 malloc 就会踩坏堆。",
-        "# -u _write 是为了让 osl 的 _write（把最近输出留在 g_last_write 里给调试器）真的进镜像：",
-        "# 当前没有任何调用方，--gc-sections 会把 _write 和 g_last_write 一起丢掉（实测 nm 里两者都无），",
-        "# 那样“留最近输出”就是空承诺。verify 会断言镜像里存在 _write。",
+        "# 链接强制引用 _sbrk / __malloc_lock / _write，避免 --gc-sections 与 libc 空桩抢先。",
         "LDFLAGS = $(CPU_FLAGS) -T$(LDSCRIPT) -nostartfiles -Wl,--gc-sections -Wl,-Map=$(TARGET_DIR)/$(PROJECT_NAME).map "
         "-Wl,-u,_sbrk -Wl,-u,__malloc_lock -Wl,-u,_write --specs=nano.specs --specs=nosys.specs",
         "LDLIBS := -lc -lm -lgcc",
@@ -471,11 +450,12 @@ def write_dir_makefile(directory: Path) -> None:
     lines = [
         GEN_BANNER,
         f"PROJECT_ROOT := {project_root_expr(directory)}",
-        "BUILD_DIR := $(PROJECT_ROOT)/out/object",
+        BUILD_VARIANT_MAKE_EXPR,
+        BUILD_DIR_MAKE_EXPR,
         "TARGET_DIR := $(BUILD_DIR)/target",
         ".DEFAULT_GOAL := all",
         "include $(PROJECT_ROOT)/toolchain.make",
-        "-include $(PROJECT_ROOT)/out/.config",
+        KCONFIG_INCLUDE_MAKE_EXPR,
         "",
         "INCLUDE_DIRS :=",
     ]
@@ -488,12 +468,8 @@ def write_dir_makefile(directory: Path) -> None:
     lines += [
         "INCLUDES := $(addprefix -I,$(INCLUDE_DIRS))",
         "",
-        # 编译参数（toolchain.make）和功能裁剪（out/.config）一改变，所有 .o 都必须重编：
-        # 只依赖源文件会让“改了 flags 却复用旧对象”静默混编。
-        # 用 wildcard 而不是直接列关键字：clean 之后 out/.config 不存在，
-        # 直接列路径会让 make 报 "No rule to make target ... out/.config"。
-        "FLAG_DEPS := $(wildcard $(PROJECT_ROOT)/toolchain.make) "
-        "$(wildcard $(PROJECT_ROOT)/out/.config)",
+        # 编译参数（toolchain.make）与分档 Kconfig（out/<variant>/.config）一变须重编 .o。
+        "FLAG_DEPS := $(wildcard $(PROJECT_ROOT)/toolchain.make) " + KCONFIG_FLAG_DEP_MAKE,
         "",
         "LOCAL_OBJS :=",
     ]
@@ -584,7 +560,7 @@ def root_makefile_body() -> list[str]:
         "HEX := $(TARGET_DIR)/$(PROJECT_NAME).hex",
         "BIN := $(TARGET_DIR)/$(PROJECT_NAME).bin",
         "",
-        ".PHONY: all clean modules release " + " ".join(modules),
+        ".PHONY: all clean modules user userdebug release " + " ".join(modules),
         "",
         # 两段式：先把各层编出来（modules），再单独判一次 ELF/HEX/BIN。
         # 不能把模块和 $(ELF) 并列写进 all 的依赖：`make -j4` 会并行启动 $(ELF)，
@@ -644,21 +620,15 @@ def root_makefile_body() -> list[str]:
         lines.append("")
     lines.extend(
         [
-            # 发布构建：只换优化与调试级别。必须带 -B —— `OPT` / `DEBUG` 是命令行
-            # 覆盖，不改 toolchain.make 的 mtime，而 .o 只依赖 FLAG_DEPS 那个文件，
-            # 所以不带 -B 时 make 会判定 elf 已是最新，用 -Og 编出来的旧对象重链一遍，
-            # 产物根本没变（实测 text 仍 10980、只打印 up to date）。
-            # 体积上限（ARTIFACT_TEXT_CEIL / ARTIFACT_FLASH_CEIL）由
-            # `python build/build.py verify --artifacts` 在产物分支里判，
-            # 不在这里判 —— make 只管编译链接，断言统一归创建器。
-            "release:",
-            "\t@$(MAKE) --no-print-directory -B -C $(PROJECT_ROOT) OPT=-Os DEBUG=-g1 all",
-            '\t@echo "发布构建完成（-Os -g1，尺寸见上面的 SIZE 行）。"',
-            '\t@echo "注意：3 条指令形态断言在 -Os 下会跳过（osl_reset_cause_capture 早退 / osl_panic_report 重入闸 / iwdg_wait_sync 符号）；"',
-            '\t@echo "verify --artifacts 会逐条列出被跳过的判据，其余判据照跑。这些机制只在 -Og 下强制，发版前仍需人工核对一遍。"',
+            # userdebug：-Og -g3 保留完整调试信息；user：-Os -g0 追求 Flash 镜像更小。须带 -B。
+            "userdebug:",
+            "\t@$(MAKE) --no-print-directory -B BUILD_VARIANT=userdebug OPT=-Og DEBUG=-g3 all",
+            "user:",
+            "\t@$(MAKE) --no-print-directory -B BUILD_VARIANT=user OPT=-Os DEBUG=-g0 all",
+            "release: user",
             "",
             "clean:",
-            "\trm -rf $(PROJECT_ROOT)/out",
+            "\trm -rf $(PROJECT_ROOT)/out/user $(PROJECT_ROOT)/out/userdebug",
             "",
         ]
     )
@@ -667,11 +637,12 @@ def write_root_makefile() -> None:
     lines = [
         GEN_BANNER,
         f"PROJECT_ROOT := {project_root_expr(ROOT)}",
-        "BUILD_DIR := $(PROJECT_ROOT)/out/object",
+        BUILD_VARIANT_MAKE_EXPR,
+        BUILD_DIR_MAKE_EXPR,
         "TARGET_DIR := $(BUILD_DIR)/target",
         ".DEFAULT_GOAL := all",
         "include $(PROJECT_ROOT)/toolchain.make",
-        "-include $(PROJECT_ROOT)/out/.config",
+        KCONFIG_INCLUDE_MAKE_EXPR,
         "",
     ]
     lines.extend(root_makefile_body())
@@ -730,11 +701,7 @@ def protected_symbols(user_block: str) -> set[str]:
         if matched:
             found.add(matched.group(1))
     return found
-def write_defconfig(info: dict) -> None:
-    path = ROOT / "proj" / "project_defconfig"
-    existing = path.read_text(encoding="utf-8") if path.is_file() else ""
-    user_block, suffix = split_user_region(existing)
-    protected = protected_symbols(user_block)
+def write_defconfig_body(info: dict, protected: set[str]) -> str:
     grouped = collect_config_symbols()
     categories = [name for name in STATIC_LIB_DIRS if name in grouped]
     categories.extend(sorted(name for name in grouped if name not in categories))
@@ -760,8 +727,20 @@ def write_defconfig(info: dict) -> None:
     text = "\n".join(lines)
     if not text.endswith("\n"):
         text += "\n"
-    write_generated_text(path, text + user_block + suffix)
-def parse_defconfig(text: str) -> str:
+    return text
+
+
+def write_defconfig(info: dict) -> None:
+    for variant in BUILD_VARIANTS:
+        path = project_defconfig_path(variant)
+        existing = path.read_text(encoding="utf-8") if path.is_file() else ""
+        user_block, suffix = split_user_region(existing)
+        protected = protected_symbols(user_block)
+        text = write_defconfig_body(info, protected) + user_block + suffix
+        write_generated_text(path, text)
+def parse_defconfig(
+    text: str, *, source_rel: str = "proj/project_defconfig_userdebug"
+) -> str:
     values: dict[str, str] = {}
     for line_number, line in enumerate(text.splitlines(), start=1):
         if not line.strip() or line.lstrip().startswith("#"):
@@ -772,24 +751,30 @@ def parse_defconfig(text: str) -> str:
         assignment = CONFIG_VALUE_RE.match(line)
         if not assignment:
             if line.lstrip().startswith("CONFIG_"):
-                raise ValueError(f"project_defconfig 第 {line_number} 行格式无效：{line}")
+                raise ValueError(f"defconfig 第 {line_number} 行格式无效：{line}")
             continue
         values[assignment.group(1)] = assignment.group(2)
-    lines = ["# Automatically generated from proj/project_defconfig."]
+    lines = [f"# Automatically generated from {source_rel}."]
     lines.extend(
         f"{name}={value}" if value != "n" else f"# {name} is not set"
         for name, value in values.items()
     )
     return "\n".join(lines) + "\n"
 def write_config() -> None:
-    defconfig = ROOT / "proj" / "project_defconfig"
-    config = ROOT / "out" / ".config"
-    config.parent.mkdir(parents=True, exist_ok=True)
-    write_generated_text(config, parse_defconfig(read_text(defconfig)))
+    for variant in BUILD_VARIANTS:
+        defconfig = project_defconfig_path(variant)
+        if not defconfig.is_file():
+            continue
+        config = out_config_path(variant)
+        config.parent.mkdir(parents=True, exist_ok=True)
+        source_rel = defconfig.relative_to(ROOT).as_posix()
+        write_generated_text(
+            config, parse_defconfig(read_text(defconfig), source_rel=source_rel)
+        )
 def write_generated_text(path: Path, text: str) -> None:
     """写入生成物；内容未变则不动文件，保留原 mtime。
 
-    目录 Makefile 把 toolchain.make / out/.config 当成每个 .o 的前置依赖
+    目录 Makefile 把 toolchain.make / out/<variant>/.config 当成每个 .o 的前置依赖
     （编译参数或 Kconfig 一变就必须重编）。因此这里必须“没变就不写”，
     否则 update 每次刷新这两个文件的 mtime，会退化成每轮全量重编。
 
@@ -824,9 +809,7 @@ def remove_stale_build_files() -> None:
         directory = ROOT / name
         if not directory.is_dir():
             continue
-        # out/ 是构建输出目录，但 out/.config 是 update 正常生成的配置真源：
-        # 它不是“排除目录里残留的误生成”，删掉会让它每轮重新创建、mtime 刷新，
-        # 而目录 Makefile 已把 out/.config 作为 .o 的前置依赖 → 全量重编。
+        # out/<variant>/.config 是 update 写入的分档配置；勿当误生成删掉，否则会触发全量重编。
         stale_names = ("Makefile", "Kconfig") if directory == ROOT / "out" else ("Makefile", "Kconfig", ".config")
         for fname in stale_names:
             path = directory / fname
@@ -862,8 +845,83 @@ def remove_stale_build_files() -> None:
             print(f"删除无源文件的空目录: {directory.relative_to(ROOT)}")
         except OSError:
             pass
+def migrate_out_profile_layout() -> None:
+    """旧布局 out/object、out/release → out/userdebug/objects、out/userdebug/release。"""
+    legacy_obj = ROOT / "out" / "object"
+    legacy_rel = ROOT / "out" / "release"
+    ud_obj = out_object_dir(BUILD_VARIANT_USERDEBUG)
+    ud_rel = out_release_dir(BUILD_VARIANT_USERDEBUG)
+    if legacy_obj.is_dir() and not ud_obj.exists():
+        ud_obj.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(legacy_obj), str(ud_obj))
+        print(f"迁移 {legacy_obj.relative_to(ROOT)} -> {ud_obj.relative_to(ROOT)}")
+    elif legacy_obj.is_dir() and ud_obj.exists():
+        print(f"跳过迁移 {legacy_obj.relative_to(ROOT)}：{ud_obj.relative_to(ROOT)} 已存在")
+    if legacy_rel.is_dir() and not ud_rel.exists():
+        ud_rel.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(legacy_rel), str(ud_rel))
+        print(f"迁移 {legacy_rel.relative_to(ROOT)} -> {ud_rel.relative_to(ROOT)}")
+
+
+def migrate_defconfig_layout() -> None:
+    """proj 分档 defconfig 命名迁移；out/.config → out/<variant>/.config。"""
+    for old_name, new_name in (
+        ("project_userdebug_defconfig", "project_defconfig_userdebug"),
+        ("project_user_defconfig", "project_defconfig_user"),
+        ("userdebug_project_defconfig", "project_defconfig_userdebug"),
+        ("user_project_defconfig", "project_defconfig_user"),
+    ):
+        old = ROOT / "proj" / old_name
+        new = ROOT / "proj" / new_name
+        if old.is_file() and not new.is_file():
+            shutil.move(str(old), str(new))
+            print(f"重命名 {old.relative_to(ROOT)} -> {new.relative_to(ROOT)}")
+    legacy_dc = ROOT / "proj" / "project_defconfig"
+    if legacy_dc.is_file():
+        for variant in BUILD_VARIANTS:
+            dest = project_defconfig_path(variant)
+            if not dest.is_file():
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(legacy_dc, dest)
+                print(
+                    f"迁移 {legacy_dc.relative_to(ROOT)} -> {dest.relative_to(ROOT)}"
+                )
+        if all(project_defconfig_path(v).is_file() for v in BUILD_VARIANTS):
+            legacy_dc.unlink()
+            print(f"删除旧 defconfig：{legacy_dc.relative_to(ROOT)}")
+    legacy_cfg = ROOT / "out" / ".config"
+    if legacy_cfg.is_file():
+        ud_cfg = out_config_path(BUILD_VARIANT_USERDEBUG)
+        if not ud_cfg.is_file():
+            ud_cfg.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(legacy_cfg), str(ud_cfg))
+            print(f"迁移 {legacy_cfg.relative_to(ROOT)} -> {ud_cfg.relative_to(ROOT)}")
+        else:
+            legacy_cfg.unlink()
+            print(f"删除旧 out/.config（{ud_cfg.relative_to(ROOT)} 已存在）")
+
+
+def migrate_objects_dir_name() -> None:
+    """各档位 out/<variant>/object → out/<variant>/objects。"""
+    for variant in BUILD_VARIANTS:
+        old = out_profile_root(variant) / "object"
+        new = out_object_dir(variant)
+        if not old.is_dir():
+            continue
+        if new.exists():
+            print(
+                f"跳过迁移 {old.relative_to(ROOT)}：{new.relative_to(ROOT)} 已存在"
+            )
+            continue
+        new.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(old), str(new))
+        print(f"迁移 {old.relative_to(ROOT)} -> {new.relative_to(ROOT)}")
+    # 迁完后把默认档位的 OUT_* 指到新目录
+    set_build_variant(active_build_variant())
+
+
 def migrate_object_layout() -> None:
-    """把旧布局（镜像与 lib 在 out/object 根下）迁到 out/object/target/；纠正 target/.buildflags。"""
+    """把旧布局（镜像与 lib 在 object 根下）迁到 object/target/；纠正 target/.buildflags。"""
     wrong_bf = OUT_ARTIFACT_DIR / ".buildflags"
     right_bf = OUT_OBJECT_DIR / ".buildflags"
     if wrong_bf.is_file():
@@ -915,7 +973,10 @@ def read_text(path: Path) -> str:
         return ""
     return path.read_text(encoding="utf-8")
 def update() -> None:
-    print("更新构建描述：Kconfig / Makefile / project_defconfig / out/.config / toolchain.make")
+    print(
+        "更新构建描述：Kconfig / Makefile / project_defconfig_{user,userdebug} / "
+        "out/<variant>/.config / toolchain.make"
+    )
     ensure_layout()
     info = load_info()
     try:
@@ -935,6 +996,9 @@ def update() -> None:
     if obsolete_toolchain.is_file():
         obsolete_toolchain.unlink()
     remove_legacy_output_dir()
+    migrate_out_profile_layout()
+    migrate_defconfig_layout()
+    migrate_objects_dir_name()
     migrate_object_layout()
     remove_stale_build_files()
     for directory in walk_dirs():

@@ -14,7 +14,8 @@ git clone <repo>
 ## 构建（三条）
 
 ```text
-python build/build.py build     # update + 编译 → out/object/target/ 与 out/release/<时间戳>/
+python build/build.py build     # update + userdebug/user 双档编译 → out/<档位>/objects/target 与 release/
+python build/build.py build --fast --variant userdebug   # 日常增量：跳过 update，只编调试档
 python build/build.py verify    # 静态自检
 python build/build.py clean
 ```

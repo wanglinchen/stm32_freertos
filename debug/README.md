@@ -17,7 +17,7 @@ python debug/capture.py clock-hse-fail
 
 | 参数 | 含义 |
 |------|------|
-| `--elf PATH` | 默认 `out/object/target/stm32-freertos.elf` |
+| `--elf PATH` | 默认 `out/userdebug/objects/target/stm32-freertos.elf` |
 | `--sample-gpio N` | 采样 `GPIOB->ODR` 间隔毫秒（默认 1000，0=不采样） |
 | `--no-halt` | 只连接读现场，不 `halt`（读值可能抖动） |
 

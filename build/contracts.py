@@ -6,9 +6,97 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 _BUILD = Path(__file__).resolve().parent
-OUT_OBJECT_DIR = ROOT / "out" / "object"
-OUT_ARTIFACT_DIR = OUT_OBJECT_DIR / "target"
-OUT_RELEASE_DIR = ROOT / "out" / "release"
+
+BUILD_VARIANT_USER = "user"
+BUILD_VARIANT_USERDEBUG = "userdebug"
+BUILD_VARIANTS = (BUILD_VARIANT_USERDEBUG, BUILD_VARIANT_USER)
+DEFAULT_BUILD_VARIANT = BUILD_VARIANT_USERDEBUG
+BUILD_VARIANT_MAKE_EXPR = "BUILD_VARIANT ?= userdebug"
+OUT_OBJECTS_DIRNAME = "objects"
+BUILD_DIR_MAKE_EXPR = (
+    f"BUILD_DIR := $(PROJECT_ROOT)/out/$(BUILD_VARIANT)/{OUT_OBJECTS_DIRNAME}"
+)
+KCONFIG_INCLUDE_MAKE_EXPR = (
+    "-include $(PROJECT_ROOT)/out/$(BUILD_VARIANT)/.config"
+)
+KCONFIG_FLAG_DEP_MAKE = (
+    "$(wildcard $(PROJECT_ROOT)/out/$(BUILD_VARIANT)/.config)"
+)
+
+
+def project_defconfig_basename(variant: str) -> str:
+    if variant not in BUILD_VARIANTS:
+        raise ValueError(f"未知 BUILD_VARIANT: {variant!r}")
+    return f"project_defconfig_{variant}"
+
+
+def project_defconfig_path(variant: str = DEFAULT_BUILD_VARIANT) -> Path:
+    return ROOT / "proj" / f"{project_defconfig_basename(variant)}"
+
+
+def out_config_path(variant: str = DEFAULT_BUILD_VARIANT) -> Path:
+    return out_profile_root(variant) / ".config"
+# userdebug：可调试优化 + 完整 DWARF（宏、内联展开）；user：体积优先、不带调试节。
+VARIANT_MAKE_OPTS: dict[str, dict[str, str]] = {
+    BUILD_VARIANT_USERDEBUG: {"OPT": "-Og", "DEBUG": "-g3"},
+    BUILD_VARIANT_USER: {"OPT": "-Os", "DEBUG": "-g0"},
+}
+
+
+def out_profile_root(variant: str) -> Path:
+    return ROOT / "out" / variant
+
+
+def out_object_dir(variant: str = DEFAULT_BUILD_VARIANT) -> Path:
+    return out_profile_root(variant) / OUT_OBJECTS_DIRNAME
+
+
+def out_artifact_dir(variant: str = DEFAULT_BUILD_VARIANT) -> Path:
+    return out_object_dir(variant) / "target"
+
+
+def out_release_dir(variant: str = DEFAULT_BUILD_VARIANT) -> Path:
+    return out_profile_root(variant) / "release"
+
+
+_active_build_variant = DEFAULT_BUILD_VARIANT
+
+
+def _sync_out_dir_exports() -> None:
+    """`from contracts import *` 会把路径绑死在各模块命名空间里，切换档位后须写回。"""
+    import sys
+
+    names = ("OUT_OBJECT_DIR", "OUT_ARTIFACT_DIR", "OUT_RELEASE_DIR")
+    values = {n: globals()[n] for n in names}
+    for mod in sys.modules.values():
+        mod_dict = getattr(mod, "__dict__", None)
+        if mod_dict is None or "OUT_ARTIFACT_DIR" not in mod_dict:
+            continue
+        for name in names:
+            if name in mod_dict:
+                mod_dict[name] = values[name]
+
+
+def set_build_variant(variant: str) -> str:
+    """切换当前逻辑使用的 object/target/release 目录（verify / copy 共用）。"""
+    global OUT_OBJECT_DIR, OUT_ARTIFACT_DIR, OUT_RELEASE_DIR, _active_build_variant
+    if variant not in BUILD_VARIANTS:
+        raise ValueError(f"未知 BUILD_VARIANT: {variant!r}")
+    _active_build_variant = variant
+    OUT_OBJECT_DIR = out_object_dir(variant)
+    OUT_ARTIFACT_DIR = out_artifact_dir(variant)
+    OUT_RELEASE_DIR = out_release_dir(variant)
+    _sync_out_dir_exports()
+    return variant
+
+
+def active_build_variant() -> str:
+    return _active_build_variant
+
+
+OUT_OBJECT_DIR = out_object_dir(DEFAULT_BUILD_VARIANT)
+OUT_ARTIFACT_DIR = out_artifact_dir(DEFAULT_BUILD_VARIANT)
+OUT_RELEASE_DIR = out_release_dir(DEFAULT_BUILD_VARIANT)
 RELEASE_BUCKET_DAYS = 5
 RELEASE_DIR_NAME_RE = re.compile(r"^\d{4}_\d{2}_\d{2}-\d{2}_\d{2}_\d{2}$")
 EXCLUDE_DIRS = {
@@ -288,4 +376,14 @@ CCMRAM_SECTION_RE = re.compile(r"\.\s*ccmram[^\s:]*\s*:\s*\{.*?\}\s*>\s*CCMRAM",
 CCMRAM_DISCARD_RE = re.compile(r"\*\(\s*\.\s*ccmram\s*\*\s*\)")
 CCMRAM_STARTUP_SYMBOLS = ("_siccmram", "_sccmram", "_eccmram")
 EOL_SKIP_DIRS = {".git", "tool", "__pycache__", ".vscode"}
-EOL_SKIP_SUBTREES = ("out/object", "out/release")
+EOL_SKIP_SUBTREES = (
+    "out/user/objects",
+    "out/user/release",
+    "out/userdebug/objects",
+    "out/userdebug/release",
+    # 迁桶前的旧布局
+    "out/user/object",
+    "out/userdebug/object",
+    "out/object",
+    "out/release",
+)

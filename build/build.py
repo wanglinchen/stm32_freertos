@@ -1,4 +1,4 @@
-"""`build` / `clean`：驱动 make，产物断言与 out/release 拷贝。"""
+"""`build` / `clean`：驱动 make，产物断言与 out/<variant>/release 拷贝。"""
 from __future__ import annotations
 
 import argparse
@@ -16,7 +16,7 @@ import environment as te
 import verify
 
 def select_release_bucket(now: datetime | None = None) -> Path:
-    """选择本次 build 写入的 `out/release/` 子目录。
+    """选择本次 build 写入的 `out/<variant>/release/` 子目录。
 
     目录名形如 `2026_11_12-22_50_30`。距当前最新桶已满 RELEASE_BUCKET_DAYS 天则新建，
     否则覆写写入该桶（同 5 日窗口内不堆新目录）。
@@ -41,7 +41,7 @@ def select_release_bucket(now: datetime | None = None) -> Path:
     dest.mkdir(parents=True)
     return dest
 def copy_outputs() -> None:
-    """只复制发布产物到 `out/release/<时间戳>/`。
+    """复制镜像四文件到当前档位的 `out/<variant>/release/<时间戳>/`。
 
     静态库（尤其带 -g3 的 libhal.a / libosl.a）属于构建中间物，体积近百 MB，
     不进 release/，避免发布目录变成工程垃圾场。
@@ -53,7 +53,9 @@ def copy_outputs() -> None:
         if path.is_file() and path.suffix in {".bin", ".hex", ".elf", ".map"}
     ]
     if not artifacts:
-        raise SystemExit("编译结束，但 out/object/target/ 下没有 .elf/.hex/.bin/.map 可复制")
+        raise SystemExit(
+            f"编译结束，但 {OUT_ARTIFACT_DIR.relative_to(ROOT)}/ 下没有 .elf/.hex/.bin/.map 可复制"
+        )
     for path in sorted(artifacts):
         dest = release / path.name
         shutil.copy2(path, dest)
@@ -83,8 +85,33 @@ def resolve_compiler() -> str | None:
     if gcc is not None:
         return str(gcc)
     return shutil.which("arm-none-eabi-gcc")
-def build() -> None:
-    generate.update()
+def _artifact_assertion_errors() -> list[str]:
+    """与 verify() 产物分支对齐的单档位断言。"""
+    return [
+        *verify.collect_artifact_errors(),
+        *verify.collect_heap_artifact_errors(),
+        *verify.collect_lib_member_errors(),
+        *verify.collect_freertos_unit_errors(),
+        *verify.collect_unlinked_member_errors(),
+        *verify.collect_fault_artifact_errors(),
+        *verify.collect_observ_artifact_errors(),
+        *verify.collect_bsp_artifact_errors(),
+        *verify.collect_persist_record_errors(),
+        *verify.collect_boot_init_errors(),
+        *verify.collect_tick_source_errors(),
+        *verify.collect_startup_guard_errors(),
+        *verify.collect_last_write_errors(),
+        *verify.collect_panic_order_errors(),
+    ]
+
+
+def build(
+    *,
+    skip_update: bool = False,
+    variants: list[str] | None = None,
+) -> None:
+    if not skip_update:
+        generate.update()
     compiler = resolve_compiler()
     if compiler is None:
         raise SystemExit(
@@ -108,43 +135,47 @@ def build() -> None:
             if sh.is_file():
                 make_argv.append(f"SHELL={te._path_for_env(sh)}")
         make_argv.append(f"PYTHON={Path(sys.executable).as_posix()}")
-    print("编译工程")
-    result = subprocess.run(
-        [make_cmd, "-C", str(ROOT), *make_argv, "all"],
-        check=False,
-        env=build_env(),
-    )
-    if result.returncode != 0:
-        raise SystemExit(result.returncode)
-    tool_errors, tools_ok = verify.artifact_tool_errors()
-    errors = list(tool_errors)
-    if tools_ok:
-        # 与 verify() 的 check_symbols 分支逐条对齐：`build` 绿就必须等于"全部产物
-        # 断言绿"，否则本地只跑 build 会漏掉只在 verify 里跑的那几条
-        # （lib_member / observ_artifact / tick_source，都是反汇编或 map 级判据）。
-        errors.extend(verify.collect_artifact_errors())
-        errors.extend(verify.collect_heap_artifact_errors())
-        errors.extend(verify.collect_lib_member_errors())
-        errors.extend(verify.collect_freertos_unit_errors())
-        errors.extend(verify.collect_unlinked_member_errors())
-        errors.extend(verify.collect_fault_artifact_errors())
-        errors.extend(verify.collect_observ_artifact_errors())
-        errors.extend(verify.collect_bsp_artifact_errors())
-        errors.extend(verify.collect_persist_record_errors())
-        errors.extend(verify.collect_boot_init_errors())
-        errors.extend(verify.collect_tick_source_errors())
-        errors.extend(verify.collect_startup_guard_errors())
-        errors.extend(verify.collect_last_write_errors())
-        errors.extend(verify.collect_panic_order_errors())
-    if errors:
+    all_errors: list[str] = []
+    build_variants = list(variants) if variants else list(BUILD_VARIANTS)
+    for variant in build_variants:
+        opts = VARIANT_MAKE_OPTS[variant]
+        print(f"编译 {variant}（OPT={opts['OPT']} DEBUG={opts['DEBUG']}）")
+        result = subprocess.run(
+            [
+                make_cmd,
+                "-C",
+                str(ROOT),
+                *make_argv,
+                f"BUILD_VARIANT={variant}",
+                f"OPT={opts['OPT']}",
+                f"DEBUG={opts['DEBUG']}",
+                "all",
+            ],
+            check=False,
+            env=build_env(),
+        )
+        if result.returncode != 0:
+            raise SystemExit(result.returncode)
+        set_build_variant(variant)
+        verify.RELEASE_SKIPPED.clear()
+        tool_errors, tools_ok = verify.artifact_tool_errors()
+        if len(build_variants) > 1 and variant != build_variants[0]:
+            tool_errors = [f"[{variant}] {item}" for item in tool_errors]
+        all_errors.extend(tool_errors)
+        if tools_ok:
+            variant_errors = _artifact_assertion_errors()
+            if len(build_variants) > 1:
+                variant_errors = [f"[{variant}] {item}" for item in variant_errors]
+            all_errors.extend(variant_errors)
+            copy_outputs()
+    if all_errors:
         print("产物断言失败：", file=sys.stderr)
-        for item in errors:
+        for item in all_errors:
             print(f"  - {item}", file=sys.stderr)
         raise SystemExit(
             "产物断言失败：编译通过不等于镜像里有对应实现，逐条看上面列出的项"
             "（应用代码未进镜像 / 弱符号被抢占 / 实现被 --gc-sections 丢弃 / 资源越界）。"
         )
-    copy_outputs()
     te.remove_msys_tmp()
     te.remove_stray_tool_tmp_dirs()
 def clean() -> None:
@@ -167,16 +198,17 @@ def main(argv: list[str] | None = None) -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 子命令说明:
-  update  扫描源码树，生成 Kconfig、Makefile、toolchain.make、project_defconfig、out/.config，并自检
+  update  扫描源码树，生成 Kconfig、Makefile、分档 defconfig 与 out/<variant>/.config，并自检
   verify  检查生成物、层目录、链接顺序与 .skills/工程规格.md、SKILL.md 是否一致
           （加 --artifacts 时额外校验现有 elf 里的应用代码）
-  build   先 update（含自检），再 make 全量编译，产物复制到 out/release/<时间戳>/
+  build   默认先 update，再编译 userdebug + user；可加 --fast / --variant
   clean   删除 out/；并移除空的 tool/**/tmp（MSYS 副作用，正式临时目录为 out/tmp）
 
 示例:
   python3 build/build.py update
   python3 build/build.py verify
   python3 build/build.py build
+  python3 build/build.py build --fast --variant userdebug
   python3 build/build.py clean
 
 工具链环境: python3 build/build.py install-toolchain / set-buildenv
@@ -200,6 +232,19 @@ def main(argv: list[str] | None = None) -> None:
         action="store_true",
         help="verify 时额外校验现有 elf 产物（强 main、vTaskStartScheduler、.text 下限）",
     )
+    parser.add_argument(
+        "--fast",
+        "--no-update",
+        action="store_true",
+        dest="fast",
+        help="build 时跳过 update（仅改源码增量编译；改 Kconfig/defconfig/Makefile 勿用）",
+    )
+    parser.add_argument(
+        "--variant",
+        choices=BUILD_VARIANTS,
+        metavar="VARIANT",
+        help="build 时只编译指定档位（userdebug 或 user）；默认两档都编",
+    )
     if argv is None:
         argv = sys.argv[1:]
     if not argv or argv[0] in ("-h", "--help"):
@@ -219,8 +264,20 @@ def main(argv: list[str] | None = None) -> None:
     args = Args()
     args.option = option
     args.artifacts = "--artifacts" in rest
+    args.fast = "--fast" in rest or "--no-update" in rest
+    variant = None
+    if "--variant" in rest:
+        idx = rest.index("--variant")
+        if idx + 1 >= len(rest):
+            parser.error("--variant 需要参数 userdebug 或 user")
+        variant = rest[idx + 1]
+        if variant not in BUILD_VARIANTS:
+            parser.error(f"未知档位: {variant!r}")
     if args.option == "build":
-        build()
+        build(
+            skip_update=args.fast,
+            variants=[variant] if variant else None,
+        )
     elif args.option == "update":
         generate.update()
     elif args.option == "verify":
