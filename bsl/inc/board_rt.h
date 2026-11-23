@@ -29,6 +29,37 @@ GPIO_TypeDef *board_rt_sdram_pin_port(unsigned index);
 uint16_t board_rt_sdram_pin_mask(unsigned index);
 uint32_t board_rt_sdram_pin_af(unsigned index);
 
+/* RGB 面板（LTDC）：时序、像素时钟的 PLLSAI 参数、像素格式、帧缓冲基址、背光脚。
+ * 用结构体而不是十三个标量 getter：这些值必须成套出现 —— 少一项就配不出时序，
+ * 而单个 0 值（比如 hbp=0）看起来像合法参数，现场表现成"图像整体偏移"，
+ * 没有任何读数指向 DTB。任一属性缺失时 board_rt_panel() 返回 0、*out 不被写。 */
+typedef struct {
+    uint32_t width;          /* 有效宽度（像素） */
+    uint32_t height;         /* 有效高度（像素） */
+    uint32_t hsw;            /* 水平同步宽度 */
+    uint32_t hbp;            /* 水平后廊 */
+    uint32_t hfp;            /* 水平前廊 */
+    uint32_t vsw;            /* 垂直同步宽度 */
+    uint32_t vbp;            /* 垂直后廊 */
+    uint32_t vfp;            /* 垂直前廊 */
+    uint32_t pixel_format;   /* LTDC PFCR 编码：0=ARGB8888 1=RGB888 2=RGB565 3=ARGB1555 ... */
+    uint32_t pllsai_n;       /* PLLSAI 倍频：VCO = PLLIN × N */
+    uint32_t pllsai_r;       /* PLLSAI R 分频，输出即像素时钟源 */
+    uint32_t pllsai_divr;    /* DCKCFGR[17:16]：0=/2 1=/4 2=/8 3=/16 */
+    uintptr_t framebuffer;   /* 帧缓冲基址（framebuffer phandle 所指节点的 reg[0]） */
+} board_rt_panel_t;
+
+int board_rt_panel(board_rt_panel_t *out);
+
+/* LTDC 引脚按端口聚合（一个端口一项，掩码 + AF），含 DE/VS/HS/CLK 与数据脚。 */
+unsigned board_rt_panel_pin_groups(void);
+GPIO_TypeDef *board_rt_panel_pin_port(unsigned index);
+uint16_t board_rt_panel_pin_mask(unsigned index);
+uint32_t board_rt_panel_pin_af(unsigned index);
+
+/* 背光脚：active_high 表示"高电平点亮"。返回 1 表示三项都拿到。 */
+int board_rt_panel_backlight(GPIO_TypeDef **port, unsigned *pin, int *active_high);
+
 unsigned board_rt_led_count(void);
 GPIO_TypeDef *board_rt_led_port(void);
 uint16_t board_rt_led_pin(unsigned index);

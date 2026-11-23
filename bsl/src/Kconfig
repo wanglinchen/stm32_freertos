@@ -17,6 +17,10 @@ config BSL_SRC_BOARD_KEY
 	bool "board_key.c"
 	default y
 
+config BSL_SRC_BOARD_LCD
+	bool "board_lcd.c"
+	default y
+
 config BSL_SRC_BOARD_LED
 	bool "board_led.c"
 	default y

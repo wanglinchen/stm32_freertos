@@ -1,0 +1,41 @@
+# P0b 串口取证：LTDC + 面板 + 背光 + 帧缓冲
+
+- 日期：2026-11-24
+- 分支/提交：`feature/full-demo`，P0a 提交 `814e934`
+- 固件：userdebug，`text 91848 / data 20 / bss 22300`，bin 91872 B
+- 采集方式：COM3 / 115200 / 8N1；串口先开，再 `flash/flash.py flash`（末尾 `** Verified OK **` 触发复位）
+- 判据：`bad == 0` 才 PASS。`bad` 是寄存器读回的不一致项数，共 7 项：
+  `SSCR` / `BPCR` / `AWCR` / `TWCR` / 层 1 `CFBAR` / `CFBLNR` / `PFCR`
+
+```text
+[post] sdram size=32M bad=0 PASS
+[post] lcd w=800 h=480 bad=0 PASS
+[post] result 2 pass 2 fail 0
+
+stm32-freertos: USART1 115200 debug ready
+[led] R=1 G=0
+[led] R=0 G=1
+[led] R=1 G=0
+[led] R=0 G=1
+```
+
+## 这一行 PASS 管什么、不管什么
+
+管：DTB 里的时序在这个频率下算出的 `SSCR/BPCR/AWCR/TWCR` 确实写进了 LTDC；层 1 的帧缓冲地址就是 SDRAM 基址、行数等于 480、像素格式等于 2（RGB565）。
+
+不管：面板是否真的点亮、数据线有没有断。那两项由屏上的**上红 / 中绿 / 下蓝三色块**用眼睛验收。读回全对但屏全黑，说明问题在供电/背光/排线，而不是时序 —— 两者不能被同一行 PASS 混在一起，所以 POST 先画色块再打这一行。
+
+## 与 P0a 的接续关系
+
+`board_lcd_init()` 在开头就检查 `bsl_device_is_ready(BSL_DEV_SDRAM)`：帧缓冲落在 SDRAM 上，SDRAM 没起来就写画面，写入会被丢弃，屏上是雪花而不是黑屏，看起来像"面板坏了"。注册表里 panel 排在 sdram 之后（同为 `BOARD` 级，轮内按宏行序），保证这条检查成立。
+
+## 关键数值
+
+| 项 | 值 | 出处 |
+|---|---|---|
+| 面板 | 4.3 寸 800×480（面板 ID 0x4384） | 参考工程 `ltdc.c` 的 `0X4384` 分支 |
+| 时序 | hsw48 hbp88 hfp40 / vsw3 vbp32 vfp13 | 同上 |
+| 像素时钟 | 33 MHz = 396 MHz(VCO) / 3 / 4 | PLLSAI 输入 25/25 = 1 MHz，与主 PLL 的 N 无关 |
+| PLLSAI 寄存器 | `PLLSAICFGR=(396<<6)|(3<<28)`，`DCKCFGR[17:16]=1` | 参考工程 `ltdc_clk_set` |
+| 帧缓冲 | `0xC0000000`（取 sdram 节点 `reg[0]`） | DTB `framebuffer = <&sdram>` |
+| 层 1 | `PFCR=2` `CACR=255` `BFCR=(6<<8)|7` `CFBLR=(1600<<16)|1603` | 参考工程 `ltdc_layer_parameter_config` / `_window_config` |

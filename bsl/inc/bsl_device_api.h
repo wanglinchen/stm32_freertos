@@ -49,4 +49,13 @@ typedef struct {
     uint32_t (*size)(void);
 } bsl_sdram_api_t;
 
+/* 面板与 sdram 同口径：只说"帧缓冲在哪、多宽多高"。
+ * 不在这里放 fill/线/字 —— 那些是像素原语，归 bsl_fb；api 一旦开始长操作，
+ * 每个应用都会从自己的入口再抄一遍。 */
+typedef struct {
+    void *(*framebuffer)(void);
+    uint32_t (*width)(void);
+    uint32_t (*height)(void);
+} bsl_panel_api_t;
+
 #endif

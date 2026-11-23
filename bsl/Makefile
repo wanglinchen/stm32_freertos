@@ -49,6 +49,13 @@ endif
 endif
 ifeq ($(CONFIG_BSL),y)
 ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BOARD_LCD),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/board_lcd.o
+endif
+endif
+endif
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
 ifeq ($(CONFIG_BSL_SRC_BOARD_LED),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/board_led.o
 endif

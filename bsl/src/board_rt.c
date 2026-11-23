@@ -7,6 +7,7 @@
 
 #define RT_COMPAT_CLOCKS "brd,board-clocks"
 #define RT_COMPAT_SDRAM "brd,fmc-sdram"
+#define RT_COMPAT_PANEL "brd,rgb-panel"
 #define RT_COMPAT_LEDS "brd,gpio-leds"
 #define RT_COMPAT_KEYS "brd,gpio-keys"
 #define RT_COMPAT_I2C "brd,i2c-gpio"
@@ -56,6 +57,16 @@ typedef struct {
     GPIO_TypeDef *sdram_group_port[RT_MAX_PIN_GROUPS];
     uint16_t sdram_group_mask[RT_MAX_PIN_GROUPS];
     uint32_t sdram_group_af[RT_MAX_PIN_GROUPS];
+
+    int panel_ok;
+    board_rt_panel_t panel;
+    unsigned panel_group_count;
+    GPIO_TypeDef *panel_group_port[RT_MAX_PIN_GROUPS];
+    uint16_t panel_group_mask[RT_MAX_PIN_GROUPS];
+    uint32_t panel_group_af[RT_MAX_PIN_GROUPS];
+    GPIO_TypeDef *panel_bl_port;
+    unsigned panel_bl_pin;
+    int panel_bl_active_high;
 } board_rt_t;
 
 static board_rt_t s_rt;
@@ -402,6 +413,107 @@ static void parse_sdram(void)
     s_rt.sdram_ok = 1;
 }
 
+/*
+ * panel：LTDC 的时序、像素时钟与背光脚。
+ *
+ * 与 leds 同一条纪律 —— 全部解析到局部变量，全成功才提交 s_rt。这里失败的代价
+ * 更直接：时序缺一项，LTDC 会照样按寄存器里的 0 值出图，现场是"画面整体偏到
+ * 左上、右侧一条杂色"，而代码里没有任何读数能指出是 DTB 漏了 hbp。
+ *
+ * 帧缓冲基址不写死：framebuffer 是 phandle，指向 sdram 节点，基址取它的 reg[0]。
+ * 「帧缓存在哪」因此只有一处事实（sdram 的 reg），改 FMC 基址不用动两个地方。
+ */
+static void parse_panel(void)
+{
+    bsl_fdt_node_t node = bsl_fdt_find(RT_COMPAT_PANEL, 0U);
+    bsl_fdt_node_t fb;
+    board_rt_panel_t t;
+    uint32_t fb_cell[1];
+    uint32_t reg[2];
+    uint32_t cells[RT_MAX_PIN_GROUPS * 3U];
+    uint32_t bl[3];
+    GPIO_TypeDef *port[RT_MAX_PIN_GROUPS];
+    uint16_t mask[RT_MAX_PIN_GROUPS];
+    uint32_t af[RT_MAX_PIN_GROUPS];
+    GPIO_TypeDef *bl_port = NULL;
+    unsigned n;
+    unsigned groups;
+    unsigned i;
+
+    if (node == NULL) {
+        return;
+    }
+    if (bsl_fdt_prop_u32(node, "width", &t.width) == 0
+        || bsl_fdt_prop_u32(node, "height", &t.height) == 0
+        || bsl_fdt_prop_u32(node, "hsw", &t.hsw) == 0
+        || bsl_fdt_prop_u32(node, "hbp", &t.hbp) == 0
+        || bsl_fdt_prop_u32(node, "hfp", &t.hfp) == 0
+        || bsl_fdt_prop_u32(node, "vsw", &t.vsw) == 0
+        || bsl_fdt_prop_u32(node, "vbp", &t.vbp) == 0
+        || bsl_fdt_prop_u32(node, "vfp", &t.vfp) == 0
+        || bsl_fdt_prop_u32(node, "pixel-format", &t.pixel_format) == 0
+        || bsl_fdt_prop_u32(node, "pllsai-n", &t.pllsai_n) == 0
+        || bsl_fdt_prop_u32(node, "pllsai-r", &t.pllsai_r) == 0
+        || bsl_fdt_prop_u32(node, "pllsai-divr", &t.pllsai_divr) == 0) {
+        return;
+    }
+    /* 0 在这里不是"某个值"，而是属性没写：宽高/同步为 0 的面板不存在，
+     * 而寄存器里写着 0 的 SSCR 会安静地少出一整行一行同步。 */
+    if (t.width == 0U || t.height == 0U || t.hsw == 0U || t.vsw == 0U) {
+        return;
+    }
+    if (t.pllsai_n == 0U || t.pllsai_r == 0U || t.pllsai_divr > 3U) {
+        return;
+    }
+    if (t.pixel_format > 7U) {
+        return;
+    }
+    if (bsl_fdt_prop_cells(node, "framebuffer", fb_cell, 1U) != 1U) {
+        return;
+    }
+    fb = bsl_fdt_by_phandle(fb_cell[0]);
+    if (fb == NULL || bsl_fdt_prop_cells(fb, "reg", reg, 2U) < 2U) {
+        return;
+    }
+    t.framebuffer = (uintptr_t)reg[0];
+
+    n = bsl_fdt_prop_cells(node, "ltdc-pins", cells, RT_MAX_PIN_GROUPS * 3U);
+    if (n < 3U || (n % 3U) != 0U) {
+        return;
+    }
+    groups = n / 3U;
+    for (i = 0U; i < groups; i++) {
+        port[i] = board_rt_port_of_phandle(cells[i * 3U]);
+        mask[i] = (uint16_t)(cells[i * 3U + 1U] & 0xFFFFU);
+        af[i] = cells[i * 3U + 2U];
+        if (port[i] == NULL || mask[i] == 0U || af[i] > 15U) {
+            return;
+        }
+    }
+
+    if (bsl_fdt_prop_cells(node, "backlight-gpios", bl, 3U) != 3U) {
+        return;
+    }
+    bl_port = board_rt_port_of_phandle(bl[0]);
+    if (bl_port == NULL || bl[1] > 15U) {
+        return;
+    }
+
+    s_rt.panel = t;
+    s_rt.panel_group_count = groups;
+    for (i = 0U; i < groups; i++) {
+        s_rt.panel_group_port[i] = port[i];
+        s_rt.panel_group_mask[i] = mask[i];
+        s_rt.panel_group_af[i] = af[i];
+    }
+    s_rt.panel_bl_port = bl_port;
+    s_rt.panel_bl_pin = (unsigned)bl[1];
+    /* gpios 第三 cell 与 leds 同一套语义：1 = 低有效。参考工程 LTDC_BL(1) 点亮，
+     * 所以 DTS 写 0，这里换算成 active_high。 */
+    s_rt.panel_bl_active_high = (bl[2] != 0U) ? 0 : 1;
+    s_rt.panel_ok = 1;
+}
+
 static void parse_all(void)
 {
     if (s_rt.parsed) {
@@ -413,6 +525,7 @@ static void parse_all(void)
     }
     parse_clocks();
     parse_sdram();
+    parse_panel();
     parse_leds();
     parse_keys();
     parse_i2c();
@@ -581,4 +694,50 @@ uint32_t board_rt_sdram_pin_af(unsigned index)
 {
     parse_all();
     return (index < s_rt.sdram_group_count) ? s_rt.sdram_group_af[index] : 0U;
+}
+
+int board_rt_panel(board_rt_panel_t *out)
+{
+    parse_all();
+    if (!s_rt.panel_ok || out == NULL) {
+        return 0;
+    }
+    *out = s_rt.panel;
+    return 1;
+}
+
+unsigned board_rt_panel_pin_groups(void)
+{
+    parse_all();
+    return s_rt.panel_group_count;
+}
+
+GPIO_TypeDef *board_rt_panel_pin_port(unsigned index)
+{
+    parse_all();
+    return (index < s_rt.panel_group_count) ? s_rt.panel_group_port[index] : NULL;
+}
+
+uint16_t board_rt_panel_pin_mask(unsigned index)
+{
+    parse_all();
+    return (index < s_rt.panel_group_count) ? s_rt.panel_group_mask[index] : 0U;
+}
+
+uint32_t board_rt_panel_pin_af(unsigned index)
+{
+    parse_all();
+    return (index < s_rt.panel_group_count) ? s_rt.panel_group_af[index] : 0U;
+}
+
+int board_rt_panel_backlight(GPIO_TypeDef **port, unsigned *pin, int *active_high)
+{
+    parse_all();
+    if (!s_rt.panel_ok) {
+        return 0;
+    }
+    if (port != NULL) { *port = s_rt.panel_bl_port; }
+    if (pin != NULL) { *pin = s_rt.panel_bl_pin; }
+    if (active_high != NULL) { *active_high = s_rt.panel_bl_active_high; }
+    return 1;
 }

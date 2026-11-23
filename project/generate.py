@@ -1206,6 +1206,44 @@ _BOARD_NODES = """\
                    <&gpiog 0x8137 12>;
     };
 
+    /* 4.3 寸 800×480 RGB 屏（面板 ID 0x4384），LTDC 直驱。
+     * 时序与引脚取自参考工程 lcd.c / ltdc.c 的 0X4384 分支（[参考工程]）：
+     *   hsw/hbp/hfp = 48/88/40，vsw/vbp/vfp = 3/32/13。
+     * 像素时钟（[代码推算]）：PLLSAI 输入 = HSE/PLLM = 25/25 = 1 MHz，
+     *   VCO = 1 MHz × 396 = 396 MHz，R=3 → 132 MHz，DIVR=/4 → 33 MHz。
+     *   PLLSAI 的 N/R 与主 PLL 的 N 无关，所以参考工程 192 MHz 下的这组值
+     *   在本工程 168 MHz 下同样给出 33 MHz —— 这是推出来的，不是抄来的。
+     * 帧缓冲不写地址：framebuffer 指向 sdram 节点，基址取那份 reg，
+     *   于是「帧缓存在哪」只有一处事实。
+     * ltdc-pins 第二个 cell 是端口掩码、第三个是 AF 号（LTDC 全在 AF14），
+     *   同端口合并成一格：
+     *   PF10 = DE；PI9 = VS、PI10 = HS、PI0..2 + PI4..7 = 数据；
+     *   PG7 = CLK、PG6 + PG11 = 数据；PH9..15 = 数据。
+     * backlight-gpios 第三 cell 是极性：0 = 高电平点亮（参考工程 LTDC_BL(1) 点亮）。 */
+    /* panel 不带 unit address：它没有 reg/ranges，名字里带 @0 会被 dtc 判为
+     * unit_address_vs_reg 警告，而本工程的 dtc 诊断是硬失败。 */
+    panel: panel {
+        compatible = "brd,rgb-panel";
+        width = <800>;
+        height = <480>;
+        hsw = <48>;
+        hbp = <88>;
+        hfp = <40>;
+        vsw = <3>;
+        vbp = <32>;
+        vfp = <13>;
+        pixel-format = <2>;
+        pllsai-n = <396>;
+        pllsai-r = <3>;
+        pllsai-divr = <1>;
+        framebuffer = <&sdram>;
+        backlight-gpios = <&gpiob 5 0>;
+        ltdc-pins = <&gpiof 0x0400 14>,
+                    <&gpioi 0x06f7 14>,
+                    <&gpiog 0x08c0 14>,
+                    <&gpioh 0xfe00 14>;
+    };
+
     leds {
         compatible = "brd,gpio-leds";
         active-low;
