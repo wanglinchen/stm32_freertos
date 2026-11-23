@@ -1,0 +1,1026 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * apollo_gpio_overlay.dtsi - 正点原子阿波罗 V2 板级 GPIO 占用（自动生成，勿手改）
+ *
+ * 数据源：apollo_alternate_gpio_pinmap.xlsx（手册 V1.1 表 1.5.1）。
+ * 走片上复用的脚在 pinmux 里写实际 AF；纯 GPIO/按键/LED/晶振/模拟/软件模拟
+ * SPI 脚保持默认输入态，网络名与连接说明写进 brd 属性留档。
+ * pinmux = <port pin mode af>; mode: 0 input, 2 alternate；af: 0..15。
+ */
+/dts-v1/;
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	soc {
+
+		/* ---- DCMI ---- */
+		dcmi_pclk_pa6: dcmi_pclk_pa6 {
+			pinmux = <1 6 2 13>;
+			brd,gpio = "PA6";
+			brd,board-net = "DCMI_PCLK";
+			brd,independent = "Y";
+			brd,notes = "OLED/CAMERA 接口的 PCLK 脚";
+		};
+		dcmi_vsync_pb7: dcmi_vsync_pb7 {
+			pinmux = <2 7 2 13>;
+			brd,gpio = "PB7";
+			brd,board-net = "DCMI_VSYNC";
+			brd,independent = "Y";
+			brd,notes = "OLED/CAMERA 接口的 VSYNC 脚";
+		};
+		dcmi_d6_pb8: dcmi_d6_pb8 {
+			pinmux = <2 8 2 13>;
+			brd,gpio = "PB8";
+			brd,board-net = "DCMI_D6";
+			brd,independent = "Y";
+			brd,notes = "OLED/CAMERA 接口的 D6 脚";
+		};
+		dcmi_d7_pb9: dcmi_d7_pb9 {
+			pinmux = <2 9 2 13>;
+			brd,gpio = "PB9";
+			brd,board-net = "DCMI_D7";
+			brd,independent = "Y";
+			brd,notes = "OLED/CAMERA 接口的 D7 脚";
+		};
+		dcmi_d0_pc6: dcmi_d0_pc6 {
+			pinmux = <3 6 2 13>;
+			brd,gpio = "PC6";
+			brd,board-net = "DCMI_D0";
+			brd,independent = "Y";
+			brd,notes = "OLED/CAMERA 接口的 D0 脚";
+		};
+		dcmi_d1_pc7: dcmi_d1_pc7 {
+			pinmux = <3 7 2 13>;
+			brd,gpio = "PC7";
+			brd,board-net = "DCMI_D1";
+			brd,independent = "Y";
+			brd,notes = "OLED/CAMERA 接口的 D1 脚";
+		};
+		dcmi_d5_pd3: dcmi_d5_pd3 {
+			pinmux = <4 3 2 13>;
+			brd,gpio = "PD3";
+			brd,board-net = "DCMI_D5";
+			brd,independent = "Y";
+			brd,notes = "OLED/CAMERA 接口的 D5 脚";
+		};
+		dcmi_href_ph8: dcmi_href_ph8 {
+			pinmux = <8 8 2 13>;
+			brd,gpio = "PH8";
+			brd,board-net = "DCMI_HREF";
+			brd,independent = "Y";
+			brd,notes = "OLED/CAMERA 接口的 HREF 脚";
+		};
+
+		/* ---- ETH ---- */
+		rmii_ref_clk_pa1: rmii_ref_clk_pa1 {
+			pinmux = <1 1 2 11>;
+			brd,gpio = "PA1";
+			brd,board-net = "RMII_REF_CLK";
+			brd,independent = "N";
+			brd,notes = "接 YT8512C 的 TXC 脚";
+		};
+		rmii_crs_dv_pa7: rmii_crs_dv_pa7 {
+			pinmux = <1 7 2 11>;
+			brd,gpio = "PA7";
+			brd,board-net = "RMII_CRS_DV";
+			brd,independent = "N";
+			brd,notes = "接 YT8512C 的 CRS_DV 脚";
+		};
+		eth_mdc_pc1: eth_mdc_pc1 {
+			pinmux = <3 1 2 11>;
+			brd,gpio = "PC1";
+			brd,board-net = "ETH_MDC";
+			brd,independent = "N";
+			brd,notes = "接 YT8512C 的 MDC 脚";
+		};
+		rmii_rxd0_pc4: rmii_rxd0_pc4 {
+			pinmux = <3 4 2 11>;
+			brd,gpio = "PC4";
+			brd,board-net = "RMII_RXD0";
+			brd,independent = "N";
+			brd,notes = "接 YT8512C 的 RXD0 脚";
+		};
+		rmii_rxd1_pc5: rmii_rxd1_pc5 {
+			pinmux = <3 5 2 11>;
+			brd,gpio = "PC5";
+			brd,board-net = "RMII_RXD1";
+			brd,independent = "N";
+			brd,notes = "接 YT8512C 的 RXD1 脚";
+		};
+		rmii_txd0_pg13: rmii_txd0_pg13 {
+			pinmux = <7 13 2 11>;
+			brd,gpio = "PG13";
+			brd,board-net = "RMII_TXD0";
+			brd,independent = "N";
+			brd,notes = "接 YT8512C 的 TXD0 脚";
+		};
+		rmii_txd1_pg14: rmii_txd1_pg14 {
+			pinmux = <7 14 2 11>;
+			brd,gpio = "PG14";
+			brd,board-net = "RMII_TXD1";
+			brd,independent = "N";
+			brd,notes = "接 YT8512C 的 TXD1 脚";
+		};
+
+		/* ---- FMC ---- */
+		fmc_sdnwe_pc0: fmc_sdnwe_pc0 {
+			pinmux = <3 0 2 12>;
+			brd,gpio = "PC0";
+			brd,board-net = "FMC_SDNWE";
+			brd,independent = "N";
+			brd,notes = "接 SDRAM 的 WE 脚";
+		};
+		fmc_sdne0_pc2: fmc_sdne0_pc2 {
+			pinmux = <3 2 2 12>;
+			brd,gpio = "PC2";
+			brd,board-net = "FMC_SDNE0";
+			brd,independent = "N";
+			brd,notes = "接 SDRAM 的 CS 脚";
+		};
+		fmc_sdcke0_pc3: fmc_sdcke0_pc3 {
+			pinmux = <3 3 2 12>;
+			brd,gpio = "PC3";
+			brd,board-net = "FMC_SDCKE0";
+			brd,independent = "N";
+			brd,notes = "接 SDRAM 的 CKE 脚";
+		};
+		fmc_d2_pd0: fmc_d2_pd0 {
+			pinmux = <4 0 2 12>;
+			brd,gpio = "PD0";
+			brd,board-net = "FMC_D2";
+			brd,independent = "N";
+			brd,notes = "FMC 总线数据线 D2(LCD/SDRAM/NAND 共用)";
+		};
+		fmc_d3_pd1: fmc_d3_pd1 {
+			pinmux = <4 1 2 12>;
+			brd,gpio = "PD1";
+			brd,board-net = "FMC_D3";
+			brd,independent = "N";
+			brd,notes = "FMC 总线数据线 D3(LCD/SDRAM/NAND 共用)";
+		};
+		fmc_noe_pd4: fmc_noe_pd4 {
+			pinmux = <4 4 2 12>;
+			brd,gpio = "PD4";
+			brd,board-net = "FMC_NOE";
+			brd,independent = "N";
+			brd,notes = "FMC 总线 NOE(RD)(LCD/NAND 共用)";
+		};
+		fmc_nwe_pd5: fmc_nwe_pd5 {
+			pinmux = <4 5 2 12>;
+			brd,gpio = "PD5";
+			brd,board-net = "FMC_NWE";
+			brd,independent = "N";
+			brd,notes = "FMC 总线 NWE(WR)(LCD/NAND 共用)";
+		};
+		fmc_nwait_pd6: fmc_nwait_pd6 {
+			pinmux = <4 6 2 12>;
+			brd,gpio = "PD6";
+			brd,board-net = "FMC_NWAIT";
+			brd,independent = "N";
+			brd,notes = "FMC 总线 NWAIT(NAND 用)";
+		};
+		fmc_ne1_pd7: fmc_ne1_pd7 {
+			pinmux = <4 7 2 12>;
+			brd,gpio = "PD7";
+			brd,board-net = "FMC_NE1";
+			brd,independent = "Y";
+			brd,notes = "FMC 总线的片选信号 1，为 TFTLCD 片选信号";
+		};
+		fmc_d13_pd8: fmc_d13_pd8 {
+			pinmux = <4 8 2 12>;
+			brd,gpio = "PD8";
+			brd,board-net = "FMC_D13";
+			brd,independent = "N";
+			brd,notes = "FMC 总线数据线 D13(LCD/SDRAM 共用)";
+		};
+		fmc_d14_pd9: fmc_d14_pd9 {
+			pinmux = <4 9 2 12>;
+			brd,gpio = "PD9";
+			brd,board-net = "FMC_D14";
+			brd,independent = "N";
+			brd,notes = "FMC 总线数据线 D14(LCD/SDRAM 共用)";
+		};
+		fmc_d15_pd10: fmc_d15_pd10 {
+			pinmux = <4 10 2 12>;
+			brd,gpio = "PD10";
+			brd,board-net = "FMC_D15";
+			brd,independent = "N";
+			brd,notes = "FMC 总线数据线 D15(LCD/SDRAM 共用)";
+		};
+		fmc_a16_cle_pd11: fmc_a16_cle_pd11 {
+			pinmux = <4 11 2 12>;
+			brd,gpio = "PD11";
+			brd,board-net = "FMC_A16_CLE";
+			brd,independent = "N";
+			brd,notes = "FMC 总线地址线 A16_CLE(NAND 专用)";
+		};
+		fmc_a17_ale_pd12: fmc_a17_ale_pd12 {
+			pinmux = <4 12 2 12>;
+			brd,gpio = "PD12";
+			brd,board-net = "FMC_A17_ALE";
+			brd,independent = "N";
+			brd,notes = "FMC 总线地址线 A17_ALE(NAND 专用)";
+		};
+		fmc_a18_pd13: fmc_a18_pd13 {
+			pinmux = <4 13 2 12>;
+			brd,gpio = "PD13";
+			brd,board-net = "FMC_A18";
+			brd,independent = "N";
+			brd,notes = "FMC 总线地址线 A18(LCD 专用)";
+		};
+		fmc_d0_pd14: fmc_d0_pd14 {
+			pinmux = <4 14 2 12>;
+			brd,gpio = "PD14";
+			brd,board-net = "FMC_D0";
+			brd,independent = "N";
+			brd,notes = "FMC 总线数据线 D0(LCD/SDRAM/NAND 共用)";
+		};
+		fmc_d1_pd15: fmc_d1_pd15 {
+			pinmux = <4 15 2 12>;
+			brd,gpio = "PD15";
+			brd,board-net = "FMC_D1";
+			brd,independent = "N";
+			brd,notes = "FMC 总线数据线 D1(LCD/SDRAM/NAND 共用)";
+		};
+		fmc_nbl0_pe0: fmc_nbl0_pe0 {
+			pinmux = <5 0 2 12>;
+			brd,gpio = "PE0";
+			brd,board-net = "FMC_NBL0";
+			brd,independent = "N";
+			brd,notes = "FMC 总线 NBL0(SDRAM 专用)";
+		};
+		fmc_nbl1_pe1: fmc_nbl1_pe1 {
+			pinmux = <5 1 2 12>;
+			brd,gpio = "PE1";
+			brd,board-net = "FMC_NBL1";
+			brd,independent = "N";
+			brd,notes = "FMC 总线 NBL1(SDRAM 专用)";
+		};
+		fmc_d4_pe7: fmc_d4_pe7 {
+			pinmux = <5 7 2 12>;
+			brd,gpio = "PE7";
+			brd,board-net = "FMC_D4";
+			brd,independent = "N";
+			brd,notes = "FMC 总线数据线 D4(LCD/SDRAM/NAND 共用)";
+		};
+		fmc_d5_pe8: fmc_d5_pe8 {
+			pinmux = <5 8 2 12>;
+			brd,gpio = "PE8";
+			brd,board-net = "FMC_D5";
+			brd,independent = "N";
+			brd,notes = "FMC 总线数据线 D5(LCD/SDRAM/NAND 共用)";
+		};
+		fmc_d6_pe9: fmc_d6_pe9 {
+			pinmux = <5 9 2 12>;
+			brd,gpio = "PE9";
+			brd,board-net = "FMC_D6";
+			brd,independent = "N";
+			brd,notes = "FMC 总线数据线 D6(LCD/SDRAM/NAND 共用)";
+		};
+		fmc_d7_pe10: fmc_d7_pe10 {
+			pinmux = <5 10 2 12>;
+			brd,gpio = "PE10";
+			brd,board-net = "FMC_D7";
+			brd,independent = "N";
+			brd,notes = "FMC 总线数据线 D7(LCD/SDRAM/NAND 共用)";
+		};
+		fmc_d8_pe11: fmc_d8_pe11 {
+			pinmux = <5 11 2 12>;
+			brd,gpio = "PE11";
+			brd,board-net = "FMC_D8";
+			brd,independent = "N";
+			brd,notes = "FMC 总线数据线 D8(LCD/SDRAM 共用)";
+		};
+		fmc_d9_pe12: fmc_d9_pe12 {
+			pinmux = <5 12 2 12>;
+			brd,gpio = "PE12";
+			brd,board-net = "FMC_D9";
+			brd,independent = "N";
+			brd,notes = "FMC 总线数据线 D9(LCD/SDRAM 共用)";
+		};
+		fmc_d10_pe13: fmc_d10_pe13 {
+			pinmux = <5 13 2 12>;
+			brd,gpio = "PE13";
+			brd,board-net = "FMC_D10";
+			brd,independent = "N";
+			brd,notes = "FMC 总线数据线 D10(LCD/SDRAM 共用)";
+		};
+		fmc_d11_pe14: fmc_d11_pe14 {
+			pinmux = <5 14 2 12>;
+			brd,gpio = "PE14";
+			brd,board-net = "FMC_D11";
+			brd,independent = "N";
+			brd,notes = "FMC 总线数据线 D11(LCD/SDRAM 共用)";
+		};
+		fmc_d12_pe15: fmc_d12_pe15 {
+			pinmux = <5 15 2 12>;
+			brd,gpio = "PE15";
+			brd,board-net = "FMC_D12";
+			brd,independent = "N";
+			brd,notes = "FMC 总线数据线 D12(LCD/SDRAM 共用)";
+		};
+		fmc_a0_pf0: fmc_a0_pf0 {
+			pinmux = <6 0 2 12>;
+			brd,gpio = "PF0";
+			brd,board-net = "FMC_A0";
+			brd,independent = "N";
+			brd,notes = "FMC 总线地址线 A0(SDRAM 专用)";
+		};
+		fmc_a1_pf1: fmc_a1_pf1 {
+			pinmux = <6 1 2 12>;
+			brd,gpio = "PF1";
+			brd,board-net = "FMC_A1";
+			brd,independent = "N";
+			brd,notes = "FMC 总线地址线 A1(SDRAM 专用)";
+		};
+		fmc_a2_pf2: fmc_a2_pf2 {
+			pinmux = <6 2 2 12>;
+			brd,gpio = "PF2";
+			brd,board-net = "FMC_A2";
+			brd,independent = "N";
+			brd,notes = "FMC 总线地址线 A2(SDRAM 专用)";
+		};
+		fmc_a3_pf3: fmc_a3_pf3 {
+			pinmux = <6 3 2 12>;
+			brd,gpio = "PF3";
+			brd,board-net = "FMC_A3";
+			brd,independent = "N";
+			brd,notes = "FMC 总线地址线 A3(SDRAM 专用)";
+		};
+		fmc_a4_pf4: fmc_a4_pf4 {
+			pinmux = <6 4 2 12>;
+			brd,gpio = "PF4";
+			brd,board-net = "FMC_A4";
+			brd,independent = "N";
+			brd,notes = "FMC 总线地址线 A4(SDRAM 专用)";
+		};
+		fmc_a5_pf5: fmc_a5_pf5 {
+			pinmux = <6 5 2 12>;
+			brd,gpio = "PF5";
+			brd,board-net = "FMC_A5";
+			brd,independent = "N";
+			brd,notes = "FMC 总线地址线 A5(SDRAM 专用)";
+		};
+		fmc_sdnras_pf11: fmc_sdnras_pf11 {
+			pinmux = <6 11 2 12>;
+			brd,gpio = "PF11";
+			brd,board-net = "FMC_SDNRAS";
+			brd,independent = "N";
+			brd,notes = "接 SDRAM 的 RAS 脚";
+		};
+		fmc_a6_pf12: fmc_a6_pf12 {
+			pinmux = <6 12 2 12>;
+			brd,gpio = "PF12";
+			brd,board-net = "FMC_A6";
+			brd,independent = "N";
+			brd,notes = "FMC 总线地址线 A6(SDRAM 专用)";
+		};
+		fmc_a7_pf13: fmc_a7_pf13 {
+			pinmux = <6 13 2 12>;
+			brd,gpio = "PF13";
+			brd,board-net = "FMC_A7";
+			brd,independent = "N";
+			brd,notes = "FMC 总线地址线 A7(SDRAM 专用)";
+		};
+		fmc_a8_pf14: fmc_a8_pf14 {
+			pinmux = <6 14 2 12>;
+			brd,gpio = "PF14";
+			brd,board-net = "FMC_A8";
+			brd,independent = "N";
+			brd,notes = "FMC 总线地址线 A8(SDRAM 专用)";
+		};
+		fmc_a9_pf15: fmc_a9_pf15 {
+			pinmux = <6 15 2 12>;
+			brd,gpio = "PF15";
+			brd,board-net = "FMC_A9";
+			brd,independent = "N";
+			brd,notes = "FMC 总线地址线 A9(SDRAM 专用)";
+		};
+		fmc_a10_pg0: fmc_a10_pg0 {
+			pinmux = <7 0 2 12>;
+			brd,gpio = "PG0";
+			brd,board-net = "FMC_A10";
+			brd,independent = "N";
+			brd,notes = "FMC 总线地址线 A10(SDRAM 专用)";
+		};
+		fmc_a11_pg1: fmc_a11_pg1 {
+			pinmux = <7 1 2 12>;
+			brd,gpio = "PG1";
+			brd,board-net = "FMC_A11";
+			brd,independent = "N";
+			brd,notes = "FMC 总线地址线 A11(SDRAM 专用)";
+		};
+		fmc_a12_pg2: fmc_a12_pg2 {
+			pinmux = <7 2 2 12>;
+			brd,gpio = "PG2";
+			brd,board-net = "FMC_A12";
+			brd,independent = "N";
+			brd,notes = "FMC 总线地址线 A12(SDRAM 专用)";
+		};
+		fmc_ba0_pg4: fmc_ba0_pg4 {
+			pinmux = <7 4 2 12>;
+			brd,gpio = "PG4";
+			brd,board-net = "FMC_BA0";
+			brd,independent = "N";
+			brd,notes = "接 SDRAM 的 BA0 脚";
+		};
+		fmc_ba1_pg5: fmc_ba1_pg5 {
+			pinmux = <7 5 2 12>;
+			brd,gpio = "PG5";
+			brd,board-net = "FMC_BA1";
+			brd,independent = "N";
+			brd,notes = "接 SDRAM 的 BA1 脚";
+		};
+		fmc_sdclk_pg8: fmc_sdclk_pg8 {
+			pinmux = <7 8 2 12>;
+			brd,gpio = "PG8";
+			brd,board-net = "FMC_SDCLK";
+			brd,independent = "N";
+			brd,notes = "接 SDRAM 的 CLK 脚";
+		};
+		fmc_nce3_pg9: fmc_nce3_pg9 {
+			pinmux = <7 9 2 12>;
+			brd,gpio = "PG9";
+			brd,board-net = "FMC_NCE3";
+			brd,independent = "N";
+			brd,notes = "FMC 总线的片选信号 3，为 NAND 片选信号";
+		};
+		fmc_sdncas_pg15: fmc_sdncas_pg15 {
+			pinmux = <7 15 2 12>;
+			brd,gpio = "PG15";
+			brd,board-net = "FMC_SDNCAS";
+			brd,independent = "N";
+			brd,notes = "接 SDRAM 的 CAS 脚";
+		};
+
+		/* ---- I2C2 ---- */
+		iic_scl_ph4: iic_scl_ph4 {
+			pinmux = <8 4 2 4>;
+			brd,gpio = "PH4";
+			brd,board-net = "IIC_SCL";
+			brd,independent = "N";
+			brd,notes = "接 24C02、PCF8574、ST480MC、SH3001、AP3216C 和 ES8388 的 SCL；其中 PCF8574(U11) 为 I2C IO 扩展器，其 P0=BEEP、P1=AP_INT(AP3216C 中断)、P2=DCMI_PWDN、P3=USB_PWR、P4=6D_INT(SH3001 中断)、P5=RS485_RE、P6=ETH_RESET、P7=EXIO，均经 I2C 控制、不直接占用 MCU GPIO";
+		};
+		iic_sda_ph5: iic_sda_ph5 {
+			pinmux = <8 5 2 4>;
+			brd,gpio = "PH5";
+			brd,board-net = "IIC_SDA";
+			brd,independent = "N";
+			brd,notes = "接 24C02、PCF8574、ST480MC、SH3001、AP3216C 和 ES8388 的 SDA；PCF8574 扩展口位说明见 PH4 备注";
+		};
+
+		/* ---- LTDC ---- */
+		lcd_de_pf10: lcd_de_pf10 {
+			pinmux = <6 10 2 14>;
+			brd,gpio = "PF10";
+			brd,board-net = "LCD_DE";
+			brd,independent = "Y";
+			brd,notes = "RGBLCD 接口的 DE 信号";
+		};
+		lcd_r7_pg6: lcd_r7_pg6 {
+			pinmux = <7 6 2 14>;
+			brd,gpio = "PG6";
+			brd,board-net = "LCD_R7";
+			brd,independent = "Y";
+			brd,notes = "RGBLCD 接口的 R7 数据线";
+		};
+		lcd_clk_pg7: lcd_clk_pg7 {
+			pinmux = <7 7 2 14>;
+			brd,gpio = "PG7";
+			brd,board-net = "LCD_CLK";
+			brd,independent = "Y";
+			brd,notes = "RGBLCD 接口的 CLK 信号";
+		};
+		lcd_b3_pg11: lcd_b3_pg11 {
+			pinmux = <7 11 2 14>;
+			brd,gpio = "PG11";
+			brd,board-net = "LCD_B3";
+			brd,independent = "Y";
+			brd,notes = "RGBLCD 接口的 B3 数据线";
+		};
+		lcd_r3_ph9: lcd_r3_ph9 {
+			pinmux = <8 9 2 14>;
+			brd,gpio = "PH9";
+			brd,board-net = "LCD_R3";
+			brd,independent = "Y";
+			brd,notes = "RGBLCD 接口的 R3 数据线";
+		};
+		lcd_r4_ph10: lcd_r4_ph10 {
+			pinmux = <8 10 2 14>;
+			brd,gpio = "PH10";
+			brd,board-net = "LCD_R4";
+			brd,independent = "Y";
+			brd,notes = "RGBLCD 接口的 R4 数据线";
+		};
+		lcd_r5_ph11: lcd_r5_ph11 {
+			pinmux = <8 11 2 14>;
+			brd,gpio = "PH11";
+			brd,board-net = "LCD_R5";
+			brd,independent = "Y";
+			brd,notes = "RGBLCD 接口的 R5 数据线";
+		};
+		lcd_r6_ph12: lcd_r6_ph12 {
+			pinmux = <8 12 2 14>;
+			brd,gpio = "PH12";
+			brd,board-net = "LCD_R6";
+			brd,independent = "Y";
+			brd,notes = "RGBLCD 接口的 R6 数据线";
+		};
+		lcd_g2_ph13: lcd_g2_ph13 {
+			pinmux = <8 13 2 14>;
+			brd,gpio = "PH13";
+			brd,board-net = "LCD_G2";
+			brd,independent = "Y";
+			brd,notes = "RGBLCD 接口的 G2 数据线";
+		};
+		lcd_g3_ph14: lcd_g3_ph14 {
+			pinmux = <8 14 2 14>;
+			brd,gpio = "PH14";
+			brd,board-net = "LCD_G3";
+			brd,independent = "Y";
+			brd,notes = "RGBLCD 接口的 G3 数据线";
+		};
+		lcd_g4_ph15: lcd_g4_ph15 {
+			pinmux = <8 15 2 14>;
+			brd,gpio = "PH15";
+			brd,board-net = "LCD_G4";
+			brd,independent = "Y";
+			brd,notes = "RGBLCD 接口的 G4 数据线";
+		};
+		lcd_g5_pi0: lcd_g5_pi0 {
+			pinmux = <9 0 2 14>;
+			brd,gpio = "PI0";
+			brd,board-net = "LCD_G5";
+			brd,independent = "Y";
+			brd,notes = "RGBLCD 接口的 G5 数据线";
+		};
+		lcd_g6_pi1: lcd_g6_pi1 {
+			pinmux = <9 1 2 14>;
+			brd,gpio = "PI1";
+			brd,board-net = "LCD_G6";
+			brd,independent = "Y";
+			brd,notes = "RGBLCD 接口的 G6 数据线";
+		};
+		lcd_g7_pi2: lcd_g7_pi2 {
+			pinmux = <9 2 2 14>;
+			brd,gpio = "PI2";
+			brd,board-net = "LCD_G7";
+			brd,independent = "Y";
+			brd,notes = "RGBLCD 接口的 G7 数据线";
+		};
+		lcd_b4_pi4: lcd_b4_pi4 {
+			pinmux = <9 4 2 14>;
+			brd,gpio = "PI4";
+			brd,board-net = "LCD_B4";
+			brd,independent = "Y";
+			brd,notes = "RGBLCD 接口的 B4 数据线";
+		};
+		lcd_b5_pi5: lcd_b5_pi5 {
+			pinmux = <9 5 2 14>;
+			brd,gpio = "PI5";
+			brd,board-net = "LCD_B5";
+			brd,independent = "Y";
+			brd,notes = "RGBLCD 接口的 B5 数据线";
+		};
+		lcd_b6_pi6: lcd_b6_pi6 {
+			pinmux = <9 6 2 14>;
+			brd,gpio = "PI6";
+			brd,board-net = "LCD_B6";
+			brd,independent = "Y";
+			brd,notes = "RGBLCD 接口的 B6 数据线";
+		};
+		lcd_b7_pi7: lcd_b7_pi7 {
+			pinmux = <9 7 2 14>;
+			brd,gpio = "PI7";
+			brd,board-net = "LCD_B7";
+			brd,independent = "Y";
+			brd,notes = "RGBLCD 接口的 B7 数据线";
+		};
+		lcd_vsync_pi9: lcd_vsync_pi9 {
+			pinmux = <9 9 2 14>;
+			brd,gpio = "PI9";
+			brd,board-net = "LCD_VSYNC";
+			brd,independent = "Y";
+			brd,notes = "RGBLCD 接口的 VSYNC 信号线";
+		};
+		lcd_hsync_pi10: lcd_hsync_pi10 {
+			pinmux = <9 10 2 14>;
+			brd,gpio = "PI10";
+			brd,board-net = "LCD_HSYNC";
+			brd,independent = "Y";
+			brd,notes = "RGBLCD 接口的 HSYNC 信号线";
+		};
+
+		/* ---- SAI1 ---- */
+		sai1_mclka_pe2: sai1_mclka_pe2 {
+			pinmux = <5 2 2 6>;
+			brd,gpio = "PE2";
+			brd,board-net = "SAI1_MCLKA";
+			brd,independent = "N";
+			brd,notes = "ES8388 的 MCLK 信号";
+		};
+		sai1_sdb_pe3: sai1_sdb_pe3 {
+			pinmux = <5 3 2 6>;
+			brd,gpio = "PE3";
+			brd,board-net = "SAI1_SDB";
+			brd,independent = "N";
+			brd,notes = "ES8388 的 SDOUT 信号";
+		};
+		sai1_fsa_pe4: sai1_fsa_pe4 {
+			pinmux = <5 4 2 6>;
+			brd,gpio = "PE4";
+			brd,board-net = "SAI1_FSA";
+			brd,independent = "N";
+			brd,notes = "ES8388 的 LRCK 信号";
+		};
+		sai1_scka_pe5: sai1_scka_pe5 {
+			pinmux = <5 5 2 6>;
+			brd,gpio = "PE5";
+			brd,board-net = "SAI1_SCKA";
+			brd,independent = "N";
+			brd,notes = "ES8388 的 SCLK 信号";
+		};
+		sai1_sda_pe6: sai1_sda_pe6 {
+			pinmux = <5 6 2 6>;
+			brd,gpio = "PE6";
+			brd,board-net = "SAI1_SDA";
+			brd,independent = "N";
+			brd,notes = "ES8388 的 SDIN 信号";
+		};
+
+		/* ---- SDIO ---- */
+		sdio_d0_pc8: sdio_d0_pc8 {
+			pinmux = <3 8 2 12>;
+			brd,gpio = "PC8";
+			brd,board-net = "SDIO_D0 / DCMI_D2";
+			brd,independent = "N";
+			brd,notes = "1、TF 卡接口的 D0；2、OLED/CAMERA 接口的 D2 脚";
+		};
+		sdio_d1_pc9: sdio_d1_pc9 {
+			pinmux = <3 9 2 12>;
+			brd,gpio = "PC9";
+			brd,board-net = "SDIO_D1 / DCMI_D3";
+			brd,independent = "N";
+			brd,notes = "1、TF 卡接口的 D1；2、OLED/CAMERA 接口的 D3 脚";
+		};
+		sdio_d2_pc10: sdio_d2_pc10 {
+			pinmux = <3 10 2 12>;
+			brd,gpio = "PC10";
+			brd,board-net = "SDIO_D2";
+			brd,independent = "N";
+			brd,notes = "TF 卡接口的 D2 脚";
+		};
+		sdio_d3_pc11: sdio_d3_pc11 {
+			pinmux = <3 11 2 12>;
+			brd,gpio = "PC11";
+			brd,board-net = "SDIO_D3 / DCMI_D4";
+			brd,independent = "N";
+			brd,notes = "1、TF 卡接口的 D3；2、OLED/CAMERA 接口的 D4 脚";
+		};
+		sdio_sck_pc12: sdio_sck_pc12 {
+			pinmux = <3 12 2 12>;
+			brd,gpio = "PC12";
+			brd,board-net = "SDIO_SCK";
+			brd,independent = "Y";
+			brd,notes = "TF 卡接口的 CLK";
+		};
+		sdio_cmd_pd2: sdio_cmd_pd2 {
+			pinmux = <4 2 2 12>;
+			brd,gpio = "PD2";
+			brd,board-net = "SDIO_CMD";
+			brd,independent = "N";
+			brd,notes = "TF 卡接口的 CMD";
+		};
+
+		/* ---- SPI2 ---- */
+		spi2_sck_pb13: spi2_sck_pb13 {
+			pinmux = <2 13 2 5>;
+			brd,gpio = "PB13";
+			brd,board-net = "SPI2_SCK";
+			brd,independent = "Y";
+			brd,notes = "接 WIRELESS 接口的 SCK 信号";
+		};
+		spi2_miso_pb14: spi2_miso_pb14 {
+			pinmux = <2 14 2 5>;
+			brd,gpio = "PB14";
+			brd,board-net = "SPI2_MISO";
+			brd,independent = "Y";
+			brd,notes = "接 WIRELESS 接口的 MISO 信号";
+		};
+		spi2_mosi_pb15: spi2_mosi_pb15 {
+			pinmux = <2 15 2 5>;
+			brd,gpio = "PB15";
+			brd,board-net = "SPI2_MOSI";
+			brd,independent = "Y";
+			brd,notes = "接 WIRELESS 接口的 MOSI 信号";
+		};
+
+		/* ---- SPI5 ---- */
+		spi5_sck_pf7: spi5_sck_pf7 {
+			pinmux = <6 7 2 5>;
+			brd,gpio = "PF7";
+			brd,board-net = "SPI5_SCK";
+			brd,independent = "N";
+			brd,notes = "W25Q256 的 SCK 信号";
+		};
+		spi5_miso_pf8: spi5_miso_pf8 {
+			pinmux = <6 8 2 5>;
+			brd,gpio = "PF8";
+			brd,board-net = "SPI5_MISO";
+			brd,independent = "N";
+			brd,notes = "W25Q256 的 MISO 信号";
+		};
+		spi5_mosi_pf9: spi5_mosi_pf9 {
+			pinmux = <6 9 2 5>;
+			brd,gpio = "PF9";
+			brd,board-net = "SPI5_MOSI";
+			brd,independent = "N";
+			brd,notes = "W25Q256 的 MOSI 信号";
+		};
+
+		/* ---- USART1 ---- */
+		usart1_tx_pa9: usart1_tx_pa9 {
+			pinmux = <1 9 2 7>;
+			brd,gpio = "PA9";
+			brd,board-net = "USART1_TX";
+			brd,independent = "Y";
+			brd,notes = "串口 1 TX 脚，默认连接 CH340 的 RX(P11 设置)";
+		};
+		usart1_rx_pa10: usart1_rx_pa10 {
+			pinmux = <1 10 2 7>;
+			brd,gpio = "PA10";
+			brd,board-net = "USART1_RX";
+			brd,independent = "Y";
+			brd,notes = "串口 1 RX 脚，默认连接 CH340 的 TX(P11 设置)";
+		};
+
+		/* ---- USART2 ---- */
+		usart2_tx_pa2: usart2_tx_pa2 {
+			pinmux = <1 2 2 7>;
+			brd,gpio = "PA2";
+			brd,board-net = "USART2_TX / ETH_MDIO";
+			brd,independent = "N";
+			brd,notes = "1、RS232 串口 2(COM2) RX 脚(P7 设置)；2、RS485 RX 脚(P8 设置)；3、YT8512C 的 MDIO 脚";
+		};
+		usart2_rx_pa3: usart2_rx_pa3 {
+			pinmux = <1 3 2 7>;
+			brd,gpio = "PA3";
+			brd,board-net = "USART2_RX / PWM_DAC";
+			brd,independent = "N";
+			brd,notes = "1、RS232 串口 2(COM2) TX 脚(P7 设置)；2、RS485 TX 脚(P8 设置)；3、PWM_DAC 输出脚";
+		};
+
+		/* ---- USART3 ---- */
+		usart3_tx_pb10: usart3_tx_pb10 {
+			pinmux = <2 10 2 7>;
+			brd,gpio = "PB10";
+			brd,board-net = "USART3_TX";
+			brd,independent = "Y";
+			brd,notes = "1、RS232 串口 3(COM3) RX 脚(P8 设置)；2、ATK-MODULE 接口的 RXD 脚(P8 设置)";
+		};
+		usart3_rx_pb11: usart3_rx_pb11 {
+			pinmux = <2 11 2 7>;
+			brd,gpio = "PB11";
+			brd,board-net = "USART3_RX / RMII_TX_EN";
+			brd,independent = "N";
+			brd,notes = "1、RS232 串口 3(COM3) TX 脚(P8 设置)；2、ATK-MODULE 接口的 TXD 脚(P8 设置)；3、接 YT8512C 的 TXEN 脚";
+		};
+
+		/* ---- USB ---- */
+		usb_d_pa11: usb_d_pa11 {
+			pinmux = <1 11 2 10>;
+			brd,gpio = "PA11";
+			brd,board-net = "USB_D- / CAN_RX";
+			brd,independent = "Y";
+			brd,notes = "1、USB D- 引脚(P9 设置)；2、CAN_RX 引脚(P9 设置)";
+		};
+		usb_d_pa12: usb_d_pa12 {
+			pinmux = <1 12 2 10>;
+			brd,gpio = "PA12";
+			brd,board-net = "USB_D+ / CAN_TX";
+			brd,independent = "Y";
+			brd,notes = "1、USB D+ 引脚(P9 设置)；2、CAN_TX 引脚(P9 设置)";
+		};
+
+		/* ---- 纯 GPIO / 按键 / LED / 晶振 / 模拟 / 软件模拟 SPI（保持输入态）---- */
+		wk_up_pa0: wk_up_pa0 {
+			pinmux = <1 0 0 0>;
+			brd,gpio = "PA0";
+			brd,board-net = "WK_UP";
+			brd,independent = "Y";
+			brd,notes = "1、按键 KEY_UP；2、可做待机唤醒脚(WKUP)";
+		};
+		stm_dac_gbc_led_pa4: stm_dac_gbc_led_pa4 {
+			pinmux = <1 4 0 0>;
+			brd,gpio = "PA4";
+			brd,board-net = "STM_DAC / GBC_LED";
+			brd,independent = "Y";
+			brd,notes = "1、DAC 输出脚；2、ATK-MODULE 接口的 LED 引脚";
+		};
+		stm_adc_pa5: stm_adc_pa5 {
+			pinmux = <1 5 0 0>;
+			brd,gpio = "PA5";
+			brd,board-net = "STM_ADC";
+			brd,independent = "Y";
+			brd,notes = "ADC 输入引脚，同时做 TPAD 检测脚；另经 P10 接可调电位器 RV1（0~3.3V）滑动端，用于 ADC 测试电压调节";
+		};
+		remote_in_dcmi_xclk_pa8: remote_in_dcmi_xclk_pa8 {
+			pinmux = <1 8 0 0>;
+			brd,gpio = "PA8";
+			brd,board-net = "REMOTE_IN / DCMI_XCLK";
+			brd,independent = "N";
+			brd,notes = "1、接 LF0038 红外接收头；2、OLED/CAMERA 接口的 XCLK 脚";
+		};
+		jtms_swdio_pa13: jtms_swdio_pa13 {
+			pinmux = <1 13 0 0>;
+			brd,gpio = "PA13";
+			brd,board-net = "JTMS / SWDIO";
+			brd,independent = "N";
+			brd,notes = "JTAG/SWD 仿真接口，没接任何外设";
+		};
+		jtck_swdclk_pa14: jtck_swdclk_pa14 {
+			pinmux = <1 14 0 0>;
+			brd,gpio = "PA14";
+			brd,board-net = "JTCK / SWDCLK";
+			brd,independent = "N";
+			brd,notes = "JTAG/SWD 仿真接口，没接任何外设";
+		};
+		jtdi_dcmi_reset_pa15: jtdi_dcmi_reset_pa15 {
+			pinmux = <1 15 0 0>;
+			brd,gpio = "PA15";
+			brd,board-net = "JTDI / DCMI_RESET";
+			brd,independent = "N";
+			brd,notes = "1、JTAG 仿真口(JTDI)；2、OLED/CAMERA 接口的 RESET 脚";
+		};
+		led1_pb0: led1_pb0 {
+			pinmux = <2 0 0 0>;
+			brd,gpio = "PB0";
+			brd,board-net = "LED1";
+			brd,independent = "N";
+			brd,notes = "接 DS1 LED 灯（绿色）";
+		};
+		led0_pb1: led0_pb1 {
+			pinmux = <2 1 0 0>;
+			brd,gpio = "PB1";
+			brd,board-net = "LED0";
+			brd,independent = "N";
+			brd,notes = "接 DS0 LED 灯（红色）";
+		};
+		boot1_pb2: boot1_pb2 {
+			pinmux = <2 2 0 0>;
+			brd,gpio = "PB2";
+			brd,board-net = "BOOT1";
+			brd,independent = "N";
+			brd,notes = "BOOT1，启动选择配置引脚（仅上电时用）";
+		};
+		jtdo_dcmi_sda_pb3: jtdo_dcmi_sda_pb3 {
+			pinmux = <2 3 0 0>;
+			brd,gpio = "PB3";
+			brd,board-net = "JTDO / DCMI_SDA";
+			brd,independent = "N";
+			brd,notes = "1、JTAG 仿真口(JTDO)；2、OLED/CAMERA 接口的 SDA 脚";
+		};
+		jtrst_dcmi_scl_pb4: jtrst_dcmi_scl_pb4 {
+			pinmux = <2 4 0 0>;
+			brd,gpio = "PB4";
+			brd,board-net = "JTRST / DCMI_SCL";
+			brd,independent = "N";
+			brd,notes = "1、JTAG 仿真口(JTRST)；2、OLED/CAMERA 接口的 SCL 脚";
+		};
+		lcd_bl_pb5: lcd_bl_pb5 {
+			pinmux = <2 5 0 0>;
+			brd,gpio = "PB5";
+			brd,board-net = "LCD_BL";
+			brd,independent = "Y";
+			brd,notes = "TFTLCD 接口背光控制脚";
+		};
+		gpio_pb6: gpio_pb6 {
+			pinmux = <2 6 0 0>;
+			brd,gpio = "PB6";
+			brd,board-net = "(未连接)";
+			brd,independent = "Y";
+			brd,notes = "未连接任何设备";
+		};
+		iic_int_1wire_dq_pb12: iic_int_1wire_dq_pb12 {
+			pinmux = <2 12 0 0>;
+			brd,gpio = "PB12";
+			brd,board-net = "IIC_INT / 1WIRE_DQ";
+			brd,independent = "N";
+			brd,notes = "1、接 PCF8574 的 INT 脚；2、接单总线接口(U10)，即 DHT11/DS18B20";
+		};
+		key2_pc13: key2_pc13 {
+			pinmux = <3 13 0 0>;
+			brd,gpio = "PC13";
+			brd,board-net = "KEY2";
+			brd,independent = "Y";
+			brd,notes = "接按键 KEY2";
+		};
+		lse_32k_pc14: lse_32k_pc14 {
+			pinmux = <3 14 0 0>;
+			brd,gpio = "PC14";
+			brd,board-net = "LSE_32K";
+			brd,independent = "N";
+			brd,notes = "接 32.768K 晶振，不可用做 IO";
+		};
+		lse_32k_pc15: lse_32k_pc15 {
+			pinmux = <3 15 0 0>;
+			brd,gpio = "PC15";
+			brd,board-net = "LSE_32K";
+			brd,independent = "N";
+			brd,notes = "接 32.768K 晶振，不可用做 IO";
+		};
+		f_cs_pf6: f_cs_pf6 {
+			pinmux = <6 6 0 0>;
+			brd,gpio = "PF6";
+			brd,board-net = "F_CS";
+			brd,independent = "N";
+			brd,notes = "W25Q256 的片选信号";
+		};
+		t_miso_pg3: t_miso_pg3 {
+			pinmux = <7 3 0 0>;
+			brd,gpio = "PG3";
+			brd,board-net = "T_MISO";
+			brd,independent = "Y";
+			brd,notes = "TFTLCD/RGBLCD 接口触摸屏 MISO 信号";
+		};
+		nrf_cs_pg10: nrf_cs_pg10 {
+			pinmux = <7 10 0 0>;
+			brd,gpio = "PG10";
+			brd,board-net = "NRF_CS";
+			brd,independent = "Y";
+			brd,notes = "WIRELESS 接口 CS 信号";
+		};
+		nrf_ce_spdif_rx_pg12: nrf_ce_spdif_rx_pg12 {
+			pinmux = <7 12 0 0>;
+			brd,gpio = "PG12";
+			brd,board-net = "NRF_CE / SPDIF_RX";
+			brd,independent = "N";
+			brd,notes = "1、WIRELESS 接口 CE 信号；2、SPDIF 输入引脚（仅 F7/H7 芯片支持）";
+		};
+		sys_hse_ph0: sys_hse_ph0 {
+			pinmux = <8 0 0 0>;
+			brd,gpio = "PH0";
+			brd,board-net = "SYS_HSE";
+			brd,independent = "N";
+			brd,notes = "接 25M 外部晶振";
+		};
+		sys_hse_ph1: sys_hse_ph1 {
+			pinmux = <8 1 0 0>;
+			brd,gpio = "PH1";
+			brd,board-net = "SYS_HSE";
+			brd,independent = "N";
+			brd,notes = "接 25M 外部晶振";
+		};
+		key1_ph2: key1_ph2 {
+			pinmux = <8 2 0 0>;
+			brd,gpio = "PH2";
+			brd,board-net = "KEY1";
+			brd,independent = "Y";
+			brd,notes = "接按键 KEY1";
+		};
+		key0_ph3: key0_ph3 {
+			pinmux = <8 3 0 0>;
+			brd,gpio = "PH3";
+			brd,board-net = "KEY0";
+			brd,independent = "Y";
+			brd,notes = "接按键 KEY0";
+		};
+		t_sck_ph6: t_sck_ph6 {
+			pinmux = <8 6 0 0>;
+			brd,gpio = "PH6";
+			brd,board-net = "T_SCK";
+			brd,independent = "Y";
+			brd,notes = "TFTLCD/RGBLCD 接口触摸屏 SCK 信号";
+		};
+		t_pen_ph7: t_pen_ph7 {
+			pinmux = <8 7 0 0>;
+			brd,gpio = "PH7";
+			brd,board-net = "T_PEN";
+			brd,independent = "Y";
+			brd,notes = "TFTLCD/RGBLCD 接口触摸屏 PEN 信号";
+		};
+		t_mosi_pi3: t_mosi_pi3 {
+			pinmux = <9 3 0 0>;
+			brd,gpio = "PI3";
+			brd,board-net = "T_MOSI";
+			brd,independent = "Y";
+			brd,notes = "TFTLCD/RGBLCD 接口触摸屏 MOSI 信号";
+		};
+		t_cs_pi8: t_cs_pi8 {
+			pinmux = <9 8 0 0>;
+			brd,gpio = "PI8";
+			brd,board-net = "T_CS";
+			brd,independent = "Y";
+			brd,notes = "TFTLCD/RGBLCD 接口触摸屏 CS 信号";
+		};
+		nrf_irq_gbc_key_pi11: nrf_irq_gbc_key_pi11 {
+			pinmux = <9 11 0 0>;
+			brd,gpio = "PI11";
+			brd,board-net = "NRF_IRQ / GBC_KEY";
+			brd,independent = "Y";
+			brd,notes = "1、WIRELESS 接口 IRQ 信号；2、ATK-MODULE 接口的 KEY 引脚";
+		};
+
+	};
+};

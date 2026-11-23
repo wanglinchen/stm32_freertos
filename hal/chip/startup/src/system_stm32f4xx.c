@@ -6,6 +6,14 @@
  */
 
 #include "stm32f4xx.h"
+/*
+ * 必须包含自己的头：三条导出函数（SystemInit / SystemClock_Config /
+ * SystemCoreClockUpdate）的声明只在 system_stm32f4xx.h:86-89，不 include 就是
+ * "定义有、声明无"——签名一旦漂移（例如 SystemClock_Config 的 int 返回值改成
+ * void）编译期一个字都不报，到链接/运行期才暴露。开启 -Wmissing-prototypes 后
+ * 这三条正是它报出来的告警（与 bsl_i2c_gpio.c 那次同型）。
+ */
+#include "system_stm32f4xx.h"
 
 #ifndef STM32F429xx
 #error "system_stm32f4xx.c in this tree is for STM32F429xx only"
@@ -89,7 +97,7 @@ void SystemInit(void)
 
 /**
  * HSE 25 MHz → PLL → HCLK 168 MHz（APB1 42 MHz / APB2 84 MHz）；见 stm32f4xx_hal_conf.h、
- * doc/hardware/sch/STM32F429_CORE_V2.pdf。须在 .data/.bss 初始化之后调用。
+ * docs/hardware/sch/STM32F429_CORE_V2.pdf。须在 .data/.bss 初始化之后调用。
  * @retval 0 成功；1 失败，保持 HSI 16 MHz
  */
 int SystemClock_Config(void)

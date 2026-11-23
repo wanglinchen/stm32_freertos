@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""板上现场快照 → debug/<问题>_YYYY_MM_DD-HH_MM_SS.md"""
+"""板上现场快照 → debug/<问题>_YYYY_MM_DD-HH_MM_SS/snapshot.md"""
 from __future__ import annotations
 
 import argparse
@@ -13,15 +13,18 @@ _DEBUG = Path(__file__).resolve().parent
 ROOT = _DEBUG.parent
 _BUILD = ROOT / "build"
 _FLASH = ROOT / "flash"
+_PROJECT = ROOT / "project"
 
 if str(_BUILD) not in sys.path:
     sys.path.insert(0, str(_BUILD))
 if str(_FLASH) not in sys.path:
     sys.path.insert(0, str(_FLASH))
+if str(_PROJECT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT))
 
-from contracts import OUT_ARTIFACT_DIR, ROOT as CONTRACT_ROOT  # noqa: E402
+from generate import ROOT as CONTRACT_ROOT  # noqa: E402
 
-import environment as te  # noqa: E402
+import build as te  # noqa: E402
 
 # 与 flash/flash.py 同目录加载
 import importlib.util
@@ -329,7 +332,7 @@ def build_report(
             vals = {s[0] for s in gpio_samples}
             if len(vals) > 1:
                 lines.append("")
-                lines.append("**GPIO 在采样间隔内变化** → `fml_led_blink_task` 互斥 1 s 应在工作。")
+                lines.append("**GPIO 在采样间隔内变化** → `led_blink` 任务互斥 1 s 应在工作。")
             else:
                 lines.append("")
                 lines.append("**GPIO 不变** → 可能停在 panic、灯任务未跑、或采样时刻相同相位。")
@@ -346,13 +349,13 @@ def build_report(
     lines.append("")
     lines.append("- `g_boot_stage==2` → 查 HSE 25 MHz、看重载 `g_clock_fail_sub`")
     lines.append("- `g_boot_stage==0` 且 GPIO 交替 → 软件正常，查 DS1 绿灯或肉眼观察 ≥3 s")
-    lines.append("- 详见 `doc/design/搭建环境.md`")
+    lines.append("- 详见 `docs/design/搭建环境.md`")
     lines.append("")
     return "\n".join(lines)
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description="采集板上现场 → debug/<问题>_时间.md")
+    parser = argparse.ArgumentParser(description="采集板上现场 → debug/<问题>_YYYY_MM_DD-HH_MM_SS/snapshot.md")
     parser.add_argument("problem", help="问题短名，如 clock-hse-fail、red-led-constant")
     parser.add_argument("--elf", type=Path, default=None)
     parser.add_argument(
@@ -373,7 +376,9 @@ def main(argv: list[str] | None = None) -> None:
         raise SystemExit(f"ELF 不存在: {elf}，请先 python build/build.py build")
 
     slug = slug_problem(args.problem)
-    out = _DEBUG / f"{slug}_{timestamp_tag()}.md"
+    case_dir = _DEBUG / f"{slug}_{timestamp_tag()}"
+    case_dir.mkdir(parents=True, exist_ok=True)
+    out = case_dir / "snapshot.md"
     body = build_report(
         args.problem,
         elf,

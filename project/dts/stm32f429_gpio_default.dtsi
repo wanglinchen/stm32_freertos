@@ -1,0 +1,1496 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * stm32f429_gpio_default.dtsi - STM32F429IG 复位默认 GPIO 配置（自动生成，勿手改）
+ *
+ * 数据源：stm32f429_default_gpio_pinmap.xlsx（DS9405 Table 12 + RM0090 复位态）。
+ * 本工程 dtc 单文件编译、无 C 预处理与 pinctrl 宏头文件，pinmux 写裸数值：
+ *   pinmux = <port pin mode af>;
+ *   mode: 0 input, 1 output, 2 alternate, 3 analog；af: 0..15，模拟脚记 15。
+ */
+/dts-v1/;
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	soc {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		gpioa: gpio@40020000 {
+			compatible = "st,stm32-gpio";
+			reg = <0x40020000 0x400>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <16>;
+
+			pinctrl_pa0: pinctrl_pa0 {
+				pinmux = <1 0 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ADC1_IN0, ADC2_IN0, ADC3_IN0, ANALOG";
+				brd,optional-function-modes = "AF1: TIM2_CH1; AF2: TIM5_CH1; AF7: USART2_CTS; AF8: UART4_TX; AF11: ETH_CRS";
+				brd,notes = "1、按键 KEY_UP；2、可做待机唤醒脚(WKUP)";
+			};
+			pinctrl_pa1: pinctrl_pa1 {
+				pinmux = <1 1 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ADC1_IN1, ADC2_IN1, ADC3_IN1, ANALOG";
+				brd,optional-function-modes = "AF1: TIM2_CH2; AF2: TIM5_CH2; AF7: USART2_RTS; AF8: UART4_RX; AF11: ETH_REF_CLK, ETH_RX_CLK";
+				brd,notes = "接 YT8512C 的 TXC 脚";
+			};
+			pinctrl_pa2: pinctrl_pa2 {
+				pinmux = <1 2 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ADC1_IN2, ADC2_IN2, ADC3_IN2, ANALOG";
+				brd,optional-function-modes = "AF1: TIM2_CH3; AF2: TIM5_CH3; AF3: TIM9_CH1; AF7: USART2_TX; AF11: ETH_MDIO";
+				brd,notes = "1、RS232 串口 2(COM2) RX 脚(P7 设置)；2、RS485 RX 脚(P8 设置)；3、YT8512C 的 MDIO 脚";
+			};
+			pinctrl_pa3: pinctrl_pa3 {
+				pinmux = <1 3 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ADC1_IN3, ADC2_IN3, ADC3_IN3, ANALOG";
+				brd,optional-function-modes = "AF1: TIM2_CH4; AF2: TIM5_CH4; AF3: TIM9_CH2; AF7: USART2_RX; AF10: USB_OTG_HS_ULPI_D0; AF11: ETH_COL; AF14: LTDC_B5";
+				brd,notes = "1、RS232 串口 2(COM2) TX 脚(P7 设置)；2、RS485 TX 脚(P8 设置)；3、PWM_DAC 输出脚";
+			};
+			pinctrl_pa4: pinctrl_pa4 {
+				pinmux = <1 4 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ADC1_IN4, ADC2_IN4, ANALOG, DAC_OUT1";
+				brd,optional-function-modes = "AF5: SPI1_NSS; AF6: I2S3_WS, SPI3_NSS; AF12: USB_OTG_HS_SOF; AF13: DCMI_HSYNC; AF14: LTDC_VSYNC";
+				brd,notes = "1、DAC 输出脚；2、ATK-MODULE 接口的 LED 引脚";
+			};
+			pinctrl_pa5: pinctrl_pa5 {
+				pinmux = <1 5 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ADC1_IN5, ADC2_IN5, ANALOG, DAC_OUT2";
+				brd,optional-function-modes = "AF1: TIM2_CH1; AF3: TIM8_CH1N; AF5: SPI1_SCK; AF10: USB_OTG_HS_ULPI_CK";
+				brd,notes = "ADC 输入引脚，同时做 TPAD 检测脚";
+			};
+			pinctrl_pa6: pinctrl_pa6 {
+				pinmux = <1 6 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ADC1_IN6, ADC2_IN6, ANALOG";
+				brd,optional-function-modes = "AF1: TIM1_BKIN; AF2: TIM3_CH1; AF3: TIM8_BKIN; AF5: SPI1_MISO; AF9: TIM13_CH1; AF13: DCMI_PIXCLK; AF14: LTDC_G2";
+				brd,notes = "OLED/CAMERA 接口的 PCLK 脚";
+			};
+			pinctrl_pa7: pinctrl_pa7 {
+				pinmux = <1 7 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ADC1_IN7, ADC2_IN7, ANALOG";
+				brd,optional-function-modes = "AF1: TIM1_CH1N; AF2: TIM3_CH2; AF3: TIM8_CH1N; AF5: SPI1_MOSI; AF9: TIM14_CH1; AF11: ETH_CRS_DV, ETH_RX_DV";
+				brd,notes = "接 YT8512C 的 CRS_DV 脚";
+			};
+			pinctrl_pa8: pinctrl_pa8 {
+				pinmux = <1 8 2 0>;
+				brd,mode = "alternate";
+				brd,pull = "none";
+				brd,independent = "N";
+				brd,reset-function = "AF0 / RCC_MCO_1";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF0: RCC_MCO_1; AF1: TIM1_CH1; AF4: I2C3_SCL; AF10: USB_OTG_FS_SOF; AF14: LTDC_R6";
+				brd,notes = "1、接 LF0038 红外接收头；2、OLED/CAMERA 接口的 XCLK 脚";
+			};
+			pinctrl_pa9: pinctrl_pa9 {
+				pinmux = <1 9 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG, USB_OTG_FS_VBUS";
+				brd,optional-function-modes = "AF1: TIM1_CH2; AF4: I2C3_SMBA; AF7: USART1_TX; AF13: DCMI_D0";
+				brd,notes = "串口 1 TX 脚，默认连接 CH340 的 RX(P11 设置)";
+			};
+			pinctrl_pa10: pinctrl_pa10 {
+				pinmux = <1 10 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF1: TIM1_CH3; AF7: USART1_RX; AF10: USB_OTG_FS_ID; AF13: DCMI_D1";
+				brd,notes = "串口 1 RX 脚，默认连接 CH340 的 TX(P11 设置)";
+			};
+			pinctrl_pa11: pinctrl_pa11 {
+				pinmux = <1 11 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF1: TIM1_CH4; AF7: USART1_CTS; AF9: CAN1_RX; AF10: USB_OTG_FS_DM; AF14: LTDC_R4";
+				brd,notes = "1、USB D- 引脚(P9 设置)；2、CAN_RX 引脚(P9 设置)";
+			};
+			pinctrl_pa12: pinctrl_pa12 {
+				pinmux = <1 12 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF7: USART1_RTS; AF9: CAN1_TX; AF10: USB_OTG_FS_DP; AF14: LTDC_R5";
+				brd,notes = "1、USB D+ 引脚(P9 设置)；2、CAN_TX 引脚(P9 设置)";
+			};
+			pinctrl_pa13: pinctrl_pa13 {
+				pinmux = <1 13 2 0>;
+				brd,mode = "alternate";
+				brd,pull = "none";
+				brd,independent = "N";
+				brd,reset-function = "AF0 / SYS_JTMS_SWDIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF0: SYS_JTMS_SWDIO";
+				brd,notes = "JTAG/SWD 仿真接口，没接任何外设";
+			};
+			pinctrl_pa14: pinctrl_pa14 {
+				pinmux = <1 14 2 0>;
+				brd,mode = "alternate";
+				brd,pull = "none";
+				brd,independent = "N";
+				brd,reset-function = "AF0 / SYS_JTCK_SWCLK";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF0: SYS_JTCK_SWCLK";
+				brd,notes = "JTAG/SWD 仿真接口，没接任何外设";
+			};
+			pinctrl_pa15: pinctrl_pa15 {
+				pinmux = <1 15 2 0>;
+				brd,mode = "alternate";
+				brd,pull = "none";
+				brd,independent = "N";
+				brd,reset-function = "AF0 / SYS_JTDI";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF0: SYS_JTDI; AF1: TIM2_CH1; AF5: SPI1_NSS; AF6: I2S3_WS, SPI3_NSS";
+				brd,notes = "1、JTAG 仿真口(JTDI)；2、OLED/CAMERA 接口的 RESET 脚";
+			};
+		};
+
+		gpiob: gpio@40020400 {
+			compatible = "st,stm32-gpio";
+			reg = <0x40020400 0x400>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <16>;
+
+			pinctrl_pb0: pinctrl_pb0 {
+				pinmux = <2 0 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ADC1_IN8, ADC2_IN8, ANALOG";
+				brd,optional-function-modes = "AF1: TIM1_CH2N; AF2: TIM3_CH3; AF3: TIM8_CH2N; AF9: LTDC_R3; AF10: USB_OTG_HS_ULPI_D1; AF11: ETH_RXD2";
+				brd,notes = "接 DS1 LED 灯（绿色）";
+			};
+			pinctrl_pb1: pinctrl_pb1 {
+				pinmux = <2 1 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ADC1_IN9, ADC2_IN9, ANALOG";
+				brd,optional-function-modes = "AF1: TIM1_CH3N; AF2: TIM3_CH4; AF3: TIM8_CH3N; AF9: LTDC_R6; AF10: USB_OTG_HS_ULPI_D2; AF11: ETH_RXD3";
+				brd,notes = "接 DS0 LED 灯（红色）";
+			};
+			pinctrl_pb2: pinctrl_pb2 {
+				pinmux = <2 2 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "N";
+				brd,reset-function = "BOOT1";
+				brd,analog = "ANALOG";
+				brd,notes = "BOOT1，启动选择配置引脚（仅上电时用）";
+			};
+			pinctrl_pb3: pinctrl_pb3 {
+				pinmux = <2 3 2 0>;
+				brd,mode = "alternate";
+				brd,pull = "none";
+				brd,independent = "N";
+				brd,reset-function = "AF0 / SYS_JTDO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF0: SYS_JTDO_SWO; AF1: TIM2_CH2; AF5: SPI1_SCK; AF6: I2S3_CK, SPI3_SCK";
+				brd,notes = "1、JTAG 仿真口(JTDO)；2、OLED/CAMERA 接口的 SDA 脚";
+			};
+			pinctrl_pb4: pinctrl_pb4 {
+				pinmux = <2 4 2 0>;
+				brd,mode = "alternate";
+				brd,pull = "none";
+				brd,independent = "N";
+				brd,reset-function = "AF0 / SYS_NJTRST";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF0: SYS_JTRST; AF2: TIM3_CH1; AF5: SPI1_MISO; AF6: SPI3_MISO";
+				brd,notes = "1、JTAG 仿真口(JTRST)；2、OLED/CAMERA 接口的 SCL 脚";
+			};
+			pinctrl_pb5: pinctrl_pb5 {
+				pinmux = <2 5 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF2: TIM3_CH2; AF4: I2C1_SMBA; AF5: SPI1_MOSI; AF6: I2S3_SD, SPI3_MOSI; AF9: CAN2_RX; AF10: USB_OTG_HS_ULPI_D7; AF11: ETH_PPS_OUT; AF12: FMC_SDCKE1; AF13: DCMI_D10";
+				brd,notes = "TFTLCD 接口背光控制脚";
+			};
+			pinctrl_pb6: pinctrl_pb6 {
+				pinmux = <2 6 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF2: TIM4_CH1; AF4: I2C1_SCL; AF7: USART1_TX; AF9: CAN2_TX; AF12: FMC_SDNE1; AF13: DCMI_D5";
+				brd,notes = "未连接任何设备";
+			};
+			pinctrl_pb7: pinctrl_pb7 {
+				pinmux = <2 7 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF2: TIM4_CH2; AF4: I2C1_SDA; AF7: USART1_RX; AF12: FMC_NL; AF13: DCMI_VSYNC";
+				brd,notes = "OLED/CAMERA 接口的 VSYNC 脚";
+			};
+			pinctrl_pb8: pinctrl_pb8 {
+				pinmux = <2 8 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF2: TIM4_CH3; AF3: TIM10_CH1; AF4: I2C1_SCL; AF9: CAN1_RX; AF11: ETH_TXD3; AF12: SDIO_D4; AF13: DCMI_D6; AF14: LTDC_B6";
+				brd,notes = "OLED/CAMERA 接口的 D6 脚";
+			};
+			pinctrl_pb9: pinctrl_pb9 {
+				pinmux = <2 9 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF2: TIM4_CH4; AF3: TIM11_CH1; AF4: I2C1_SDA; AF5: I2S2_WS, SPI2_NSS; AF9: CAN1_TX; AF12: SDIO_D5; AF13: DCMI_D7; AF14: LTDC_B7";
+				brd,notes = "OLED/CAMERA 接口的 D7 脚";
+			};
+			pinctrl_pb10: pinctrl_pb10 {
+				pinmux = <2 10 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF1: TIM2_CH3; AF4: I2C2_SCL; AF5: I2S2_CK, SPI2_SCK; AF7: USART3_TX; AF10: USB_OTG_HS_ULPI_D3; AF11: ETH_RX_ER; AF14: LTDC_G4";
+				brd,notes = "1、RS232 串口 3(COM3) RX 脚(P8 设置)；2、ATK-MODULE 接口的 RXD 脚(P8 设置)";
+			};
+			pinctrl_pb11: pinctrl_pb11 {
+				pinmux = <2 11 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF1: TIM2_CH4; AF4: I2C2_SDA; AF7: USART3_RX; AF10: USB_OTG_HS_ULPI_D4; AF11: ETH_TX_EN; AF14: LTDC_G5";
+				brd,notes = "1、RS232 串口 3(COM3) TX 脚(P8 设置)；2、ATK-MODULE 接口的 TXD 脚(P8 设置)；3、接 YT8512C 的 TXEN 脚";
+			};
+			pinctrl_pb12: pinctrl_pb12 {
+				pinmux = <2 12 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF1: TIM1_BKIN; AF4: I2C2_SMBA; AF5: I2S2_WS, SPI2_NSS; AF9: CAN2_RX; AF10: USB_OTG_HS_ULPI_D5; AF11: ETH_TXD0; AF12: USB_OTG_HS_ID";
+				brd,notes = "1、接 PCF8574 的 INT 脚；2、接单总线接口(U10)，即 DHT11/DS18B20";
+			};
+			pinctrl_pb13: pinctrl_pb13 {
+				pinmux = <2 13 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG, USB_OTG_HS_VBUS";
+				brd,optional-function-modes = "AF1: TIM1_CH1N; AF5: I2S2_CK, SPI2_SCK; AF7: USART3_CTS; AF9: CAN2_TX; AF10: USB_OTG_HS_ULPI_D6; AF11: ETH_TXD1";
+				brd,notes = "接 WIRELESS 接口的 SCK 信号";
+			};
+			pinctrl_pb14: pinctrl_pb14 {
+				pinmux = <2 14 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF1: TIM1_CH2N; AF3: TIM8_CH2N; AF5: SPI2_MISO; AF7: USART3_RTS; AF9: TIM12_CH1; AF12: USB_OTG_HS_DM";
+				brd,notes = "接 WIRELESS 接口的 MISO 信号";
+			};
+			pinctrl_pb15: pinctrl_pb15 {
+				pinmux = <2 15 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF1: TIM1_CH3N; AF3: TIM8_CH3N; AF5: I2S2_SD, SPI2_MOSI; AF9: TIM12_CH2; AF12: USB_OTG_HS_DP";
+				brd,notes = "接 WIRELESS 接口的 MOSI 信号";
+			};
+		};
+
+		gpioc: gpio@40020800 {
+			compatible = "st,stm32-gpio";
+			reg = <0x40020800 0x400>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <16>;
+
+			pinctrl_pc0: pinctrl_pc0 {
+				pinmux = <3 0 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ADC1_IN10, ADC2_IN10, ADC3_IN10, ANALOG";
+				brd,optional-function-modes = "AF10: USB_OTG_HS_ULPI_STP; AF12: FMC_SDNWE";
+				brd,notes = "接 SDRAM 的 WE 脚";
+			};
+			pinctrl_pc1: pinctrl_pc1 {
+				pinmux = <3 1 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ADC1_IN11, ADC2_IN11, ADC3_IN11, ANALOG";
+				brd,optional-function-modes = "AF11: ETH_MDC";
+				brd,notes = "接 YT8512C 的 MDC 脚";
+			};
+			pinctrl_pc2: pinctrl_pc2 {
+				pinmux = <3 2 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ADC1_IN12, ADC2_IN12, ADC3_IN12, ANALOG";
+				brd,optional-function-modes = "AF5: SPI2_MISO; AF10: USB_OTG_HS_ULPI_DIR; AF11: ETH_TXD2; AF12: FMC_SDNE0";
+				brd,notes = "接 SDRAM 的 CS 脚";
+			};
+			pinctrl_pc3: pinctrl_pc3 {
+				pinmux = <3 3 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ADC1_IN13, ADC2_IN13, ADC3_IN13, ANALOG";
+				brd,optional-function-modes = "AF5: I2S2_SD, SPI2_MOSI; AF10: USB_OTG_HS_ULPI_NXT; AF11: ETH_TX_CLK; AF12: FMC_SDCKE0";
+				brd,notes = "接 SDRAM 的 CKE 脚";
+			};
+			pinctrl_pc4: pinctrl_pc4 {
+				pinmux = <3 4 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ADC1_IN14, ADC2_IN14, ANALOG";
+				brd,optional-function-modes = "AF11: ETH_RXD0";
+				brd,notes = "接 YT8512C 的 RXD0 脚";
+			};
+			pinctrl_pc5: pinctrl_pc5 {
+				pinmux = <3 5 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ADC1_IN15, ADC2_IN15, ANALOG";
+				brd,optional-function-modes = "AF11: ETH_RXD1";
+				brd,notes = "接 YT8512C 的 RXD1 脚";
+			};
+			pinctrl_pc6: pinctrl_pc6 {
+				pinmux = <3 6 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF2: TIM3_CH1; AF3: TIM8_CH1; AF5: I2S2_MCK; AF8: USART6_TX; AF12: SDIO_D6; AF13: DCMI_D0; AF14: LTDC_HSYNC";
+				brd,notes = "OLED/CAMERA 接口的 D0 脚";
+			};
+			pinctrl_pc7: pinctrl_pc7 {
+				pinmux = <3 7 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF2: TIM3_CH2; AF3: TIM8_CH2; AF6: I2S3_MCK; AF8: USART6_RX; AF12: SDIO_D7; AF13: DCMI_D1; AF14: LTDC_G6";
+				brd,notes = "OLED/CAMERA 接口的 D1 脚";
+			};
+			pinctrl_pc8: pinctrl_pc8 {
+				pinmux = <3 8 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF2: TIM3_CH3; AF3: TIM8_CH3; AF12: SDIO_D0; AF13: DCMI_D2";
+				brd,notes = "1、TF 卡接口的 D0；2、OLED/CAMERA 接口的 D2 脚";
+			};
+			pinctrl_pc9: pinctrl_pc9 {
+				pinmux = <3 9 2 0>;
+				brd,mode = "alternate";
+				brd,pull = "none";
+				brd,independent = "N";
+				brd,reset-function = "AF0 / RCC_MCO_2";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF0: RCC_MCO_2; AF2: TIM3_CH4; AF3: TIM8_CH4; AF4: I2C3_SDA; AF12: SDIO_D1; AF13: DCMI_D3";
+				brd,notes = "1、TF 卡接口的 D1；2、OLED/CAMERA 接口的 D3 脚";
+			};
+			pinctrl_pc10: pinctrl_pc10 {
+				pinmux = <3 10 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF6: I2S3_CK, SPI3_SCK; AF7: USART3_TX; AF8: UART4_TX; AF12: SDIO_D2; AF13: DCMI_D8; AF14: LTDC_R2";
+				brd,notes = "TF 卡接口的 D2 脚";
+			};
+			pinctrl_pc11: pinctrl_pc11 {
+				pinmux = <3 11 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF6: SPI3_MISO; AF7: USART3_RX; AF8: UART4_RX; AF12: SDIO_D3; AF13: DCMI_D4";
+				brd,notes = "1、TF 卡接口的 D3；2、OLED/CAMERA 接口的 D4 脚";
+			};
+			pinctrl_pc12: pinctrl_pc12 {
+				pinmux = <3 12 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF6: I2S3_SD, SPI3_MOSI; AF8: UART5_TX; AF12: SDIO_CK; AF13: DCMI_D9";
+				brd,notes = "TF 卡接口的 CLK";
+			};
+			pinctrl_pc13: pinctrl_pc13 {
+				pinmux = <3 13 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,notes = "接按键 KEY2";
+			};
+			pinctrl_pc14: pinctrl_pc14 {
+				pinmux = <3 14 3 15>;
+				brd,mode = "analog";
+				brd,pull = "none";
+				brd,independent = "N";
+				brd,reset-function = "RCC_OSC32_IN";
+				brd,analog = "ANALOG";
+				brd,notes = "接 32.768K 晶振，不可用做 IO";
+			};
+			pinctrl_pc15: pinctrl_pc15 {
+				pinmux = <3 15 3 15>;
+				brd,mode = "analog";
+				brd,pull = "none";
+				brd,independent = "N";
+				brd,reset-function = "RCC_OSC32_OUT";
+				brd,analog = "ANALOG";
+				brd,notes = "接 32.768K 晶振，不可用做 IO";
+			};
+		};
+
+		gpiod: gpio@40020c00 {
+			compatible = "st,stm32-gpio";
+			reg = <0x40020c00 0x400>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <16>;
+
+			pinctrl_pd0: pinctrl_pd0 {
+				pinmux = <4 0 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF9: CAN1_RX; AF12: FMC_D2";
+				brd,notes = "FMC 总线数据线 D2(LCD/SDRAM/NAND 共用)";
+			};
+			pinctrl_pd1: pinctrl_pd1 {
+				pinmux = <4 1 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF9: CAN1_TX; AF12: FMC_D3";
+				brd,notes = "FMC 总线数据线 D3(LCD/SDRAM/NAND 共用)";
+			};
+			pinctrl_pd2: pinctrl_pd2 {
+				pinmux = <4 2 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF8: UART5_RX; AF12: SDIO_CMD; AF13: DCMI_D11";
+				brd,notes = "TF 卡接口的 CMD";
+			};
+			pinctrl_pd3: pinctrl_pd3 {
+				pinmux = <4 3 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF5: I2S2_CK, SPI2_SCK; AF7: USART2_CTS; AF12: FMC_CLK; AF13: DCMI_D5; AF14: LTDC_G7";
+				brd,notes = "OLED/CAMERA 接口的 D5 脚";
+			};
+			pinctrl_pd4: pinctrl_pd4 {
+				pinmux = <4 4 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF7: USART2_RTS; AF12: FMC_NOE";
+				brd,notes = "FMC 总线 NOE(RD)(LCD/NAND 共用)";
+			};
+			pinctrl_pd5: pinctrl_pd5 {
+				pinmux = <4 5 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF7: USART2_TX; AF12: FMC_NWE";
+				brd,notes = "FMC 总线 NWE(WR)(LCD/NAND 共用)";
+			};
+			pinctrl_pd6: pinctrl_pd6 {
+				pinmux = <4 6 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF5: I2S3_SD, SPI3_MOSI; AF6: SAI1_SD_A; AF7: USART2_RX; AF12: FMC_NWAIT; AF13: DCMI_D10; AF14: LTDC_B2";
+				brd,notes = "FMC 总线 NWAIT(NAND 用)";
+			};
+			pinctrl_pd7: pinctrl_pd7 {
+				pinmux = <4 7 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF12: FMC_NE1";
+				brd,notes = "FMC 总线的片选信号 1，为 TFTLCD 片选信号";
+			};
+			pinctrl_pd8: pinctrl_pd8 {
+				pinmux = <4 8 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF7: USART3_TX; AF12: FMC_D13";
+				brd,notes = "FMC 总线数据线 D13(LCD/SDRAM 共用)";
+			};
+			pinctrl_pd9: pinctrl_pd9 {
+				pinmux = <4 9 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF7: USART3_RX; AF12: FMC_D14";
+				brd,notes = "FMC 总线数据线 D14(LCD/SDRAM 共用)";
+			};
+			pinctrl_pd10: pinctrl_pd10 {
+				pinmux = <4 10 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF12: FMC_D15; AF14: LTDC_B3";
+				brd,notes = "FMC 总线数据线 D15(LCD/SDRAM 共用)";
+			};
+			pinctrl_pd11: pinctrl_pd11 {
+				pinmux = <4 11 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF7: USART3_CTS; AF12: FMC_A16, FMC_CLE";
+				brd,notes = "FMC 总线地址线 A16_CLE(NAND 专用)";
+			};
+			pinctrl_pd12: pinctrl_pd12 {
+				pinmux = <4 12 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF2: TIM4_CH1; AF7: USART3_RTS; AF12: FMC_A17, FMC_ALE";
+				brd,notes = "FMC 总线地址线 A17_ALE(NAND 专用)";
+			};
+			pinctrl_pd13: pinctrl_pd13 {
+				pinmux = <4 13 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF2: TIM4_CH2; AF12: FMC_A18";
+				brd,notes = "FMC 总线地址线 A18(LCD 专用)";
+			};
+			pinctrl_pd14: pinctrl_pd14 {
+				pinmux = <4 14 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF2: TIM4_CH3; AF12: FMC_D0";
+				brd,notes = "FMC 总线数据线 D0(LCD/SDRAM/NAND 共用)";
+			};
+			pinctrl_pd15: pinctrl_pd15 {
+				pinmux = <4 15 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF2: TIM4_CH4; AF12: FMC_D1";
+				brd,notes = "FMC 总线数据线 D1(LCD/SDRAM/NAND 共用)";
+			};
+		};
+
+		gpioe: gpio@40021000 {
+			compatible = "st,stm32-gpio";
+			reg = <0x40021000 0x400>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <16>;
+
+			pinctrl_pe0: pinctrl_pe0 {
+				pinmux = <5 0 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF8: UART8_RX; AF12: FMC_NBL0; AF13: DCMI_D2";
+				brd,notes = "FMC 总线 NBL0(SDRAM 专用)";
+			};
+			pinctrl_pe1: pinctrl_pe1 {
+				pinmux = <5 1 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF8: UART8_TX; AF12: FMC_NBL1; AF13: DCMI_D3";
+				brd,notes = "FMC 总线 NBL1(SDRAM 专用)";
+			};
+			pinctrl_pe2: pinctrl_pe2 {
+				pinmux = <5 2 2 0>;
+				brd,mode = "alternate";
+				brd,pull = "none";
+				brd,independent = "N";
+				brd,reset-function = "AF0 / SYS_TRACECLK";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF0: SYS_TRACECLK; AF5: SPI4_SCK; AF6: SAI1_MCLK_A; AF11: ETH_TXD3; AF12: FMC_A23";
+				brd,notes = "ES8388 的 MCLK 信号";
+			};
+			pinctrl_pe3: pinctrl_pe3 {
+				pinmux = <5 3 2 0>;
+				brd,mode = "alternate";
+				brd,pull = "none";
+				brd,independent = "N";
+				brd,reset-function = "AF0 / SYS_TRACED0";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF0: SYS_TRACED0; AF6: SAI1_SD_B; AF12: FMC_A19";
+				brd,notes = "ES8388 的 SDOUT 信号";
+			};
+			pinctrl_pe4: pinctrl_pe4 {
+				pinmux = <5 4 2 0>;
+				brd,mode = "alternate";
+				brd,pull = "none";
+				brd,independent = "N";
+				brd,reset-function = "AF0 / SYS_TRACED1";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF0: SYS_TRACED1; AF5: SPI4_NSS; AF6: SAI1_FS_A; AF12: FMC_A20; AF13: DCMI_D4; AF14: LTDC_B0";
+				brd,notes = "ES8388 的 LRCK 信号";
+			};
+			pinctrl_pe5: pinctrl_pe5 {
+				pinmux = <5 5 2 0>;
+				brd,mode = "alternate";
+				brd,pull = "none";
+				brd,independent = "N";
+				brd,reset-function = "AF0 / SYS_TRACED2";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF0: SYS_TRACED2; AF3: TIM9_CH1; AF5: SPI4_MISO; AF6: SAI1_SCK_A; AF12: FMC_A21; AF13: DCMI_D6; AF14: LTDC_G0";
+				brd,notes = "ES8388 的 SCLK 信号";
+			};
+			pinctrl_pe6: pinctrl_pe6 {
+				pinmux = <5 6 2 0>;
+				brd,mode = "alternate";
+				brd,pull = "none";
+				brd,independent = "N";
+				brd,reset-function = "AF0 / SYS_TRACED3";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF0: SYS_TRACED3; AF3: TIM9_CH2; AF5: SPI4_MOSI; AF6: SAI1_SD_A; AF12: FMC_A22; AF13: DCMI_D7; AF14: LTDC_G1";
+				brd,notes = "ES8388 的 SDIN 信号";
+			};
+			pinctrl_pe7: pinctrl_pe7 {
+				pinmux = <5 7 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF8: UART7_RX; AF12: FMC_D4";
+				brd,notes = "FMC 总线数据线 D4(LCD/SDRAM/NAND 共用)";
+			};
+			pinctrl_pe8: pinctrl_pe8 {
+				pinmux = <5 8 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF1: TIM1_CH1N; AF8: UART7_TX; AF12: FMC_D5";
+				brd,notes = "FMC 总线数据线 D5(LCD/SDRAM/NAND 共用)";
+			};
+			pinctrl_pe9: pinctrl_pe9 {
+				pinmux = <5 9 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF1: TIM1_CH1; AF12: FMC_D6";
+				brd,notes = "FMC 总线数据线 D6(LCD/SDRAM/NAND 共用)";
+			};
+			pinctrl_pe10: pinctrl_pe10 {
+				pinmux = <5 10 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF1: TIM1_CH2N; AF12: FMC_D7";
+				brd,notes = "FMC 总线数据线 D7(LCD/SDRAM/NAND 共用)";
+			};
+			pinctrl_pe11: pinctrl_pe11 {
+				pinmux = <5 11 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF1: TIM1_CH2; AF5: SPI4_NSS; AF12: FMC_D8; AF14: LTDC_G3";
+				brd,notes = "FMC 总线数据线 D8(LCD/SDRAM 共用)";
+			};
+			pinctrl_pe12: pinctrl_pe12 {
+				pinmux = <5 12 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF1: TIM1_CH3N; AF5: SPI4_SCK; AF12: FMC_D9; AF14: LTDC_B4";
+				brd,notes = "FMC 总线数据线 D9(LCD/SDRAM 共用)";
+			};
+			pinctrl_pe13: pinctrl_pe13 {
+				pinmux = <5 13 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF1: TIM1_CH3; AF5: SPI4_MISO; AF12: FMC_D10; AF14: LTDC_DE";
+				brd,notes = "FMC 总线数据线 D10(LCD/SDRAM 共用)";
+			};
+			pinctrl_pe14: pinctrl_pe14 {
+				pinmux = <5 14 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF1: TIM1_CH4; AF5: SPI4_MOSI; AF12: FMC_D11; AF14: LTDC_CLK";
+				brd,notes = "FMC 总线数据线 D11(LCD/SDRAM 共用)";
+			};
+			pinctrl_pe15: pinctrl_pe15 {
+				pinmux = <5 15 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF1: TIM1_BKIN; AF12: FMC_D12; AF14: LTDC_R7";
+				brd,notes = "FMC 总线数据线 D12(LCD/SDRAM 共用)";
+			};
+		};
+
+		gpiof: gpio@40021400 {
+			compatible = "st,stm32-gpio";
+			reg = <0x40021400 0x400>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <16>;
+
+			pinctrl_pf0: pinctrl_pf0 {
+				pinmux = <6 0 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF4: I2C2_SDA; AF12: FMC_A0";
+				brd,notes = "FMC 总线地址线 A0(SDRAM 专用)";
+			};
+			pinctrl_pf1: pinctrl_pf1 {
+				pinmux = <6 1 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF4: I2C2_SCL; AF12: FMC_A1";
+				brd,notes = "FMC 总线地址线 A1(SDRAM 专用)";
+			};
+			pinctrl_pf2: pinctrl_pf2 {
+				pinmux = <6 2 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF4: I2C2_SMBA; AF12: FMC_A2";
+				brd,notes = "FMC 总线地址线 A2(SDRAM 专用)";
+			};
+			pinctrl_pf3: pinctrl_pf3 {
+				pinmux = <6 3 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ADC3_IN9, ANALOG";
+				brd,optional-function-modes = "AF12: FMC_A3";
+				brd,notes = "FMC 总线地址线 A3(SDRAM 专用)";
+			};
+			pinctrl_pf4: pinctrl_pf4 {
+				pinmux = <6 4 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ADC3_IN14, ANALOG";
+				brd,optional-function-modes = "AF12: FMC_A4";
+				brd,notes = "FMC 总线地址线 A4(SDRAM 专用)";
+			};
+			pinctrl_pf5: pinctrl_pf5 {
+				pinmux = <6 5 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ADC3_IN15, ANALOG";
+				brd,optional-function-modes = "AF12: FMC_A5";
+				brd,notes = "FMC 总线地址线 A5(SDRAM 专用)";
+			};
+			pinctrl_pf6: pinctrl_pf6 {
+				pinmux = <6 6 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ADC3_IN4, ANALOG";
+				brd,optional-function-modes = "AF3: TIM10_CH1; AF5: SPI5_NSS; AF6: SAI1_SD_B; AF8: UART7_RX";
+				brd,notes = "W25Q256 的片选信号";
+			};
+			pinctrl_pf7: pinctrl_pf7 {
+				pinmux = <6 7 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ADC3_IN5, ANALOG";
+				brd,optional-function-modes = "AF3: TIM11_CH1; AF5: SPI5_SCK; AF6: SAI1_MCLK_B; AF8: UART7_TX";
+				brd,notes = "W25Q256 的 SCK 信号";
+			};
+			pinctrl_pf8: pinctrl_pf8 {
+				pinmux = <6 8 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ADC3_IN6, ANALOG";
+				brd,optional-function-modes = "AF5: SPI5_MISO; AF6: SAI1_SCK_B; AF9: TIM13_CH1";
+				brd,notes = "W25Q256 的 MISO 信号";
+			};
+			pinctrl_pf9: pinctrl_pf9 {
+				pinmux = <6 9 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ADC3_IN7, ANALOG";
+				brd,optional-function-modes = "AF5: SPI5_MOSI; AF6: SAI1_FS_B; AF9: TIM14_CH1";
+				brd,notes = "W25Q256 的 MOSI 信号";
+			};
+			pinctrl_pf10: pinctrl_pf10 {
+				pinmux = <6 10 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ADC3_IN8, ANALOG";
+				brd,optional-function-modes = "AF13: DCMI_D11; AF14: LTDC_DE";
+				brd,notes = "RGBLCD 接口的 DE 信号";
+			};
+			pinctrl_pf11: pinctrl_pf11 {
+				pinmux = <6 11 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF5: SPI5_MOSI; AF12: FMC_SDNRAS; AF13: DCMI_D12";
+				brd,notes = "接 SDRAM 的 RAS 脚";
+			};
+			pinctrl_pf12: pinctrl_pf12 {
+				pinmux = <6 12 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF12: FMC_A6";
+				brd,notes = "FMC 总线地址线 A6(SDRAM 专用)";
+			};
+			pinctrl_pf13: pinctrl_pf13 {
+				pinmux = <6 13 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF12: FMC_A7";
+				brd,notes = "FMC 总线地址线 A7(SDRAM 专用)";
+			};
+			pinctrl_pf14: pinctrl_pf14 {
+				pinmux = <6 14 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF12: FMC_A8";
+				brd,notes = "FMC 总线地址线 A8(SDRAM 专用)";
+			};
+			pinctrl_pf15: pinctrl_pf15 {
+				pinmux = <6 15 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF12: FMC_A9";
+				brd,notes = "FMC 总线地址线 A9(SDRAM 专用)";
+			};
+		};
+
+		gpiog: gpio@40021800 {
+			compatible = "st,stm32-gpio";
+			reg = <0x40021800 0x400>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <16>;
+
+			pinctrl_pg0: pinctrl_pg0 {
+				pinmux = <7 0 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF12: FMC_A10";
+				brd,notes = "FMC 总线地址线 A10(SDRAM 专用)";
+			};
+			pinctrl_pg1: pinctrl_pg1 {
+				pinmux = <7 1 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF12: FMC_A11";
+				brd,notes = "FMC 总线地址线 A11(SDRAM 专用)";
+			};
+			pinctrl_pg2: pinctrl_pg2 {
+				pinmux = <7 2 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF12: FMC_A12";
+				brd,notes = "FMC 总线地址线 A12(SDRAM 专用)";
+			};
+			pinctrl_pg3: pinctrl_pg3 {
+				pinmux = <7 3 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF12: FMC_A13";
+				brd,notes = "TFTLCD/RGBLCD 接口触摸屏 MISO 信号";
+			};
+			pinctrl_pg4: pinctrl_pg4 {
+				pinmux = <7 4 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF12: FMC_A14";
+				brd,notes = "接 SDRAM 的 BA0 脚";
+			};
+			pinctrl_pg5: pinctrl_pg5 {
+				pinmux = <7 5 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF12: FMC_A15";
+				brd,notes = "接 SDRAM 的 BA1 脚";
+			};
+			pinctrl_pg6: pinctrl_pg6 {
+				pinmux = <7 6 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF13: DCMI_D12; AF14: LTDC_R7";
+				brd,notes = "RGBLCD 接口的 R7 数据线";
+			};
+			pinctrl_pg7: pinctrl_pg7 {
+				pinmux = <7 7 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF13: DCMI_D13; AF14: LTDC_CLK";
+				brd,notes = "RGBLCD 接口的 CLK 信号";
+			};
+			pinctrl_pg8: pinctrl_pg8 {
+				pinmux = <7 8 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF5: SPI6_NSS; AF8: USART6_RTS; AF11: ETH_PPS_OUT; AF12: FMC_SDCLK";
+				brd,notes = "接 SDRAM 的 CLK 脚";
+			};
+			pinctrl_pg9: pinctrl_pg9 {
+				pinmux = <7 9 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF8: USART6_RX; AF12: FMC_NE2; AF13: DCMI_VSYNC";
+				brd,notes = "FMC 总线的片选信号 3，为 NAND 片选信号";
+			};
+			pinctrl_pg10: pinctrl_pg10 {
+				pinmux = <7 10 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF9: LTDC_G3; AF12: FMC_NE3; AF13: DCMI_D2; AF14: LTDC_B2";
+				brd,notes = "WIRELESS 接口 CS 信号";
+			};
+			pinctrl_pg11: pinctrl_pg11 {
+				pinmux = <7 11 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF11: ETH_TX_EN; AF13: DCMI_D3; AF14: LTDC_B3";
+				brd,notes = "RGBLCD 接口的 B3 数据线";
+			};
+			pinctrl_pg12: pinctrl_pg12 {
+				pinmux = <7 12 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF5: SPI6_MISO; AF8: USART6_RTS; AF9: LTDC_B4; AF12: FMC_NE4; AF14: LTDC_B1";
+				brd,notes = "1、WIRELESS 接口 CE 信号；2、SPDIF 输入引脚（仅 F7/H7 芯片支持）";
+			};
+			pinctrl_pg13: pinctrl_pg13 {
+				pinmux = <7 13 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF5: SPI6_SCK; AF8: USART6_CTS; AF11: ETH_TXD0; AF12: FMC_A24";
+				brd,notes = "接 YT8512C 的 TXD0 脚";
+			};
+			pinctrl_pg14: pinctrl_pg14 {
+				pinmux = <7 14 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF5: SPI6_MOSI; AF8: USART6_TX; AF11: ETH_TXD1; AF12: FMC_A25";
+				brd,notes = "接 YT8512C 的 TXD1 脚";
+			};
+			pinctrl_pg15: pinctrl_pg15 {
+				pinmux = <7 15 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF8: USART6_CTS; AF12: FMC_SDNCAS; AF13: DCMI_D13";
+				brd,notes = "接 SDRAM 的 CAS 脚";
+			};
+		};
+
+		gpioh: gpio@40021c00 {
+			compatible = "st,stm32-gpio";
+			reg = <0x40021c00 0x400>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <16>;
+
+			pinctrl_ph0: pinctrl_ph0 {
+				pinmux = <8 0 3 15>;
+				brd,mode = "analog";
+				brd,pull = "none";
+				brd,independent = "N";
+				brd,reset-function = "RCC_OSC_IN";
+				brd,analog = "ANALOG";
+				brd,notes = "接 25M 外部晶振";
+			};
+			pinctrl_ph1: pinctrl_ph1 {
+				pinmux = <8 1 3 15>;
+				brd,mode = "analog";
+				brd,pull = "none";
+				brd,independent = "N";
+				brd,reset-function = "RCC_OSC_OUT";
+				brd,analog = "ANALOG";
+				brd,notes = "接 25M 外部晶振";
+			};
+			pinctrl_ph2: pinctrl_ph2 {
+				pinmux = <8 2 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF11: ETH_CRS; AF12: FMC_SDCKE0; AF14: LTDC_R0";
+				brd,notes = "接按键 KEY1";
+			};
+			pinctrl_ph3: pinctrl_ph3 {
+				pinmux = <8 3 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF11: ETH_COL; AF12: FMC_SDNE0; AF14: LTDC_R1";
+				brd,notes = "接按键 KEY0";
+			};
+			pinctrl_ph4: pinctrl_ph4 {
+				pinmux = <8 4 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF4: I2C2_SCL; AF10: USB_OTG_HS_ULPI_NXT";
+				brd,notes = "接 24C02、PCF8574、ST480MC、SH3001、AP3216C 和 ES8388 的 SCL";
+			};
+			pinctrl_ph5: pinctrl_ph5 {
+				pinmux = <8 5 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF4: I2C2_SDA; AF5: SPI5_NSS; AF12: FMC_SDNWE";
+				brd,notes = "接 24C02、PCF8574、ST480MC、SH3001、AP3216C 和 ES8388 的 SDA";
+			};
+			pinctrl_ph6: pinctrl_ph6 {
+				pinmux = <8 6 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF4: I2C2_SMBA; AF5: SPI5_SCK; AF9: TIM12_CH1; AF11: ETH_RXD2; AF12: FMC_SDNE1; AF13: DCMI_D8";
+				brd,notes = "TFTLCD/RGBLCD 接口触摸屏 SCK 信号";
+			};
+			pinctrl_ph7: pinctrl_ph7 {
+				pinmux = <8 7 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF4: I2C3_SCL; AF5: SPI5_MISO; AF11: ETH_RXD3; AF12: FMC_SDCKE1; AF13: DCMI_D9";
+				brd,notes = "TFTLCD/RGBLCD 接口触摸屏 PEN 信号";
+			};
+			pinctrl_ph8: pinctrl_ph8 {
+				pinmux = <8 8 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF4: I2C3_SDA; AF12: FMC_D16; AF13: DCMI_HSYNC; AF14: LTDC_R2";
+				brd,notes = "OLED/CAMERA 接口的 HREF 脚";
+			};
+			pinctrl_ph9: pinctrl_ph9 {
+				pinmux = <8 9 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF4: I2C3_SMBA; AF9: TIM12_CH2; AF12: FMC_D17; AF13: DCMI_D0; AF14: LTDC_R3";
+				brd,notes = "RGBLCD 接口的 R3 数据线";
+			};
+			pinctrl_ph10: pinctrl_ph10 {
+				pinmux = <8 10 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF2: TIM5_CH1; AF12: FMC_D18; AF13: DCMI_D1; AF14: LTDC_R4";
+				brd,notes = "RGBLCD 接口的 R4 数据线";
+			};
+			pinctrl_ph11: pinctrl_ph11 {
+				pinmux = <8 11 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF2: TIM5_CH2; AF12: FMC_D19; AF13: DCMI_D2; AF14: LTDC_R5";
+				brd,notes = "RGBLCD 接口的 R5 数据线";
+			};
+			pinctrl_ph12: pinctrl_ph12 {
+				pinmux = <8 12 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF2: TIM5_CH3; AF12: FMC_D20; AF13: DCMI_D3; AF14: LTDC_R6";
+				brd,notes = "RGBLCD 接口的 R6 数据线";
+			};
+			pinctrl_ph13: pinctrl_ph13 {
+				pinmux = <8 13 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF3: TIM8_CH1N; AF9: CAN1_TX; AF12: FMC_D21; AF14: LTDC_G2";
+				brd,notes = "RGBLCD 接口的 G2 数据线";
+			};
+			pinctrl_ph14: pinctrl_ph14 {
+				pinmux = <8 14 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF3: TIM8_CH2N; AF12: FMC_D22; AF13: DCMI_D4; AF14: LTDC_G3";
+				brd,notes = "RGBLCD 接口的 G3 数据线";
+			};
+			pinctrl_ph15: pinctrl_ph15 {
+				pinmux = <8 15 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF3: TIM8_CH3N; AF12: FMC_D23; AF13: DCMI_D11; AF14: LTDC_G4";
+				brd,notes = "RGBLCD 接口的 G4 数据线";
+			};
+		};
+
+		gpioi: gpio@40022000 {
+			compatible = "st,stm32-gpio";
+			reg = <0x40022000 0x400>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			ngpios = <16>;
+
+			pinctrl_pi0: pinctrl_pi0 {
+				pinmux = <9 0 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF2: TIM5_CH4; AF5: I2S2_WS, SPI2_NSS; AF12: FMC_D24; AF13: DCMI_D13; AF14: LTDC_G5";
+				brd,notes = "RGBLCD 接口的 G5 数据线";
+			};
+			pinctrl_pi1: pinctrl_pi1 {
+				pinmux = <9 1 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF5: I2S2_CK, SPI2_SCK; AF12: FMC_D25; AF13: DCMI_D8; AF14: LTDC_G6";
+				brd,notes = "RGBLCD 接口的 G6 数据线";
+			};
+			pinctrl_pi2: pinctrl_pi2 {
+				pinmux = <9 2 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF3: TIM8_CH4; AF5: SPI2_MISO; AF12: FMC_D26; AF13: DCMI_D9; AF14: LTDC_G7";
+				brd,notes = "RGBLCD 接口的 G7 数据线";
+			};
+			pinctrl_pi3: pinctrl_pi3 {
+				pinmux = <9 3 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF5: I2S2_SD, SPI2_MOSI; AF12: FMC_D27; AF13: DCMI_D10";
+				brd,notes = "TFTLCD/RGBLCD 接口触摸屏 MOSI 信号";
+			};
+			pinctrl_pi4: pinctrl_pi4 {
+				pinmux = <9 4 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF3: TIM8_BKIN; AF12: FMC_NBL2; AF13: DCMI_D5; AF14: LTDC_B4";
+				brd,notes = "RGBLCD 接口的 B4 数据线";
+			};
+			pinctrl_pi5: pinctrl_pi5 {
+				pinmux = <9 5 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF3: TIM8_CH1; AF12: FMC_NBL3; AF13: DCMI_VSYNC; AF14: LTDC_B5";
+				brd,notes = "RGBLCD 接口的 B5 数据线";
+			};
+			pinctrl_pi6: pinctrl_pi6 {
+				pinmux = <9 6 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF3: TIM8_CH2; AF12: FMC_D28; AF13: DCMI_D6; AF14: LTDC_B6";
+				brd,notes = "RGBLCD 接口的 B6 数据线";
+			};
+			pinctrl_pi7: pinctrl_pi7 {
+				pinmux = <9 7 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF3: TIM8_CH3; AF12: FMC_D29; AF13: DCMI_D7; AF14: LTDC_B7";
+				brd,notes = "RGBLCD 接口的 B7 数据线";
+			};
+			pinctrl_pi8: pinctrl_pi8 {
+				pinmux = <9 8 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,notes = "TFTLCD/RGBLCD 接口触摸屏 CS 信号";
+			};
+			pinctrl_pi9: pinctrl_pi9 {
+				pinmux = <9 9 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF9: CAN1_RX; AF12: FMC_D30; AF14: LTDC_VSYNC";
+				brd,notes = "RGBLCD 接口的 VSYNC 信号线";
+			};
+			pinctrl_pi10: pinctrl_pi10 {
+				pinmux = <9 10 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF11: ETH_RX_ER; AF12: FMC_D31; AF14: LTDC_HSYNC";
+				brd,notes = "RGBLCD 接口的 HSYNC 信号线";
+			};
+			pinctrl_pi11: pinctrl_pi11 {
+				pinmux = <9 11 0 0>;
+				brd,mode = "input";
+				brd,pull = "none";
+				brd,independent = "Y";
+				brd,reset-function = "GPIO";
+				brd,analog = "ANALOG";
+				brd,optional-function-modes = "AF10: USB_OTG_HS_ULPI_DIR";
+				brd,notes = "1、WIRELESS 接口 IRQ 信号；2、ATK-MODULE 接口的 KEY 引脚";
+			};
+		};
+
+	};
+};

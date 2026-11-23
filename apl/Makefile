@@ -17,12 +17,20 @@ INCLUDE_DIRS += $(PROJECT_ROOT)/hal/chip/startup/inc
 INCLUDE_DIRS += $(PROJECT_ROOT)/hal/periph/inc
 INCLUDE_DIRS += $(PROJECT_ROOT)/fml/inc
 INCLUDE_DIRS += $(PROJECT_ROOT)/bsl/inc
+INCLUDE_DIRS += $(PROJECT_ROOT)/apl/inc
 INCLUDES := $(addprefix -I,$(INCLUDE_DIRS))
 
 FLAG_DEPS := $(wildcard $(PROJECT_ROOT)/toolchain.make) $(wildcard $(PROJECT_ROOT)/out/$(BUILD_VARIANT)/.config)
 
 LOCAL_OBJS :=
 ARCHIVE_OBJS :=
+ifeq ($(CONFIG_APL),y)
+ifeq ($(CONFIG_APL_SRC),y)
+ifeq ($(CONFIG_APL_SRC_APP_SAMPLE),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/apl/src/app_sample.o
+endif
+endif
+endif
 ifeq ($(CONFIG_APL),y)
 ifeq ($(CONFIG_APL_SRC),y)
 ifeq ($(CONFIG_APL_SRC_MAIN),y)

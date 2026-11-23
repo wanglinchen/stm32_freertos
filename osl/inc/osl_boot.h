@@ -1,6 +1,7 @@
 #ifndef OSL_BOOT_H
 #define OSL_BOOT_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 /*
@@ -79,6 +80,19 @@ void osl_watchdog_start(void);
 void osl_watchdog_feed(void);
 
 /*
+ * 把毫秒累加器对齐到"启动以来已经走过的毫秒数"，必须在 vTaskStartScheduler()
+ * **之前**调一次（osl_scheduler_start() 里）。
+ *
+ * 2026-11-22 上板现场：banner 首段 18 字节只有 11 字节到主机，HAL_UART_Transmit
+ * 返回 HAL_TIMEOUT（板上 s_tx_fail=1、s_tx_remain=7）。原因是 HAL_GetTick() 的分支
+ * 判据是"调度器是否 RUNNING"，而对齐动作在**首拍**才发生：调度器一起来、首拍还没
+ * 来，HAL_GetTick() 返回累加器 0；这一拍之后累加器被抬到"启动以来的毫秒数"
+ * （实测 10686），任何跨过该点的超时起点都变成 0，差值瞬间远超超时值。
+ * 提前对齐后，两个分支在交接处给出同一个值，跳变消失。
+ */
+void osl_tick_ms_align(void);
+
+/*
  * panic 前调用：配到最长超时（PR=/256 + RLR=4095，约 32.7 s）并**启动计数器**，
  * 让三灯播报（168 MHz 下约 1.2–1.5 s）能完整播完。此后没人喂狗，32.7 s 时 IWDG
  * 复位 —— 它争取的是「播完并留下可跨复位对比的第二代现场」，不是「永久停住」；
@@ -99,5 +113,34 @@ void osl_watchdog_relax(void);
 
 /* 调度器已启动时 HAL_GetTick 的运行期毫秒累加器；定义在 osl/src/osl_boot.c */
 extern volatile uint32_t g_tick_ms;
+
+/*
+ * libc / newlib 钩子（实现全部在 osl/src/osl_boot.c）。
+ *
+ * 为什么必须在这里声明：这些是 libc 在链接期取用的符号，没有它们自己的公共头
+ * （_sbrk / __malloc_lock / _write 在 newlib 里是弱桩或内部分号），于是"定义有、
+ * 声明无"成了常态 —— 签名漂移（例如 _sbrk 的入参从 ptrdiff_t 改成 int）编译期
+ * 一声不响，只有链接期/运行期才可能出问题。开启 -Wmissing-prototypes 后它们正是
+ * 被报出来的那批；在这里声明既拿回类型检查，也让"谁实现了哪个钩子"一处可见。
+ *
+ * 约束：这些符号只允许 osl_boot.c 定义一次；上层不得重复定义或改签名。
+ * `__malloc_lock` / `__malloc_unlock` 用 newlib 的 `struct _reent` 前向声明，
+ * 避免为了两个指针类型把整份 newlib 头拉进来。
+ */
+struct _reent;
+
+void *_sbrk(ptrdiff_t incr);
+void __malloc_lock(struct _reent *ptr);
+void __malloc_unlock(struct _reent *ptr);
+int _write(int file, char *ptr, int len);
+
+/*
+ * 调试出口：weak 定义在 osl_boot.c（默认不写外设），bsl 的
+ * board_debug_uart.c 用强符号覆盖成"写 USART1"。
+ *
+ * 签名以本行为准 —— bsl 不能 include osl 头（层边 bsl→osl 不在允许集合里），
+ * 所以 board_debug_uart.c 里保留了同一签名的手写 extern，改这里必须同步改那里。
+ */
+int osl_debug_uart_write(const char *buf, int len);
 
 #endif

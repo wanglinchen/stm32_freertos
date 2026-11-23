@@ -1,5 +1,6 @@
 #include "fml_panic.h"
 
+#include "bsl_log.h"
 #include "osl_panic.h"
 
 /*
@@ -16,5 +17,9 @@
  */
 void fml_panic(unsigned code)
 {
+    /* 先把环形里保留的日志倒出来：report 之后是关中断自旋（若要等 IWDG 复位
+     * 才恢复），没有第二次机会。这一步必须在最前 —— 导致故障的那几行比故障码
+     * 本身更能定位问题。 */
+    bsl_log_dump_ring();
     osl_panic_report((osl_panic_code_t)code);
 }

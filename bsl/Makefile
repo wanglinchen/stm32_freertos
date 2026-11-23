@@ -28,6 +28,20 @@ endif
 endif
 ifeq ($(CONFIG_BSL),y)
 ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BOARD_DEBUG_UART),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/board_debug_uart.o
+endif
+endif
+endif
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BOARD_DTB),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/board_dtb.o
+endif
+endif
+endif
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
 ifeq ($(CONFIG_BSL_SRC_BOARD_KEY),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/board_key.o
 endif
@@ -42,8 +56,64 @@ endif
 endif
 ifeq ($(CONFIG_BSL),y)
 ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BOARD_RT),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/board_rt.o
+endif
+endif
+endif
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
 ifeq ($(CONFIG_BSL_SRC_BOARD_SYSTEM),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/board_system.o
+endif
+endif
+endif
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BSL_DEVICE),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/bsl_device.o
+endif
+endif
+endif
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BSL_FDT),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/bsl_fdt.o
+endif
+endif
+endif
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BSL_GPIO),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/bsl_gpio.o
+endif
+endif
+endif
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BSL_I2C_GPIO),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/bsl_i2c_gpio.o
+endif
+endif
+endif
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BSL_INIT),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/bsl_init.o
+endif
+endif
+endif
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BSL_LOG),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/bsl_log.o
+endif
+endif
+endif
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BSL_PCF8574),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/bsl_pcf8574.o
 endif
 endif
 endif

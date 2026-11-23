@@ -226,9 +226,9 @@ SECTIONS
    * 把 libc.a 换成真库名 libc_nano.a 之后链接照样成功、text 一字未减（实测 10520 →
    * 10520，data / bss 同样不变）。那三行什么也没挡住，只留下"已挡住"的假印象。
    *
-   * 这类意图只能放到产物侧：build/verify.py 的 collect_lib_member_errors()
-   * 从 map 取每家库实际被提取的成员，与 LIB_MEMBER_WHITELIST 比对 —— 出现白名单外
-   * 的成员（printf 家族、浮点除法的软件实现、动态分配）会直接报错，而不是悄悄涨体积。
+   * 这类意图只能放到产物侧人工核对：从 map 取每家库实际被提取的成员逐一过一遍
+   * （原判据 collect_lib_member_errors() 已随 2026-11-22 门禁删除）—— 出现 printf
+   * 家族、浮点除法的软件实现、动态分配这类成员，就是体积在悄悄涨。
    *
    * 下面两条对段名有效（ld 支持段名通配）：CCMRAM 的拷贝/清零循环从未实现，所以任何
    * 落进 .ccmram 的变量都必须在这里被丢掉，否则链接报
@@ -241,4 +241,23 @@ SECTIONS
   }
 
   .ARM.attributes 0 : { *(.ARM.attributes) }
+
+  /* 整板 DTB（dtc 产物，由 bsl/src/board_dtb.s 的 .incbin 引入）。
+   *
+   * 运行期由 bsl_fdt 遍历解析：设备的唯一描述是 DTS，不再由构建期 Python 把
+   * 事实摊成 C 常量。必须留在 ROM 且不可被 gc —— 靠 KEEP + used 双重保证，
+   * 否则没人引用 bsl_dtb_start 时链接器会把整个段丢掉，运行期读到空指针。
+   *
+   * 谁改这里都要同步：`bsl/src/board_dtb.s` 的 .incbin 与 `bsl_fdt_init` 的校验
+   * 前提都建立在这两个符号上。原按段跨度对拍 .dtb 的判据已随 2026-11-22 门禁
+   * 删除，改完段布局要自己用 arm-none-eabi-nm 核对两符号仍落在 .dtb 段内。
+   */
+  .dtb (READONLY) :
+  {
+    . = ALIGN(4);
+    _sdtb = .;
+    KEEP(*(.dtb))
+    . = ALIGN(4);
+    _edtb = .;
+  } >ROM
 }

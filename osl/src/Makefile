@@ -23,6 +23,7 @@ LOCAL_OBJS :=
 -include $(BUILD_DIR)/osl/src/osl_boot.d
 -include $(BUILD_DIR)/osl/src/osl_health.d
 -include $(BUILD_DIR)/osl/src/osl_panic.d
+-include $(BUILD_DIR)/osl/src/osl_thread.d
 
 ifeq ($(CONFIG_OSL),y)
 ifeq ($(CONFIG_OSL_SRC),y)
@@ -54,6 +55,17 @@ $(BUILD_DIR)/osl/src/osl_panic.o: $(PROJECT_ROOT)/osl/src/osl_panic.c $(FLAG_DEP
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/osl/src/osl_panic.d -c $< -o $@
 	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/osl/src/osl_panic.d
+endif
+endif
+
+ifeq ($(CONFIG_OSL),y)
+ifeq ($(CONFIG_OSL_SRC),y)
+LOCAL_OBJS += $(BUILD_DIR)/osl/src/osl_thread.o
+$(BUILD_DIR)/osl/src/osl_thread.o: $(PROJECT_ROOT)/osl/src/osl_thread.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/osl/src/osl_thread.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/osl/src/osl_thread.d
 endif
 endif
 

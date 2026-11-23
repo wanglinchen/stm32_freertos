@@ -5,6 +5,14 @@ config BSL_SRC_BOARD_BEEP
 	bool "board_beep.c"
 	default y
 
+config BSL_SRC_BOARD_DEBUG_UART
+	bool "board_debug_uart.c"
+	default y
+
+config BSL_SRC_BOARD_DTB
+	bool "board_dtb.s"
+	default y
+
 config BSL_SRC_BOARD_KEY
 	bool "board_key.c"
 	default y
@@ -13,8 +21,40 @@ config BSL_SRC_BOARD_LED
 	bool "board_led.c"
 	default y
 
+config BSL_SRC_BOARD_RT
+	bool "board_rt.c"
+	default y
+
 config BSL_SRC_BOARD_SYSTEM
 	bool "board_system.c"
+	default y
+
+config BSL_SRC_BSL_DEVICE
+	bool "bsl_device.c"
+	default y
+
+config BSL_SRC_BSL_FDT
+	bool "bsl_fdt.c"
+	default y
+
+config BSL_SRC_BSL_GPIO
+	bool "bsl_gpio.c"
+	default y
+
+config BSL_SRC_BSL_I2C_GPIO
+	bool "bsl_i2c_gpio.c"
+	default y
+
+config BSL_SRC_BSL_INIT
+	bool "bsl_init.c"
+	default y
+
+config BSL_SRC_BSL_LOG
+	bool "bsl_log.c"
+	default y
+
+config BSL_SRC_BSL_PCF8574
+	bool "bsl_pcf8574.c"
 	default y
 
 endmenu

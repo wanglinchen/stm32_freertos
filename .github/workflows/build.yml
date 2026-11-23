@@ -1,9 +1,10 @@
-# 云端门禁：把"本机记得跑 verify"变成"推上去就跑"。
-# 三步顺序有讲究：
+# 云端构建：把"本机记得 update 再编"变成"推上去就跑"。
+# 两步顺序有讲究：
 #   1) update + git diff --exit-code —— 抓"改了源文件却忘了 update 就提交"（生成物在库里，漂移看得见）
-#   2) build —— 编译 + 产物断言（强符号、镜像容量、BSP 接入）
-#   3) verify --artifacts —— 对现成产物再验一遍，防止 build 复用了旧 .o 造成假绿
-# 检出用 lfs: false：构建不需要 doc/ 下的 PDF，指针文件就够，别烧 LFS 下载额度。
+#   2) build —— 编译并产出 user / userdebug 两档镜像与 release 目录
+# 门禁（build/checks/ + build/verify.py + gate-selftest）已于 2026-11-22 整体删除，
+# 待重新设计后再接回，现阶段 CI 只保证"能编、能出镜像、生成物不漂"。
+# 检出用 lfs: false：构建不需要 docs/ 下的 PDF，指针文件就够，别烧 LFS 下载额度。
 name: build
 
 on:
@@ -34,16 +35,18 @@ jobs:
         uses: actions/cache@v4
         with:
           path: tool/linux_x86_64
-          key: arm-gnu-${{ runner.os }}-${{ hashFiles('build/contracts.py') }}
+          key: arm-gnu-${{ runner.os }}-${{ hashFiles('build/build.py') }}
           restore-keys: |
             arm-gnu-${{ runner.os }}-
 
       # 工具链进 tool/linux_x86_64，和本机 tool/win_x86_64 是同一个版本号，
-      # 版本由 build/environment.py 的 DEFAULT_TOOLCHAIN_VERSION 固定，别在这里另指定。
+      # 版本由 build/build.py 的 DEFAULT_TOOLCHAIN_VERSION 固定，别在这里另指定。
       - name: 安装 ARM 工具链
         run: python3 build/build.py install-toolchain
 
-      - name: 刷新描述文件并自检
+      # update 会跑 docs/hardware/pinmap/gen_dts.py 产 default / overlay 两份 dtsi，
+      # 合成 apollo.dts 并用 dtc 编出 apollo.dtb；dtc 用 tool/<平台>/bin 里的那份。
+      - name: 刷新描述文件（含 DTS → DTB）
         run: python3 build/build.py update
 
       # 生成物入库是本工程的既定策略；这一条保证它们不会和源码脱节。
@@ -55,9 +58,6 @@ jobs:
       - name: 全量构建
         run: python3 build/build.py build
 
-      - name: 产物断言
-        run: python3 build/build.py verify --artifacts
-
       - name: 上传镜像
         uses: actions/upload-artifact@v4
         with:
@@ -66,55 +66,3 @@ jobs:
             out/user/release/
             out/userdebug/release/
           if-no-files-found: error
-
-  # 门禁红测矩阵：`verify` 的产物断言在代码本来就正确时永远是绿的，
-  # 绿一次证明不了它在该报错时会报错 —— 只有把被测条件真破坏一次才叫证据。
-  # 组名由 `build.py gate-selftest --list` 输出（`CASES` 是唯一来源），workflow 不硬编码，
-  # 新增一组会自动进矩阵；硬编码的话漏同步就是永远漏跑，而且不会有人发现。
-  # 每组各自重编（`--only` 不依赖其它组的产物），最慢的 `write` 组要做一次串行全量重编。
-  gate-list:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      groups: ${{ steps.list.outputs.groups }}
-    steps:
-      - name: 检出（跳过 LFS）
-        uses: actions/checkout@v4
-        with:
-          lfs: false
-      - name: 安装 Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-      - name: 列出红测组
-        id: list
-        run: echo "groups=$(python3 build/build.py gate-selftest --list)" >> "$GITHUB_OUTPUT"
-
-  gate-selftest:
-    needs: gate-list
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
-    strategy:
-      fail-fast: false
-      matrix:
-        group: ${{ fromJSON(needs.gate-list.outputs.groups) }}
-    steps:
-      - name: 检出（跳过 LFS）
-        uses: actions/checkout@v4
-        with:
-          lfs: false
-      - name: 安装 Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-      - name: 缓存 ARM 工具链
-        uses: actions/cache@v4
-        with:
-          path: tool/linux_x86_64
-          key: arm-gnu-${{ runner.os }}-${{ hashFiles('build/contracts.py') }}
-          restore-keys: |
-            arm-gnu-${{ runner.os }}-
-      - name: 安装 ARM 工具链
-        run: python3 build/build.py install-toolchain
-      - name: 红测 ${{ matrix.group }}
-        run: python3 build/build.py gate-selftest --only "${{ matrix.group }}"

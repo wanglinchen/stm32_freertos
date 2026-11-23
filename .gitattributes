@@ -8,13 +8,13 @@
 # 大体积参考资料走 Git LFS：仓库里只存 131 B 指针，checkout 时还原真实文件。
 # 新机器必须先 git lfs install，否则拿到指针而 git status 仍显示干净。
 # 显式列出后缀、不整目录通配：目录里的 .md 索引必须留在 git 里。
-doc/reference/*.pdf     filter=lfs diff=lfs merge=lfs -text
-doc/reference/**/*.pdf  filter=lfs diff=lfs merge=lfs -text
-doc/reference/*.png     filter=lfs diff=lfs merge=lfs -text
-doc/reference/**/*.png  filter=lfs diff=lfs merge=lfs -text
-# doc/hardware 的原理图与数据手册连同历史版本一起迁入 LFS（43 个 PDF / 66.5 MB）。
-doc/hardware/*.pdf      filter=lfs diff=lfs merge=lfs -text
-doc/hardware/**/*.pdf   filter=lfs diff=lfs merge=lfs -text
+docs/reference/*.pdf     filter=lfs diff=lfs merge=lfs -text
+docs/reference/**/*.pdf  filter=lfs diff=lfs merge=lfs -text
+docs/reference/*.png     filter=lfs diff=lfs merge=lfs -text
+docs/reference/**/*.png  filter=lfs diff=lfs merge=lfs -text
+# docs/hardware 的原理图与数据手册连同历史版本一起迁入 LFS（43 个 PDF / 66.5 MB）。
+docs/hardware/*.pdf      filter=lfs diff=lfs merge=lfs -text
+docs/hardware/**/*.pdf   filter=lfs diff=lfs merge=lfs -text
 
 # 行尾归一：core.autocrlf=true 时 git checkout 会把工作区文件改写成 CRLF，
 # 而 build/gate-selftest.py 的破坏锚点全部按 LF 写——一次 checkout 就能让所有

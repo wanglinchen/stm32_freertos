@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import shutil
 import subprocess
 import sys
@@ -15,10 +14,13 @@ _ROOT = Path(__file__).resolve().parent.parent
 _BUILD = _ROOT / "build"
 if str(_BUILD) not in sys.path:
     sys.path.insert(0, str(_BUILD))
+_PROJECT = _ROOT / "project"
+if str(_PROJECT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT))
 
-from contracts import OUT_ARTIFACT_DIR, ROOT
+from generate import OUT_ARTIFACT_DIR, ROOT
 
-import environment as te
+import build as te
 
 TOOL = ROOT / "tool"
 ENV_OPENOCD_ROOT = "STM32_OPENOCD_ROOT"

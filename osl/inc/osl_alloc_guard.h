@@ -22,10 +22,10 @@
  *    因此对 apl / fml / bsl / osl / hal 全部生效，不依赖谁记得手写 #include。
  *    只加进 CFLAGS / CXXFLAGS，不加 ASFLAGS。
  *
- * 局限：这是词法级检查，管不到已经编进 libc_nano.a 内部的调用。产物级还有一道
- * 门禁：build/build.py verify 的 collect_artifact_errors() 会断言镜像里不许出现
- * _malloc_r / _calloc_r / _realloc_r，并核对 __heap_start__/__heap_end__ 的
- * 实际间距与链接脚本的 _Min_Heap_Size 一致。
+ * 局限：这是词法级检查，管不到已经编进 libc_nano.a 内部的调用。产物级原本还有一道
+ * 判据（collect_artifact_errors()，已随 2026-11-22 门禁删除）：断言镜像里不出现
+ * _malloc_r / _calloc_r / _realloc_r，并核对 __heap_start__/__heap_end__ 的实际
+ * 间距与链接脚本的 _Min_Heap_Size 一致。现在这两件事改完要自己用 nm 核对。
  */
 #ifndef OSL_ALLOC_GUARD_H
 #define OSL_ALLOC_GUARD_H

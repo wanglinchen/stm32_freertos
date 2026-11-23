@@ -1,0 +1,9 @@
+# 自动生成，勿手改。刷新：python3 build/build.py update
+# 档位差异层（user）：公共项见 stm32f429_defconfig_common
+# build 时按「common → 本档」顺序合并，同名符号本档优先。
+# 当前两档无差异项；需要分档时写进下面的 USER_CUSTOM 区。
+# >>> USER_CUSTOM
+# 此区域由用户维护，update 不会覆盖。
+# 屏蔽写法：CONFIG_XXX=n ，或单独一行：# CONFIG_XXX is not set
+# 出现在这里的宏不会在上方自动创建。
+# <<< USER_CUSTOM

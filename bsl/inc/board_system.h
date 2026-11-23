@@ -6,7 +6,8 @@
  * 存在的理由不是「少写两行」：apl 原本直接 include hal 的 stm32f4xx_hal.h 与
  * system_stm32f4xx.h，越过了 LAYER_DEPENDENCIES 里 apl 的允许边（fml/bsl/osl，
  * 不含 hal），而链接顺序（apl 排最前、hal 排最后）把这个越级掩盖住了 ——
- * collect_layer_dependency_errors() 现在按 LAYER_DEPENDENCIES 直接查源码依赖，
+ * LAYER_DEPENDENCIES 现在只用于生成 Makefile 的层可见性（原
+ * collect_layer_dependency_errors() 判据已随门禁删除，越级改由缺头文件在编译期暴露），
  * 所以这三步必须从 apl 收回到 bsl：apl → bsl 是允许的边，换芯片/换时钟树只动 bsl。
  *
  * 顺序契约（不可交换）：
@@ -31,6 +32,9 @@
  *   2 = SystemClock_Config() 失败：再读 `g_clock_fail_sub`（1=VOSRDY 2=HSE/PLL 3=切 SYSCLK）、
  *       `g_clock_fail_rcc_cr`（RCC->CR 快照）；HSE 未起振时芯片停在 HSI 16 MHz，
  *       这时才该查晶振与 PLLQ。
+ *   3 = DTB 的 `hse-frequency` 与编译期 `HSE_VALUE` 不一致：先比
+ *       `out/dts/apollo.dts` 的 `hse-frequency` 与 `stm32f4xx_hal_conf.h` 的
+ *       `HSE_VALUE`（谁改漏了改谁），此刻晶振本身还没被配置，先别去查硬件。
  *
  * main() 把这个值写进 `.noinit` 的 `g_boot_stage`（定义在 osl 的启动模块），
  * 复位后调试器读它即可知道上一次是哪一步失败 —— 三灯只能播「码 4」，码本身不含阶段。

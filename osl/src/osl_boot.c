@@ -48,8 +48,10 @@ void osl_boot_stage_note(uint32_t stage)
     g_boot_stage = stage;
 }
 
-/* 产物断言按指令形态核对「第二次进来会早退」这条分支，所以禁止内联：
- * 发布构建（-Os）会把这个只调两次的函数折成直线，早退分支随之消失。 */
+/* 禁止内联：发布构建（-Os）会把这个只调两次的函数折成直线，`captured` 守卫的
+ * 早退分支随之消失 —— 而"第二次进来读到全零 CSR"这个坑正是靠那条分支才不成立。
+ * 原产物断言（按指令形态核对早退分支）已随 2026-11-22 门禁删除，noinline 保留给
+ * 人工反汇编核对。 */
 __attribute__((noinline)) void osl_reset_cause_capture(void)
 {
     /*
@@ -121,7 +123,14 @@ __attribute__((noinline)) void osl_reset_cause_capture(void)
  * 等待带计数上界：LSI 万一没起振，SR 永远不会清，这里不能变成又一个死等。
  */
 #define IWDG_SR_SYNC_MASK (IWDG_SR_PVU | IWDG_SR_RVU)
-#define IWDG_SYNC_GUARD 0xFFFFUL
+/*
+ * 0xFFFF 轮不够：2026-11-22 上板实测（冷启动后立刻 osl_watchdog_start），
+ * g_iwdg_sync_fail 稳定每轮 +2 —— IWDG 自己的 LSI 起振 + 跨域同步比
+ * 这条忙等循环（约 2 ms）慢，前两次等待必然超时，第三次才等到。
+ * 抬到 0xFFFFF（约 37 ms，远小于复位默认 0.5 s 的看门狗），既让计数
+ * 归零、也保证 PR/RLR 在 LSI 域里真的落地，不会退回 0.5 s 默认超时。
+ */
+#define IWDG_SYNC_GUARD 0xFFFFFUL
 
 /*
  * 返回 true：SR 的 PVU / RVU 已确认清零，这一笔 PR / RLR 真的进了 LSI 域。
@@ -132,7 +141,9 @@ __attribute__((noinline)) void osl_reset_cause_capture(void)
  * 在那里 panic 就是递归。所以只累加 g_iwdg_sync_fail，由 osl_panic_report()
  * 抄进 g_panic_record.wd_sync_fail —— 现场能看出“32.7 s 到底有没有拉起来”。
  */
-/* 断言要求它在镜像里有独立符号与失败分支，禁止内联与跨调用合并。 */
+/* 需要在镜像里有独立符号与失败分支：`g_iwdg_sync_fail` 的唯一写入口就在那条分支里，
+ * 被内联合并之后"到底等没等到"就无从判断。禁止内联与跨调用合并
+ * （原产物断言已随 2026-11-22 门禁删除）。 */
 __attribute__((noinline)) static bool iwdg_wait_sync(void)
 {
     uint32_t guard = IWDG_SYNC_GUARD;
@@ -149,8 +160,23 @@ __attribute__((noinline)) static bool iwdg_wait_sync(void)
     return true;
 }
 
+/*
+ * 顺序有讲究：**先 0xCCCC 把 IWDG / LSI 启动起来，再配 PR / RLR**。
+ *
+ * PVU / RVU 这两个同步位靠 LSI 时钟清，IWDG 没启动时 LSI 不供时钟，它们
+ * 一旦被写操作置起来就再也清不掉 —— 2026-11-22 上板实测（把 guard 抬到
+ * 37 ms 仍然超时）：先配后启的写法里前两次等待必然失败，g_iwdg_sync_fail
+ * 稳定 =2，被 osl_panic_report 抄进 g_panic_record.wd_sync_fail，读现场的人
+ * 会以为"32.7 s 没拉起来"，实际上 RLR 只是预置、等 LSI 起振后照样生效。
+ * 先启动再配置，等待才真的能确认"这一笔已经进了 LSI 域"，计数保持 0。
+ *
+ * 代价是 0xCCCC 之后到 RLR 落地之间那几十 µs 按复位默认（/4 + 4095，
+ * 约 0.5 s）计时；紧接着就重载，且调用方 osl_boot 在 start() 后立刻
+ * osl_watchdog_feed()，这段窗口远小于 0.1 s，不构成风险。
+ */
 void osl_watchdog_start(void)
 {
+    IWDG->KR = IWDG_KEY_ENABLE;      /* 启动 IWDG 与 LSI（不可撤销，幂等） */
     IWDG->KR = IWDG_KEY_WRITE_ENABLE;
     (void)iwdg_wait_sync();
     IWDG->PR = IWDG_PR_DIV16;
@@ -158,10 +184,10 @@ void osl_watchdog_start(void)
     IWDG->RLR = IWDG_RLR_NORMAL;
     (void)iwdg_wait_sync();
     IWDG->KR = IWDG_KEY_RELOAD;
-    IWDG->KR = IWDG_KEY_ENABLE;
 }
 
-/* tick hook 的产物断言要求看到 `bl osl_watchdog_feed`，所以禁止内联（-Os 会把它变成一条 str）。 */
+/* 禁止内联（-Os 会把它变成一条带偏移的 str）：tick hook 里"谁在喂狗"这一步
+ * 必须能在反汇编中定位，否则"调度器停摆时还有没有喂狗"无从判断。 */
 __attribute__((noinline)) void osl_watchdog_feed(void)
 {
     IWDG->KR = IWDG_KEY_RELOAD;
@@ -181,11 +207,16 @@ __attribute__((noinline)) void osl_watchdog_feed(void)
  * 0xCCCC 是幂等的：已经启动再写不会重启计数器、也不改超时，所以运行期重复调用
  * 无副作用，代价只是报错路径上多一条 store。
  *
- * 禁止内联：产物断言要在本函数的指令流里看到 0xCCCC（`movw #52428`），
- * -Os 会把它折进 osl_panic_report，那条判据就找不到独立函数体。
+ * 禁止内联：-Os 会把它折进 osl_panic_report，那条 0xCCCC 的 store 就不再属于
+ * 任何可定位的函数体 —— 而"panic 时看门狗真的被启动了"这件事只能靠它证明。
+ * 原产物断言（在指令流里找 `movw #52428`）已随 2026-11-22 门禁删除。
  */
 __attribute__((noinline)) void osl_watchdog_relax(void)
 {
+    /* 同 osl_watchdog_start()：先 0xCCCC 让 LSI 跑起来，PVU / RVU 才清得掉，
+     * 32.7 s 是"确认落地"的，而不是"预置着，等 LSI 起来再说"。启动期 panic
+     * （IWDG 从未 ENABLE）正是这条顺序最要紧的场景。 */
+    IWDG->KR = IWDG_KEY_ENABLE;
     IWDG->KR = IWDG_KEY_WRITE_ENABLE;
     (void)iwdg_wait_sync();
     IWDG->PR = IWDG_PR_DIV256;
@@ -193,7 +224,6 @@ __attribute__((noinline)) void osl_watchdog_relax(void)
     IWDG->RLR = IWDG_RLR_RELAXED;
     (void)iwdg_wait_sync();
     IWDG->KR = IWDG_KEY_RELOAD;
-    IWDG->KR = IWDG_KEY_ENABLE;
 }
 
 /*
@@ -214,7 +244,8 @@ extern char _Min_Stack_Size[];
  */
 extern void osl_tick_ms_advance(void);
 
-/* tick hook 的产物断言要求看到 `bl stack_guard_check`，禁止内联（-Os 会把它并进 hook）。 */
+/* 禁止内联（-Os 会把它并进 hook）：每 tick 一次的主栈比较必须能在反汇编里
+ * 定位到独立函数体，否则"MSP 守卫还在不在"无法核对。 */
 __attribute__((noinline)) static void stack_guard_check(void)
 {
     if ((uintptr_t)__get_MSP() < (uintptr_t)_estack - (uintptr_t)_Min_Stack_Size) {
@@ -331,8 +362,8 @@ static void hal_time_base_init(void)
  */
 volatile uint32_t g_tick_ms;
 
-/* CYCCNT 折算成毫秒。启动期（调度器未起）与首拍对齐共用这一条。 */
-uint32_t osl_hal_tick_ms_from_dwt(void)
+/* CYCCNT 折算成毫秒。启动期（调度器未起）与首拍对齐共用这一条；仅本文件使用。 */
+static uint32_t osl_hal_tick_ms_from_dwt(void)
 {
     uint32_t cycles_per_ms = SystemCoreClock / 1000U;
 
@@ -352,14 +383,26 @@ uint32_t osl_hal_tick_ms_from_dwt(void)
  * 判据用独立标志而不是 g_tick_ms == 0：49.7 天后累加器自己会回绕到 0，那时若
  * 再判 ==0 就会拿 CYCCNT（25.6 s 就回绕）去重填，造成更大的跳变。
  */
+static uint8_t s_tick_aligned;
+
+/*
+ * 对齐只做一次，且**提前**到调度器启动之前（osl_scheduler_start）：
+ * 对齐一旦发生，累加器就代表"启动以来走过的毫秒数"，与 HAL_GetTick() 启动期的
+ * CYCCNT 口径一致。放首拍做的问题见 osl_boot.h 里 2026-11-22 的现场记录。
+ */
+void osl_tick_ms_align(void)
+{
+    if (s_tick_aligned != 0U) {
+        return;
+    }
+    s_tick_aligned = 1U;
+    g_tick_ms = osl_hal_tick_ms_from_dwt();
+}
+
 void osl_tick_ms_advance(void)
 {
-    static uint8_t synced;
-
-    if (synced == 0U) {
-        synced = 1U;
-        g_tick_ms = osl_hal_tick_ms_from_dwt();
-    }
+    /* 首拍兜底：调用方没提前对齐时，行为与"首拍对齐"完全一致。 */
+    osl_tick_ms_align();
     g_tick_ms += 1U;
 }
 
@@ -383,7 +426,8 @@ uint32_t HAL_GetTick(void)
      * 标度不再跟着 SystemCoreClock 变：时钟切换不会再让 tick 倒退，CYCCNT 的
      * 25.6 s 回绕也不再影响 HAL 的超时判据。
      */
-    if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING) {
+    if ((s_tick_aligned != 0U)
+            && (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING)) {
         return g_tick_ms;
     }
 
@@ -421,15 +465,41 @@ uint32_t HAL_GetTick(void)
 extern char __heap_start__[];
 extern char __heap_end__[];
 
-static char *g_newlib_brk = __heap_start__;
+/*
+ * malloc 交回给调用方的地址必须 8 字节对齐：Cortex-M4 的 LDRD / STRD 只保证
+ * 4 字节对齐的多字访问安全，8 字节未对齐会走 Unaligned Fault（MemManage，码 6）。
+ *
+ * 链接脚本当前在 `__heap_start__` 前面有一条 `ALIGN(8)`，但那是相邻语句的副作用，
+ * 不是 `__heap_start__` 自己的属性：在 `end` 与 `__heap_start__` 之间插一个 4 B
+ * 变量，首块就会落在 4 字节边界上 —— 链接成功、体积不变、产物断言全绿，只有
+ * 第一次 `malloc(sizeof(double))` 时在别处炸。所以这里自己再对齐一次。
+ *
+ * `start` 必须与它同源：回退（incr < 0）的边界用的是同一个原点，否则回退路径
+ * 能落回对齐前的那几个字节。
+ *
+ * 为什么不在静态初始化器里直接对齐：`__heap_start__` 是 `extern char[]`，
+ * 地址加掩码不是 C 的常量表达式，写 `(char *)NEWLIB_HEAP_ORIGIN` 会被
+ * `-Werror` 判成 `initializer element is not constant`。改成"首次调用时对齐"：
+ * 一次比较 + 一次赋值，之后走原来的分支。
+ */
+#define NEWLIB_HEAP_ORIGIN \
+    ((uintptr_t)(((uintptr_t)__heap_start__ + 7U) & ~(uintptr_t)7U))
+
+static char *g_newlib_brk = NULL;
 
 void *_sbrk(ptrdiff_t incr)
 {
-    char *previous = g_newlib_brk;
-    uintptr_t start = (uintptr_t)__heap_start__;
+    char *previous;
+    uintptr_t start = NEWLIB_HEAP_ORIGIN;
     uintptr_t end = (uintptr_t)__heap_end__;
-    uintptr_t cur = (uintptr_t)previous;
+    uintptr_t cur;
     uintptr_t next;
+
+    if (g_newlib_brk == NULL) {
+        g_newlib_brk = (char *)NEWLIB_HEAP_ORIGIN;
+    }
+    previous = g_newlib_brk;
+    cur = (uintptr_t)previous;
 
     /*
      * 全用无符号算：以前写的是 `(intptr_t)previous + (intptr_t)incr`，
@@ -483,9 +553,10 @@ exhausted:
  * `xPortStartScheduler()` 里被置 0（port_m4.c:443）。调度器启动前调进来：ENTER 把它
  * 变成 0xaaaaaaab，EXIT 退回 0xaaaaaaaa —— `if (uxCriticalNesting == 0)
  * portENABLE_INTERRUPTS()` 永不成立，中断被**静默**保持关闭，全程没有一个断言会响。
- * 所以 newlib 的分配/格式化调用必须等到 `vTaskStartScheduler()` 之后；
- * `newlib-preboot` 判据守的就是这一条（main() 里调度器之前、
- * board_system_init() 与 osl_health_init() 的整函数体都不得出现这类调用）。
+ * 所以 newlib 的分配/格式化调用必须等到 `vTaskStartScheduler()` 之后 —— 原来由
+ * `newlib-preboot` 判据（扫描 main() 到调度器启动之间有没有 libc 分配调用）守着，
+ * 该判据已随 2026-11-22 门禁删除；现在由下面 `__malloc_lock` 的运行期判断兜住
+ * （非 RUNNING 不进临界区，代价是没有锁，不是死机）。
  * 代价是 malloc 期间会屏蔽 ≤ configMAX_SYSCALL_INTERRUPT_PRIORITY 的中断；
  * newlib 堆只是 ≤512 B 的首次适配，耗时在微秒级，可以接受。
  *
@@ -493,39 +564,83 @@ exhausted:
  */
 struct _reent;
 
+/*
+ * 锁的可重入深度。只在"调度器已经运行"时才有意义，见下面两个函数的说明。
+ */
+static uint32_t s_malloc_lock_depth;
+
 void __malloc_lock(struct _reent *ptr)
 {
     (void)ptr;
-    taskENTER_CRITICAL();
+    /*
+     * 调度器启动前不许进临界区。
+     *
+     * port_m4.c 把 uxCriticalNesting 的初值写成 0xaaaaaaaa（哨兵），只在
+     * xPortStartScheduler() 里清 0。启动期调进来：ENTER 把它改成 0xaaaaaaab，
+     * EXIT 退回 0xaaaaaaaa —— `if (uxCriticalNesting == 0) portENABLE_INTERRUPTS()`
+     * 永不成立，中断被**静默**保持关闭，整机停在第一条 malloc 上，没有任何断言会响。
+     *
+     * 这个约束早前只由 `newlib-preboot` 判据守着（扫描 main() 到调度器启动之间
+     * 有没有 libc 分配调用），而门禁已于 2026-11-22 删除，等于现在无人守。
+     * 所以在这里补一道运行期防线：非 RUNNING 时直接跳过临界区 —— 启动期是单线程，
+     * 本来也不需要互斥，代价是那一次分配没有锁（不会死机）。
+     */
+    if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING) {
+        taskENTER_CRITICAL();
+        s_malloc_lock_depth++;
+    }
 }
 
 void __malloc_unlock(struct _reent *ptr)
 {
     (void)ptr;
-    taskEXIT_CRITICAL();
+    /* 与 lock 对称：只有真正进过临界区的那一次才退出。深度判据比再查一次
+     * xTaskGetSchedulerState() 可靠 —— 状态在 lock 与 unlock 之间不会变（run→run），
+     * 但用深度也让"启动期 lock / 运行期 unlock"这种错配不至于把中断开掉。 */
+    if (s_malloc_lock_depth > 0U) {
+        s_malloc_lock_depth--;
+        taskEXIT_CRITICAL();
+    }
 }
 
 /*
- * newlib 的 _write 最小实现：没有串口，就把最近一段输出留在内存里给调试器看。
- * 返回 len 让 printf 认为写成功，避免返回错误码导致重试或异常路径。
+ * bsl 可实现强符号 osl_debug_uart_write，把字节送到 USART1（CH340）。
+ * 本层不 include bsl；未接 UART 时 weak 默认不写外设。
+ */
+__attribute__((weak)) int osl_debug_uart_write(const char *buf, int len)
+{
+    (void)buf;
+    (void)len;
+    return 0;
+}
+
+/*
+ * newlib _write：优先走串口，同时把最近一段抄进 g_last_write 给调试器/panic 用。
+ * 返回 len 让 printf 认为写成功。
  *
- * 注意：本函数没有调用方，--gc-sections 会把它和 g_last_write 一起丢掉
- * （实测 nm 里两者都不存在，等于"留最近输出"是空承诺）。所以 toolchain.make
- * 的 LDFLAGS 里加了 -Wl,-u,_write 强制保留，verify 也会断言镜像里有该符号。
+ * 注意：若全镜像没有任何 printf 调用方，--gc-sections 仍可能丢掉 _write；
+ * toolchain.make 的 -Wl,-u,_write 强制保留它（原 verify 的镜像断言已随
+ * 2026-11-22 门禁删除，现在用 `arm-none-eabi-nm` 人工确认符号在场）。
  */
 int _write(int file, char *ptr, int len)
 {
+    /*
+     * 容量是 64 B，但最后 1 B 要留给 '\0'，所以实际只留 63 字节。
+     *
+     * 旧实现的界判断放在赋值**之后**（`g_last_write[i] = ptr[i];` 然后
+     * `if (i + 1 >= 64) break;`），看着等价，实际有两个后果：① 正好 64 字节
+     * 时，末尾那次 `g_last_write[63] = '\0'` 把刚写进去的第 64 个字节抹掉，
+     * 注释承诺的「最近 64 B」永远只能拿到 63；② 界条件散在两处，将来改容量
+     * 只改一处就会越界写。现在先算容量、再单点判。
+     */
     int i;
+    int cap = (int)(sizeof(g_last_write) / sizeof(g_last_write[0])) - 1;
 
     (void)file;
-    for (i = 0; i < len; i++) {
+    (void)osl_debug_uart_write(ptr, len);
+    for (i = 0; i < len && i < cap; i++) {
         g_last_write[i] = ptr[i];
-        if (i + 1 >= (int)(sizeof(g_last_write) / sizeof(g_last_write[0]))) {
-            break;
-        }
     }
-    if (i < (int)(sizeof(g_last_write) / sizeof(g_last_write[0]))) {
-        g_last_write[i] = '\0';
-    }
+    g_last_write[i] = '\0';
     return len;
 }

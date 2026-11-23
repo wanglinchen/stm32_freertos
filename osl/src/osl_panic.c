@@ -4,6 +4,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "stm32f4xx_hal.h"
+#include "board_panic_hw.h"
 #include "system_stm32f4xx.h"
 #include "osl_panic.h"
 #include "osl_boot.h"
@@ -100,33 +101,19 @@ void panic_mask_all_irqs(void)
 }
 
 /*
- * 故障指示灯：PB1/PB0（板载红/绿，低电平点亮）+ PB2（码位，无蓝灯），与
- * bsl/src/board_led.c 的 led_pin[] 一致。这里故意绕过 HAL_GPIO / 板级驱动：
- * 栈已经溢出时不能再压栈调用多层函数，只写 BSRR 寄存器，栈开销为 0。
+ * 灯脚 / 掩码 / 蜂鸣器静音：见 osl/inc/board_panic_hw.h（由 device DTS 生成）。
+ * 这里故意绕过 HAL_GPIO / 板级驱动：栈可能已溢出，只写寄存器。
  */
-#define PANIC_LED_MASK 0x0007U /* PB0 | PB1 | PB2 */
-/* 每脚在 MODER/OSPEEDR/PUPDR 里占 2 位：PB0→bit0、PB1→bit2、PB2→bit4 */
-#define PANIC_LED_MODE_MASK 0x0000003FUL
-#define PANIC_LED_MODE_OUT 0x00000015UL /* 每脚 01 = 通用输出 */
-/* 与 bsl led_pin[] 同序：码 bit0=红(PB1)、bit1=绿(PB0)、bit2=蓝段位(PB2) */
-static const uint8_t panic_led_pin[3] = {1U, 0U, 2U};
 #define PANIC_SPIN 2000000U    /* 未校时的粗延时：只求肉眼可辨，主频越高闪得越快 */
 
 static void panic_leds(uint16_t low_mask)
 {
     uint32_t spin;
 
-    __HAL_RCC_GPIOB_CLK_ENABLE();
+    PANIC_LED_RCC_CLK_ENABLE();
 
-    /*
-     * 蜂鸣器同步静音。PI11 经 1 kΩ 驱动 SS8050、高电平导通：按住按键时
-     * board_beep_set(1) 已经把它拉高，而 panic 要一直响到 IWDG 复位（relax 后
-     * 32.7 s）——故障信号会被持续蜂鸣盖住，而且此时中断已屏蔽、任务已停，
-     * 没有任何调用方能把它关掉。与三灯一样只写寄存器，不走 HAL_GPIO_WritePin
-     * （栈可能已经溢出）。时钟要自己开：panic 可能发生在 board_beep_init() 之前。
-     */
-    __HAL_RCC_GPIOI_CLK_ENABLE();
-    GPIOI->BSRR = (uint32_t)GPIO_PIN_11 << 16U; /* 置复位位 = 输出低 = 静音 */
+    /* 蜂鸣器静音：阿波罗 V2 经 PCF8574，其它走 GPIO BSRR（实现于 bsl/board_beep.c）。 */
+    board_panic_beep_silence();
 
     /*
      * 复位后 GPIOB 的 MODER 是 0（输入态），此时只写 BSRR 不会驱动引脚，
@@ -137,14 +124,15 @@ static void panic_leds(uint16_t low_mask)
      * 这里直接把三脚配成“推挽输出 / 低速 / 无上下拉”，与 bsl 的 board_led_init
      * 一致，但只写寄存器、不走 HAL_GPIO_Init：栈溢出时不能再压栈调用多层函数。
      */
-    GPIOB->MODER = (GPIOB->MODER & (uint32_t)~PANIC_LED_MODE_MASK) | (uint32_t)PANIC_LED_MODE_OUT;
-    GPIOB->OTYPER &= ~(uint32_t)PANIC_LED_MASK;
-    GPIOB->OSPEEDR &= ~(uint32_t)PANIC_LED_MODE_MASK;
-    GPIOB->PUPDR &= ~(uint32_t)PANIC_LED_MODE_MASK;
+    PANIC_LED_GPIO->MODER = (PANIC_LED_GPIO->MODER & (uint32_t)~PANIC_LED_MODE_MASK)
+        | (uint32_t)PANIC_LED_MODE_OUT;
+    PANIC_LED_GPIO->OTYPER &= ~(uint32_t)PANIC_LED_MASK;
+    PANIC_LED_GPIO->OSPEEDR &= ~(uint32_t)PANIC_LED_MODE_MASK;
+    PANIC_LED_GPIO->PUPDR &= ~(uint32_t)PANIC_LED_MODE_MASK;
 
     /* BSRR 低 16 位给 1 = 该脚置高（共阳接法下为灭），高 16 位给 1 = 置低（亮）。 */
-    GPIOB->BSRR = (uint32_t)PANIC_LED_MASK & ~(uint32_t)low_mask;              /* 置高：灭 */
-    GPIOB->BSRR = ((uint32_t)low_mask & (uint32_t)PANIC_LED_MASK) << 16U;      /* 置低：亮 */
+    PANIC_LED_GPIO->BSRR = (uint32_t)PANIC_LED_MASK & ~(uint32_t)low_mask;
+    PANIC_LED_GPIO->BSRR = ((uint32_t)low_mask & (uint32_t)PANIC_LED_MASK) << 16U;
     for (spin = 0U; spin < PANIC_SPIN; spin++) {
         __asm volatile("nop");
     }
@@ -174,8 +162,8 @@ static void panic_leds(uint16_t low_mask)
  * 真的从内存读，不能被优化成寄存器缓存），所以 task_name 退化成 volatile char[]。
  *
  * 全部手写拼接：调 snprintf 会把格式化引擎整个拉进镜像（text 一次涨几千字节），
- * 而这里只需要十进制与 ASCII。写入目标是 volatile char[]，每次写入都是字节写，
- * 门禁据此判"有人在写"而不是"符号还在"。
+ * 而这里只需要十进制与 ASCII。写入目标是 volatile char[]，每次写入都是字节写
+ * ——原门禁据此判"有人在写"而不是"符号还在"，该判据已随 2026-11-22 删除。
  */
 static void panic_last_write(uint32_t code, uint32_t seq,
                              const volatile char *name)
@@ -248,8 +236,9 @@ static void panic_clear_fault_scene(void)
     g_panic_record.unhandled_irq = 0U;
 }
 
-/* 产物断言在它的指令流里核对「先关中断、再置重入闸」的顺序，禁止内联：
- * 发布构建（-Os）会把入口并进调用者，那个置位与顺序就再也证明不了。 */
+/* 禁止内联：发布构建（-Os）会把入口并进调用者，"先关中断、再置重入闸"这个顺序
+ * 就再也证明不了（原按指令流核对该顺序的产物断言已随 2026-11-22 门禁删除，
+ * noinline 保留给人工反汇编核对）。 */
 __attribute__((noinline)) void osl_panic_report(osl_panic_code_t code)
 {
     uint32_t bit;
@@ -356,7 +345,7 @@ __attribute__((noinline)) void osl_panic_report(osl_panic_code_t code)
     if ((raw != (uint32_t)OSL_PANIC_CREATE_FAILED) &&
         (raw != (uint32_t)OSL_PANIC_ASSERT) &&
         (raw != (uint32_t)OSL_PANIC_STACK_OVERFLOW)) {
-        g_panic_record.task = NULL;
+        g_panic_record.task = 0U;
         g_panic_record.task_name[0] = '\0';
     }
     /*
@@ -434,10 +423,10 @@ __attribute__((noinline)) void osl_panic_report(osl_panic_code_t code)
  *   EXC_RETURN + 异常帧 —— 说明 %PC 停在哪条指令、%LR 来自哪次调用。
  * 三灯只闪 code 6（3 位编码装不下 4 类细分），具体类别读 fault_kind。
  */
-#define FAULT_KIND_HARD 1U
-#define FAULT_KIND_MEM 2U
-#define FAULT_KIND_BUS 3U
-#define FAULT_KIND_USAGE 4U
+#define FAULT_KIND_HARD 1
+#define FAULT_KIND_MEM 2
+#define FAULT_KIND_BUS 3
+#define FAULT_KIND_USAGE 4
 
 /*
  * 默认 SHCSR 里 MemManage / BusFault / UsageFault 是关闭的，三类都升级成 HardFault，
@@ -454,6 +443,11 @@ void osl_fault_monitor_init(void)
 
 /* 扩展帧 26 字 = 0x68 字节（S0..S15 + FPSCR + 保留字 + R0..xPSR） */
 #define PANIC_FRAME_MAX_BYTES 0x68U
+/* 扩展帧与基本帧的偏移差必须正好是 24 字（S0..S15 + FPSCR + 保留字）：
+ * 下面 fault_report 用 frame_offset + 8 字算上界，若有人只改偏移、忘了改这个常量，
+ * 两条上界就有一处是错的，而那种错误只在真 fault 现场才看得见。 */
+_Static_assert(PANIC_FRAME_MAX_BYTES == 0x48U + (8U * 4U),
+               "extended frame = 0x48 offset + 8 regs");
 
 /* RAM 边界由链接脚本给出：`_sdata` = .data 起点（RAM 低端），`_estack` = RAM 顶端。
  * SP 合法性判据必须跟着布局走。写死地址会在改 RAM 容量 / 换芯片 / 启用 CCMRAM
@@ -462,15 +456,43 @@ void osl_fault_monitor_init(void)
 extern char _sdata[];
 extern char _estack[];
 
-static void fault_report(uint32_t kind, uint32_t exc_return)
-    __attribute__((noreturn));
+/*
+ * 帧位置必须取**硬件进异常那一刻**的 SP，两个都不能在 C 函数里读。
+ *
+ * `fault_report` 是普通 C 函数：它的 prologue 先把自己要用的寄存器压到 MSP 上，
+ * 之后 `__get_MSP()` 拿到的已经是「压过之后」的值 —— 而 PSP 路径恰好不受影响
+ * （handler 模式永远用 MSP，任务帧在 PSP 上，两者不重叠），所以 PSP 现场一直是对的，
+ * **MSP 路径却整组读错**。这一点在 ST-LINK 实测里暴露得很干净：同一份固件，
+ * 任务上下文里写 `pc = 0xfffffffe` 触发 fault，record 的 fault_pc 正好等于
+ * 0xFFFFFFFE；改成在 MSP 上下文（中断里）触发同一件事，fault_pc 变成一段无关
+ * 内存里的垃圾值 —— 差分就是函数自己的栈帧 delta。
+ *
+ * 所以 SP 在 naked 入口取，此时一个字节都还没压。参数按 AAPCS 就位：
+ *   fault_entry_stub: r0 = EXC_RETURN（lr）、r1 = MSP、r2 = PSP；
+ *   四个 handler 先把 r3 填成本次 fault 类，再跳到同一个 stub。
+ */
+static void fault_report(uint32_t exc_return, uint32_t msp, uint32_t psp,
+                         uint32_t kind)
+    __attribute__((noreturn, noinline, used));
 
-static void fault_report(uint32_t kind, uint32_t exc_return)
+void fault_entry_stub(void) __attribute__((naked));
+void fault_entry_stub(void)
+{
+    __asm volatile("mov r0, lr\n\t"
+                   "mrs r1, msp\n\t"
+                   "mrs r2, psp\n\t"
+                   "b fault_report\n\t");
+}
+
+static void fault_report(uint32_t exc_return, uint32_t msp, uint32_t psp,
+                         uint32_t kind)
 {
     uint32_t sp;
     uint32_t *frame;
     uint32_t frame_type;
     uint32_t frame_offset;
+    uint32_t frame_need;
+    uint32_t cfsr;
 
     /* 全局屏蔽要早于对 g_panic_record 的第一次写入（含 panic_clear_fault_scene）。 */
     panic_mask_all_irqs();
@@ -482,14 +504,24 @@ static void fault_report(uint32_t kind, uint32_t exc_return)
      */
     panic_clear_fault_scene();
     g_panic_record.fault_kind = kind;
-    g_panic_record.fault_cfsr = SCB->CFSR;
+    cfsr = SCB->CFSR;
+    g_panic_record.fault_cfsr = cfsr;
     g_panic_record.fault_hfsr = SCB->HFSR;
-    g_panic_record.fault_mmfar = SCB->MMFAR;
-    g_panic_record.fault_bfar = SCB->BFAR;
+    /*
+     * MMFAR / BFAR 只在对应 VALID 位置位时有效（ARMv7-M ARM：MMFSR.MMARVALID bit7、
+     * BFSR.BFARVALID bit15）。IACCVIOL / INVSTATE / UNDEFINSTR 这一类根本不产生访问
+     * 地址，此时抄下来的是未定义内容 —— 在 STM32F429 上实测读到的是寄存器**自身的
+     * 地址**（MMFAR 记成 0xE000ED34、BFAR 记成 0xE000ED38），拿去查等于把排查方向
+     * 指向 SCB。与本文件「错误的地址比没有更糟」是同一条原则：没有地址就记 0，
+     * 让「没有」本身成为一条证据，原因由 CFSR 里的 VALID 位说明。
+     */
+    g_panic_record.fault_mmfar = ((cfsr & (1U << 7)) != 0U) ? SCB->MMFAR : 0U;
+    g_panic_record.fault_bfar = ((cfsr & (1U << 15)) != 0U) ? SCB->BFAR : 0U;
     g_panic_record.fault_exc_return = exc_return;
 
-    /* EXC_RETURN 的 bit2 选择异常帧所在的栈：0 = MSP，1 = PSP。 */
-    sp = ((exc_return & 0x4U) != 0U) ? __get_PSP() : __get_MSP();
+    /* EXC_RETURN 的 bit2 选择异常帧所在的栈：0 = MSP，1 = PSP。
+     * 两个值都是 naked 入口在压栈之前取的，见 fault_entry_stub 上面的说明。 */
+    sp = ((exc_return & 0x4U) != 0U) ? psp : msp;
     g_panic_record.fault_sp = sp;
 
     /*
@@ -505,9 +537,20 @@ static void fault_report(uint32_t kind, uint32_t exc_return)
     g_panic_record.fault_frame_type = frame_type;
 
     /* SP 必须留在 RAM 且整帧不越过栈顶，否则说明栈已经崩了，再去读只会二次 fault，
-     * 宁可留空。边界取自链接脚本的 _sdata / _estack，不写死地址。 */
+     * 宁可留空。边界取自链接脚本的 _sdata / _estack，不写死地址。
+     *
+     * 上界必须按**本次的帧类型**算，不能统一拿扩展帧的 0x68 去判：
+     *   基本帧 frame_offset = 0x00，实际占 8 字 = 0x20；
+     *   扩展帧 frame_offset = 0x48，实际占 0x48 + 0x20 = 0x68。
+     * 统一按 0x68 判会漏掉一整类现场 —— 启动早期的 fault 恰恰落在栈很浅的地方：
+     * MSP 从 _estack 向下只压了几十字，此时 sp 与栈顶只差 0x20..0x60，完全合法的
+     * 基本帧被判成"栈已崩"、8 个帧字段全部留空。而 HAL_Init 阶段的 configASSERT、
+     * SystemClock_Config 失败（码 4）正是"没有 PC 就查不下去"的场景 —— 留空等于
+     * 把唯一的线索丢掉。
+     */
+    frame_need = frame_offset + (8U * 4U);
     if (sp >= (uint32_t)(uintptr_t)_sdata &&
-        sp <= (uint32_t)(uintptr_t)_estack - PANIC_FRAME_MAX_BYTES) {
+        sp <= (uint32_t)(uintptr_t)_estack - frame_need) {
         frame = (uint32_t *)(sp + frame_offset);
         g_panic_record.fault_r0 = frame[0];
         g_panic_record.fault_r1 = frame[1];
@@ -523,16 +566,20 @@ static void fault_report(uint32_t kind, uint32_t exc_return)
 }
 
 /*
- * 用宏生成四个入口。EXC_RETURN 必须在本函数的第一条语句里取出：
- * 那时还没有任何 BL 执行过，LR 仍是异常进入时硬件写入的 EXC_RETURN；
- * 一旦先调用别的函数，LR 就被覆盖成返回地址。
+ * 四个入口都是 naked：只把「本次是哪类 fault」放进 r3 就跳走，自己不做任何压栈。
+ * 时间点很关键 —— `mov r0, lr` 必须在进入异常后**第一条**，那时 LR 还是硬件写入的
+ * EXC_RETURN；一旦先执行过 BL，LR 就被改成返回地址。naked 同时保证 stub 里的
+ * `mrs r1, msp` 读到的是还没被任何 prologue 动过的栈指针。
  */
+#define FAULT_STR_(x) #x
+#define FAULT_STR(x) FAULT_STR_(x)
+
 #define DEFINE_FAULT_HANDLER(name, kind)                                        \
+    void name(void) __attribute__((naked));                                     \
     void name(void)                                                             \
     {                                                                           \
-        uint32_t exc_return;                                                    \
-        __asm volatile("mov %0, lr" : "=r"(exc_return));                        \
-        fault_report(kind, exc_return);                                         \
+        __asm volatile("movs r3, #" FAULT_STR(kind) "\n\t"                      \
+                       "b fault_entry_stub\n\t");                               \
     }
 
 DEFINE_FAULT_HANDLER(HardFault_Handler, FAULT_KIND_HARD)
@@ -622,7 +669,7 @@ static void panic_copy_task_name(const char *name, uint32_t limit)
 void osl_panic_stack_guard_report(void)
 {
     panic_mask_all_irqs();
-    g_panic_record.task = NULL;
+    g_panic_record.task = 0U;
     g_panic_record.task_name[0] = '\0';
     osl_panic_report(OSL_PANIC_STACK_OVERFLOW);
 }
@@ -631,7 +678,7 @@ void osl_panic_stack_guard_report(void)
 void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
 {
     panic_mask_all_irqs();
-    g_panic_record.task = xTask;
+    g_panic_record.task = (uintptr_t)xTask;
     panic_copy_task_name(pcTaskName, (uint32_t)configMAX_TASK_NAME_LEN);
     osl_panic_report(OSL_PANIC_STACK_OVERFLOW);
 }
@@ -651,7 +698,7 @@ void vApplicationMallocFailedHook(void)
      */
     current = xTaskGetCurrentTaskHandle();
     if (current != NULL) {
-        g_panic_record.task = current;
+        g_panic_record.task = (uintptr_t)current;
         panic_copy_task_name(pcTaskGetName(current), (uint32_t)configMAX_TASK_NAME_LEN);
     } else {
         /*
@@ -659,7 +706,7 @@ void vApplicationMallocFailedHook(void)
          * 把上一次 panic 的任务名搬进这一次的现场 —— 正是上面注释说的「指向错误的
          * 创建点」。这一条与 osl_panic_report 里按码清空互为兜底，两条都必须在。
          */
-        g_panic_record.task = NULL;
+        g_panic_record.task = 0U;
         g_panic_record.task_name[0] = '\0';
     }
     osl_panic_report(OSL_PANIC_CREATE_FAILED);
@@ -679,10 +726,10 @@ static void __attribute__((noreturn)) panic_assert_from(const char *file, uint32
     g_panic_record.assert_line = line;
     current = xTaskGetCurrentTaskHandle();
     if (current != NULL) {
-        g_panic_record.task = current;
+        g_panic_record.task = (uintptr_t)current;
         panic_copy_task_name(pcTaskGetName(current), (uint32_t)configMAX_TASK_NAME_LEN);
     } else {
-        g_panic_record.task = NULL;
+        g_panic_record.task = 0U;
         g_panic_record.task_name[0] = '\0';
     }
     osl_panic_report(OSL_PANIC_ASSERT);

@@ -6,9 +6,9 @@
 /*
  * 堆与任务栈的水位记录。
  *
- * 这套板子上没有可用的输出通道（`_write` 只把最近 64 B 抄进 `g_last_write`，
- * 没有任何串口/SWO 出口，自研代码里也没有 printf），
- * 所以“还剩多少”只能用调试器读 RAM 里的变量回答。两个值各有明确的消费方：
+ * 调试输出走 USART1（CH340，见 bsl 的 board_debug_uart）；`_write` 仍抄最近 64 B
+ * 进 `g_last_write` 供调试器/panic 使用。堆/栈水位本身不通过串口打印，
+ * “还剩多少”仍用调试器读 RAM 变量或 panic 记录。两个值各有明确的消费方：
  *
  *   g_heap_free_min  —— FreeRTOS 堆自启动以来的历史最低剩余（字节），口径统一为
  *                       xPortGetMinimumEverFreeHeapSize()（heap_4 在每次分配后维护）。
@@ -28,12 +28,13 @@
  * 是无意义的值（每次采样都比它大，最低值永远记成 0）。
  */
 /* 只留实际用到的槽：0 = led_blink，1 = button。多一个槽就是 4 B 永远写不进值，
- * 而 `size` 只报 bss 总量，看不出来。verify 会比对"槽数"与"调用点用到的槽号"。 */
+ * 而 `size` 只报 bss 总量，看不出来。槽数与调用点槽号是否一致现在只能人工核对
+ * （原"比对槽数与调用点"的判据已随 2026-11-22 门禁删除）。 */
 #define OSL_HEALTH_STACK_SLOTS 2U
 
 /* 槽号的单一出处：调用点不再写裸数字，改槽数时只需改这里 + 上面一行。 */
-#define OSL_HEALTH_SLOT_LED 0U    /* fml_led_blink_task */
-#define OSL_HEALTH_SLOT_BUTTON 1U /* fml_button_task */
+#define OSL_HEALTH_SLOT_LED 0U    /* app_sample 的 led_blink 任务 */
+#define OSL_HEALTH_SLOT_BUTTON 1U /* app_sample 的 button 任务 */
 
 #define OSL_HEALTH_UNSET 0xFFFFFFFFUL
 

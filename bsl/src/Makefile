@@ -19,9 +19,19 @@ FLAG_DEPS := $(wildcard $(PROJECT_ROOT)/toolchain.make) $(wildcard $(PROJECT_ROO
 
 LOCAL_OBJS :=
 -include $(BUILD_DIR)/bsl/src/board_beep.d
+-include $(BUILD_DIR)/bsl/src/board_debug_uart.d
+-include $(BUILD_DIR)/bsl/src/board_dtb.d
 -include $(BUILD_DIR)/bsl/src/board_key.d
 -include $(BUILD_DIR)/bsl/src/board_led.d
+-include $(BUILD_DIR)/bsl/src/board_rt.d
 -include $(BUILD_DIR)/bsl/src/board_system.d
+-include $(BUILD_DIR)/bsl/src/bsl_device.d
+-include $(BUILD_DIR)/bsl/src/bsl_fdt.d
+-include $(BUILD_DIR)/bsl/src/bsl_gpio.d
+-include $(BUILD_DIR)/bsl/src/bsl_i2c_gpio.d
+-include $(BUILD_DIR)/bsl/src/bsl_init.d
+-include $(BUILD_DIR)/bsl/src/bsl_log.d
+-include $(BUILD_DIR)/bsl/src/bsl_pcf8574.d
 
 ifeq ($(CONFIG_BSL),y)
 ifeq ($(CONFIG_BSL_SRC),y)
@@ -32,6 +42,32 @@ $(BUILD_DIR)/bsl/src/board_beep.o: $(PROJECT_ROOT)/bsl/src/board_beep.c $(FLAG_D
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_beep.d -c $< -o $@
 	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_beep.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BOARD_DEBUG_UART),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/board_debug_uart.o
+$(BUILD_DIR)/bsl/src/board_debug_uart.o: $(PROJECT_ROOT)/bsl/src/board_debug_uart.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_debug_uart.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_debug_uart.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BOARD_DTB),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/board_dtb.o
+$(BUILD_DIR)/bsl/src/board_dtb.o: $(PROJECT_ROOT)/bsl/src/board_dtb.s $(PROJECT_ROOT)/out/dts/apollo.dtb $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "AS $<"
+	$(AS) $(ASFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_dtb.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_dtb.d
 endif
 endif
 endif
@@ -64,6 +100,19 @@ endif
 
 ifeq ($(CONFIG_BSL),y)
 ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BOARD_RT),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/board_rt.o
+$(BUILD_DIR)/bsl/src/board_rt.o: $(PROJECT_ROOT)/bsl/src/board_rt.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_rt.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_rt.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
 ifeq ($(CONFIG_BSL_SRC_BOARD_SYSTEM),y)
 LOCAL_OBJS += $(BUILD_DIR)/bsl/src/board_system.o
 $(BUILD_DIR)/bsl/src/board_system.o: $(PROJECT_ROOT)/bsl/src/board_system.c $(FLAG_DEPS)
@@ -71,6 +120,97 @@ $(BUILD_DIR)/bsl/src/board_system.o: $(PROJECT_ROOT)/bsl/src/board_system.c $(FL
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_system.d -c $< -o $@
 	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_system.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BSL_DEVICE),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/bsl_device.o
+$(BUILD_DIR)/bsl/src/bsl_device.o: $(PROJECT_ROOT)/bsl/src/bsl_device.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/bsl_device.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/bsl_device.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BSL_FDT),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/bsl_fdt.o
+$(BUILD_DIR)/bsl/src/bsl_fdt.o: $(PROJECT_ROOT)/bsl/src/bsl_fdt.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/bsl_fdt.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/bsl_fdt.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BSL_GPIO),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/bsl_gpio.o
+$(BUILD_DIR)/bsl/src/bsl_gpio.o: $(PROJECT_ROOT)/bsl/src/bsl_gpio.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/bsl_gpio.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/bsl_gpio.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BSL_I2C_GPIO),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/bsl_i2c_gpio.o
+$(BUILD_DIR)/bsl/src/bsl_i2c_gpio.o: $(PROJECT_ROOT)/bsl/src/bsl_i2c_gpio.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/bsl_i2c_gpio.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/bsl_i2c_gpio.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BSL_INIT),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/bsl_init.o
+$(BUILD_DIR)/bsl/src/bsl_init.o: $(PROJECT_ROOT)/bsl/src/bsl_init.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/bsl_init.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/bsl_init.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BSL_LOG),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/bsl_log.o
+$(BUILD_DIR)/bsl/src/bsl_log.o: $(PROJECT_ROOT)/bsl/src/bsl_log.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/bsl_log.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/bsl_log.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BSL_PCF8574),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/bsl_pcf8574.o
+$(BUILD_DIR)/bsl/src/bsl_pcf8574.o: $(PROJECT_ROOT)/bsl/src/bsl_pcf8574.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/bsl_pcf8574.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/bsl_pcf8574.d
 endif
 endif
 endif

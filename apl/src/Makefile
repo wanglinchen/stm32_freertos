@@ -17,12 +17,27 @@ INCLUDE_DIRS += $(PROJECT_ROOT)/hal/chip/startup/inc
 INCLUDE_DIRS += $(PROJECT_ROOT)/hal/periph/inc
 INCLUDE_DIRS += $(PROJECT_ROOT)/fml/inc
 INCLUDE_DIRS += $(PROJECT_ROOT)/bsl/inc
+INCLUDE_DIRS += $(PROJECT_ROOT)/apl/inc
 INCLUDES := $(addprefix -I,$(INCLUDE_DIRS))
 
 FLAG_DEPS := $(wildcard $(PROJECT_ROOT)/toolchain.make) $(wildcard $(PROJECT_ROOT)/out/$(BUILD_VARIANT)/.config)
 
 LOCAL_OBJS :=
+-include $(BUILD_DIR)/apl/src/app_sample.d
 -include $(BUILD_DIR)/apl/src/main.d
+
+ifeq ($(CONFIG_APL),y)
+ifeq ($(CONFIG_APL_SRC),y)
+ifeq ($(CONFIG_APL_SRC_APP_SAMPLE),y)
+LOCAL_OBJS += $(BUILD_DIR)/apl/src/app_sample.o
+$(BUILD_DIR)/apl/src/app_sample.o: $(PROJECT_ROOT)/apl/src/app_sample.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/apl/src/app_sample.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/apl/src/app_sample.d
+endif
+endif
+endif
 
 ifeq ($(CONFIG_APL),y)
 ifeq ($(CONFIG_APL_SRC),y)

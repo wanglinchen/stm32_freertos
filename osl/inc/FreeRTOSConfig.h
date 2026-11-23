@@ -14,16 +14,14 @@ extern uint32_t SystemCoreClock;
 /* 只用到优先级 0（idle）和 1（led_blink / button），所以上界收到 2。
  * 这个值直接决定 pxReadyTasksLists[] 的元素数（List_t 20 B/项）：7 项是 140 B，
  * 多出来的 5 项永远不会被任何任务挂上，属于看不出任何迹象的 RAM 白占。
- * 改大之前先看 verify 的 task-priority 断言——它会把"配置比用法宽"直接报红。 */
+ * 改大之前先核对 fml 里 osl_thread_create 的 priority 实参（原 task-priority
+ * 门禁判据已随 2026-11-22 删除，现在靠人工比对）。 */
 #define configMAX_PRIORITIES                  2
 #define configMINIMAL_STACK_SIZE              128
-/* 只装得下实际任务名：最长的是 "led_blink"（9 字符 + '\0' = 10）。
- * 这个值直接决定 `TCB_t.pcTaskName[]` 的长度，IDLE + 2 个应用任务各占一份；
- * 配到 16 就是每任务 6 B 白占，而 `size` 只报 bss 总量，看不出来。
- * 配小了不会报错，只会把名字静默截断（`vTaskList` 那条 configASSERT 路径当前没开），
- * 于是 g_panic_record.task_name 里只剩前缀。
- * 改它之前先看 verify 的 configMAX_TASK_NAME_LEN 断言：太宽、太窄都会报红。 */
-#define configMAX_TASK_NAME_LEN               10
+/* 固定 16：与 `g_panic_record.task_name[]`（PANIC_TASK_NAME_MAX）一致，panic 全名拷贝上限统一。
+ * 最长应用任务名 "led_blink" 只需 10（9+'\0'），多出的字节落在每个 TCB 的 pcTaskName[]。
+ * 配小了会静默截断（`vTaskList` 路径当前未开），g_panic_record.task_name 只剩前缀。 */
+#define configMAX_TASK_NAME_LEN               16
 #define configTICK_TYPE_WIDTH_IN_BITS         TICK_TYPE_WIDTH_32_BITS
 #define configIDLE_SHOULD_YIELD               1
 #define configQUEUE_REGISTRY_SIZE             0
@@ -34,15 +32,24 @@ extern uint32_t SystemCoreClock;
  * 一个 timer task（configMINIMAL_STACK_SIZE 词栈 + TCB）、一个 8 项定时器队列，
  * 外加整条过期链表的维护逻辑全部白占（实测约 510 B Flash + 约 0.8 KB RAM）。
  * 上面三个 configTIMER_* 一并删掉：留着只会在关掉之后仍让人以为“有定时器在用”。
- * 哪天真需要软件定时器，改回 1 并把这三项加回来，同时删掉 verify 里
- * “软件定时器不得进镜像”那条产物断言（它会直接报红，别绕过）。
+ * 哪天真需要软件定时器，改回 1 并把这三项加回来，然后用 `arm-none-eabi-nm` 确认
+ * timers.c 的符号（`xTimerCreate` 一类）确实没进镜像 —— 原"软件定时器不得进镜像"
+ * 的产物判据已随 2026-11-22 门禁删除，现在只有人工核对。
  */
 #define configUSE_TIMERS                      0
 
 #define configUSE_EVENT_GROUPS                1
 #define configUSE_STREAM_BUFFERS              1
 
-#define configSUPPORT_STATIC_ALLOCATION       0
+/*
+ * 任务栈改为静态池（`osl/src/osl_thread.c` 的 `s_task_stack` / `s_task_tcb`）。
+ * 动态分配时每个任务的栈都落在 `ucHeap` 里，"占多少"只能上板读
+ * `uxTaskGetStackHighWaterMark` 才知道，编译期与 map 都算不出来 —— 而栈溢出
+ * 恰好是这里最贵的一类问题。改成静态后总量进 `.bss`，可按符号尺寸核对。
+ * idle 任务的内存由 `vApplicationGetIdleTaskMemory()` 提供；`configUSE_TIMERS=0`，
+ * 所以不需要 `vApplicationGetTimerTaskMemory()`。
+ */
+#define configSUPPORT_STATIC_ALLOCATION       1
 #define configSUPPORT_DYNAMIC_ALLOCATION      1
 /*
  * 32 KB 是模板默认值，本工程从没有用到过：三个任务的栈（256/128/128 词）+ 三个 TCB
@@ -85,7 +92,8 @@ extern uint32_t SystemCoreClock;
  * 栈水位：`uxTaskGetStackHighWaterMark` 只在配置为 1 时才编进内核，
  * 但“可编”不等于“进去了”—— 没人调用时会被 --gc-sections 丢掉，
  * 于是任务栈余量在板上依然不可见（码 7 的根因只能靠猜）。
- * fml 的两个任务各自周期性采样，verify 的产物断言会要求该符号在场。
+ * fml 的两个任务各自周期性采样；原产物断言要求该符号在场，判据已随
+ * 2026-11-22 门禁删除，现在用 `arm-none-eabi-nm` 人工确认。
  */
 #define INCLUDE_uxTaskGetStackHighWaterMark   1
 #define INCLUDE_vTaskDelete                   1

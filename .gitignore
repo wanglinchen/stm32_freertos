@@ -1,7 +1,11 @@
-out/user/
-out/userdebug/
+out/user/objects/
+out/userdebug/objects/
 out/tmp/
 .vscode/
 **/__pycache__/
+.pytest_cache/
 *.py[cod]
 tool/.cache/
+out/dts/
+# stability.py 的每轮报告是运行产物（含时间戳），不入库；要留证据请贴到 debug/ 分析目录。
+out/tests/
