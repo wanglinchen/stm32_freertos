@@ -87,6 +87,32 @@ int bsl_gpio_init_input(GPIO_TypeDef *port, uint16_t pin, uint32_t pull, uint32_
     return gpio_init(port, pin, pull, speed, GPIO_MODE_INPUT);
 }
 
+/* 复用功能输出。与上面三个 init 同口径：端口认不出就返回 0，不留半套配置。
+ * af 越界也返回 0 —— HAL 对 Alternate 是直接写 AFR 位域，越界值会静默截断。 */
+int bsl_gpio_init_af(
+    GPIO_TypeDef *port,
+    uint16_t pin,
+    uint32_t af,
+    uint32_t pull,
+    uint32_t speed)
+{
+    GPIO_InitTypeDef gpio = {0};
+
+    if (af > 15U) {
+        return 0;
+    }
+    if (enable_port_clock(port) == 0) {
+        return 0;
+    }
+    gpio.Pin = pin;
+    gpio.Mode = GPIO_MODE_AF_PP;
+    gpio.Pull = pull;
+    gpio.Speed = speed;
+    gpio.Alternate = af;
+    HAL_GPIO_Init(port, &gpio);
+    return 1;
+}
+
 void bsl_gpio_write(GPIO_TypeDef *port, uint16_t pin, GPIO_PinState state)
 {
     if (port == NULL) {

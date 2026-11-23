@@ -19,6 +19,16 @@
 /* HSE 频率（Hz）；DTB 里没有 clocks 节点时返回 0。 */
 uint32_t board_rt_hse_hz(void);
 
+/* SDRAM（FMC Bank5）：基址 / 字节数 / SDCR / SDTR / 刷新计数。
+ * 返回 1 表示五项都拿到了；任一缺失返回 0，此时 *out 不被写。
+ * 引脚按端口聚合（一个端口一项，掩码 + AF），不是逐脚。 */
+int board_rt_sdram(uintptr_t *base, uint32_t *size, uint32_t *sdcr,
+                   uint32_t *sdtr, uint32_t *refresh_count);
+unsigned board_rt_sdram_pin_groups(void);
+GPIO_TypeDef *board_rt_sdram_pin_port(unsigned index);
+uint16_t board_rt_sdram_pin_mask(unsigned index);
+uint32_t board_rt_sdram_pin_af(unsigned index);
+
 unsigned board_rt_led_count(void);
 GPIO_TypeDef *board_rt_led_port(void);
 uint16_t board_rt_led_pin(unsigned index);

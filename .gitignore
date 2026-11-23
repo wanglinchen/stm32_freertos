@@ -9,3 +9,11 @@ tool/.cache/
 out/dts/
 # stability.py 的每轮报告是运行产物（含时间戳），不入库；要留证据请贴到 debug/ 分析目录。
 out/tests/
+# 构建/刷机/门禁的临时日志（历史上有一次误入库，2018 前车之鉴：提交前看 git status）
+build_log.txt
+build_user.txt
+check_log*.txt
+flash_log.txt
+stab_log.txt
+out/tmp_*.log
+out/tmp_commit_msg.txt

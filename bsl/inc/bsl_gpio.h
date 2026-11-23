@@ -25,6 +25,14 @@ int bsl_gpio_init_output_od(
     uint32_t pull,
     uint32_t speed);
 int bsl_gpio_init_input(GPIO_TypeDef *port, uint16_t pin, uint32_t pull, uint32_t speed);
+/* 复用功能输出（SDRAM/LTDC 这类 FMC/LCD 控制器引脚）：af 必须是 0..15。
+ * 返回 0 表示端口认不出或 af 越界，此时一个寄存器都没写。 */
+int bsl_gpio_init_af(
+    GPIO_TypeDef *port,
+    uint16_t pin,
+    uint32_t af,
+    uint32_t pull,
+    uint32_t speed);
 void bsl_gpio_write(GPIO_TypeDef *port, uint16_t pin, GPIO_PinState state);
 GPIO_PinState bsl_gpio_read(GPIO_TypeDef *port, uint16_t pin);
 void bsl_gpio_write_port_pin(GPIO_TypeDef *port, uint16_t pins, GPIO_PinState state);

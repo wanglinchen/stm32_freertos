@@ -1,0 +1,33 @@
+# P0a 串口取证：SDRAM 驱动（L2）+ POST 首项
+
+- 日期：2026-11-24
+- 分支/提交：`feature/full-demo`，基线 `a9984a7`
+- 固件：userdebug，`text 88672 / data 20 / bss 22124`，bin 88704 B
+- 采集方式：COM3 / 115200 / 8N1；`flash/flash.py flash` 出现 `** Verified OK **` 后复位，完整启动窗口
+- 判据：`size == 32 MB` 且 `bad == 0`，才打 PASS
+
+```text
+[post] sdram size=32M bad=0 PASS
+[post] result 1 pass 1 fail 0
+
+stm32-freertos: USART1 115200 debug ready
+[led] R=1 G=0
+[led] R=0 G=1
+[led] R=1 G=0
+[led] R=0 G=1
+[led] R=1 G=0
+[led] R=0 G=1
+```
+
+## 读数的含义
+
+| 字段 | 值 | 依据 |
+|---|---|---|
+| `size=32M` | 32 MB | DTB `sdram@c0000000` 的 `reg = <0xc0000000 0x02000000>`，经 `board_rt_sdram()` 读回 |
+| `bad=0` | 4 KB 步长全片写读零坏点 | `board_sdram_selftest()`：8192 个采样点，写入 `offset ^ 0xA5A5A5A5` 再读回比对 |
+| `result 1 pass 1 fail 0` | POST 目前只有 1 项 | `board_post_run()` 的统计；LCD/触摸等接入后总数随之增加 |
+
+## 两处曾经把现场引到错误方向的读数
+
+1. **`VTOR = 0x1FFF0000`、`PC = 0x1FFF07B0`**：曾据此判断"MCU 停在 ST 系统存储器 bootloader、固件没跑"。实际上 `BOOT0 = 0` 时 `0x00000000` 是 Flash 别名区，App 的 `VTOR` 可以是 0；那一次是 OpenOCD `reset run` 走了 SRST，CPU 被拉到系统存储器。**判断固件是否运行，要看 `prvIdleTask` 是否在跑或 RAM 里的 bss 是否已初始化，不能只看 PC**。
+2. **pyserial 抓包文件 0 字节**：脚本 `exit=0` 且串口能打开，但 20 s 窗口没收到任何行；同一时刻用 `System.IO.Ports.SerialPort` 直读能拿到 `[post]` 与 `[led]` 心跳。抓包通路本身不可信，验收时以直读结果为准。

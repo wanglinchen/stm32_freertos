@@ -3,8 +3,10 @@
 #include "bsl_fdt.h"
 
 #define RT_MAX_ITEMS 8U
+#define RT_MAX_PIN_GROUPS 6U
 
 #define RT_COMPAT_CLOCKS "brd,board-clocks"
+#define RT_COMPAT_SDRAM "brd,fmc-sdram"
 #define RT_COMPAT_LEDS "brd,gpio-leds"
 #define RT_COMPAT_KEYS "brd,gpio-keys"
 #define RT_COMPAT_I2C "brd,i2c-gpio"
@@ -43,6 +45,17 @@ typedef struct {
     unsigned tx_pin;
     char rx_port;
     unsigned rx_pin;
+
+    int sdram_ok;
+    uintptr_t sdram_base;
+    uint32_t sdram_size;
+    uint32_t sdram_sdcr;
+    uint32_t sdram_sdtr;
+    uint32_t sdram_refresh;
+    unsigned sdram_group_count;
+    GPIO_TypeDef *sdram_group_port[RT_MAX_PIN_GROUPS];
+    uint16_t sdram_group_mask[RT_MAX_PIN_GROUPS];
+    uint32_t sdram_group_af[RT_MAX_PIN_GROUPS];
 } board_rt_t;
 
 static board_rt_t s_rt;
@@ -328,6 +341,67 @@ static void parse_uart(void)
     s_rt.uart_ok = 1;
 }
 
+/*
+ * sdram：FMC Bank5 参数 + 按端口聚合的引脚组。
+ *
+ * 引脚组格式 `<&gpioX mask AF>`，与 gpios 的三 cell 同形，但第二 cell 是**掩码**：
+ * SDRAM 的 30 个脚分属 5 个端口，逐脚写成 30 项既冗长，又会让同一端口被 init 多次。
+ * 任一 cell 解不出端口、掩码为 0 或 AF 越界，整组拒绝 —— 半套引脚配置的现场表现是
+ * "写得进去读不出来"，而没有任何读数能指出是哪个端口没配上。
+ */
+static void parse_sdram(void)
+{
+    bsl_fdt_node_t node = bsl_fdt_find(RT_COMPAT_SDRAM, 0U);
+    uint32_t reg[2];
+    uint32_t cells[RT_MAX_PIN_GROUPS * 3U];
+    uint32_t sdcr = 0U;
+    uint32_t sdtr = 0U;
+    uint32_t refresh = 0U;
+    GPIO_TypeDef *port[RT_MAX_PIN_GROUPS];
+    uint16_t mask[RT_MAX_PIN_GROUPS];
+    uint32_t af[RT_MAX_PIN_GROUPS];
+    unsigned n;
+    unsigned groups;
+    unsigned i;
+
+    if (node == NULL) {
+        return;
+    }
+    if (bsl_fdt_prop_cells(node, "reg", reg, 2U) < 2U) {
+        return;
+    }
+    if (bsl_fdt_prop_u32(node, "sdcr", &sdcr) == 0
+        || bsl_fdt_prop_u32(node, "sdtr", &sdtr) == 0
+        || bsl_fdt_prop_u32(node, "refresh-count", &refresh) == 0) {
+        return;
+    }
+    n = bsl_fdt_prop_cells(node, "fmc-pins", cells, RT_MAX_PIN_GROUPS * 3U);
+    if (n < 3U || (n % 3U) != 0U) {
+        return;
+    }
+    groups = n / 3U;
+    for (i = 0U; i < groups; i++) {
+        port[i] = board_rt_port_of_phandle(cells[i * 3U]);
+        mask[i] = (uint16_t)(cells[i * 3U + 1U] & 0xFFFFU);
+        af[i] = cells[i * 3U + 2U];
+        if (port[i] == NULL || mask[i] == 0U || af[i] > 15U) {
+            return;
+        }
+    }
+    s_rt.sdram_base = (uintptr_t)reg[0];
+    s_rt.sdram_size = reg[1];
+    s_rt.sdram_sdcr = sdcr;
+    s_rt.sdram_sdtr = sdtr;
+    s_rt.sdram_refresh = refresh;
+    s_rt.sdram_group_count = groups;
+    for (i = 0U; i < groups; i++) {
+        s_rt.sdram_group_port[i] = port[i];
+        s_rt.sdram_group_mask[i] = mask[i];
+        s_rt.sdram_group_af[i] = af[i];
+    }
+    s_rt.sdram_ok = 1;
+}
+
 static void parse_all(void)
 {
     if (s_rt.parsed) {
@@ -338,6 +412,7 @@ static void parse_all(void)
         return;
     }
     parse_clocks();
+    parse_sdram();
     parse_leds();
     parse_keys();
     parse_i2c();
@@ -467,4 +542,43 @@ int board_rt_uart(uintptr_t *reg, uint32_t *baud, char *tx_port,
     if (rx_port != NULL) { *rx_port = s_rt.rx_port; }
     if (rx_pin != NULL) { *rx_pin = s_rt.rx_pin; }
     return 1;
+}
+
+int board_rt_sdram(uintptr_t *base, uint32_t *size, uint32_t *sdcr,
+                   uint32_t *sdtr, uint32_t *refresh_count)
+{
+    parse_all();
+    if (!s_rt.sdram_ok) {
+        return 0;
+    }
+    if (base != NULL) { *base = s_rt.sdram_base; }
+    if (size != NULL) { *size = s_rt.sdram_size; }
+    if (sdcr != NULL) { *sdcr = s_rt.sdram_sdcr; }
+    if (sdtr != NULL) { *sdtr = s_rt.sdram_sdtr; }
+    if (refresh_count != NULL) { *refresh_count = s_rt.sdram_refresh; }
+    return 1;
+}
+
+unsigned board_rt_sdram_pin_groups(void)
+{
+    parse_all();
+    return s_rt.sdram_group_count;
+}
+
+GPIO_TypeDef *board_rt_sdram_pin_port(unsigned index)
+{
+    parse_all();
+    return (index < s_rt.sdram_group_count) ? s_rt.sdram_group_port[index] : NULL;
+}
+
+uint16_t board_rt_sdram_pin_mask(unsigned index)
+{
+    parse_all();
+    return (index < s_rt.sdram_group_count) ? s_rt.sdram_group_mask[index] : 0U;
+}
+
+uint32_t board_rt_sdram_pin_af(unsigned index)
+{
+    parse_all();
+    return (index < s_rt.sdram_group_count) ? s_rt.sdram_group_af[index] : 0U;
 }

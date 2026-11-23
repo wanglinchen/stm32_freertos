@@ -56,8 +56,22 @@ endif
 endif
 ifeq ($(CONFIG_BSL),y)
 ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BOARD_POST),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/board_post.o
+endif
+endif
+endif
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
 ifeq ($(CONFIG_BSL_SRC_BOARD_RT),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/board_rt.o
+endif
+endif
+endif
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BOARD_SDRAM),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/board_sdram.o
 endif
 endif
 endif

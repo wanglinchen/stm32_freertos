@@ -1,6 +1,8 @@
 #ifndef BSL_DEVICE_API_H
 #define BSL_DEVICE_API_H
 
+#include <stdint.h>
+
 #include "board_beep.h"
 #include "board_debug_uart.h"
 #include "board_key.h"
@@ -38,5 +40,13 @@ typedef struct {
     void (*on)(void);
     void (*off)(void);
 } bsl_beep_api_t;
+
+/* SDRAM 只暴露"帧缓冲能放哪"这一件事：基址与字节数。
+ * 不提供 read/write 包装 —— 消费方拿到基址就是普通指针运算，再包一层只会
+ * 让每次取像素多一次函数调用。 */
+typedef struct {
+    void *(*base)(void);
+    uint32_t (*size)(void);
+} bsl_sdram_api_t;
 
 #endif

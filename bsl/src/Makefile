@@ -23,7 +23,9 @@ LOCAL_OBJS :=
 -include $(BUILD_DIR)/bsl/src/board_dtb.d
 -include $(BUILD_DIR)/bsl/src/board_key.d
 -include $(BUILD_DIR)/bsl/src/board_led.d
+-include $(BUILD_DIR)/bsl/src/board_post.d
 -include $(BUILD_DIR)/bsl/src/board_rt.d
+-include $(BUILD_DIR)/bsl/src/board_sdram.d
 -include $(BUILD_DIR)/bsl/src/board_system.d
 -include $(BUILD_DIR)/bsl/src/bsl_device.d
 -include $(BUILD_DIR)/bsl/src/bsl_fdt.d
@@ -100,6 +102,19 @@ endif
 
 ifeq ($(CONFIG_BSL),y)
 ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BOARD_POST),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/board_post.o
+$(BUILD_DIR)/bsl/src/board_post.o: $(PROJECT_ROOT)/bsl/src/board_post.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_post.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_post.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
 ifeq ($(CONFIG_BSL_SRC_BOARD_RT),y)
 LOCAL_OBJS += $(BUILD_DIR)/bsl/src/board_rt.o
 $(BUILD_DIR)/bsl/src/board_rt.o: $(PROJECT_ROOT)/bsl/src/board_rt.c $(FLAG_DEPS)
@@ -107,6 +122,19 @@ $(BUILD_DIR)/bsl/src/board_rt.o: $(PROJECT_ROOT)/bsl/src/board_rt.c $(FLAG_DEPS)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_rt.d -c $< -o $@
 	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_rt.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BOARD_SDRAM),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/board_sdram.o
+$(BUILD_DIR)/bsl/src/board_sdram.o: $(PROJECT_ROOT)/bsl/src/board_sdram.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_sdram.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_sdram.d
 endif
 endif
 endif

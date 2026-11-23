@@ -21,8 +21,16 @@ config BSL_SRC_BOARD_LED
 	bool "board_led.c"
 	default y
 
+config BSL_SRC_BOARD_POST
+	bool "board_post.c"
+	default y
+
 config BSL_SRC_BOARD_RT
 	bool "board_rt.c"
+	default y
+
+config BSL_SRC_BOARD_SDRAM
+	bool "board_sdram.c"
 	default y
 
 config BSL_SRC_BOARD_SYSTEM

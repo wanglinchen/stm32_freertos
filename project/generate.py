@@ -1186,6 +1186,26 @@ _BOARD_NODES = """\
         lse-frequency = <32768>;
     };
 
+    /* FMC Bank5 上的 SDRAM（W9825G6KH，16 位，32 MB）。
+     * 寄存器值取自参考工程 sdram.c（[参考工程] sdram_init 的 sdctrlreg/sdtimereg），
+     * 刷新计数按本工程时钟重算（[代码推算]）：HCLK=168 MHz、SDCLK=HCLK/2=84 MHz，
+     *   COUNT = 64 ms × 84 MHz / 8192 - 20 = 636
+     * 参考工程是 192 MHz（SDCLK 96 MHz）→ 730；直接抄 730 会让刷新偏慢。
+     * fmc-pins 的第三个 cell 是 AF 号（FMC 全在 AF12），第二个 cell 是端口引脚掩码：
+     *   PC0/2/3、PD0/1/8/9/10/14/15、PE0/1/7..15、PF0..5/11..15、PG0/1/2/4/5/8/15。 */
+    sdram: sdram@c0000000 {
+        compatible = "brd,fmc-sdram";
+        reg = <0xc0000000 0x02000000>;
+        sdcr = <0x19d9>;
+        sdtr = <0x01115561>;
+        refresh-count = <636>;
+        fmc-pins = <&gpioc 0x000d 12>,
+                   <&gpiod 0xc703 12>,
+                   <&gpioe 0xff83 12>,
+                   <&gpiof 0xf83f 12>,
+                   <&gpiog 0x8137 12>;
+    };
+
     leds {
         compatible = "brd,gpio-leds";
         active-low;
