@@ -458,6 +458,164 @@ static void post_sai(void)
 }
 
 /*
+ * imu（P6d）：MPU9250 的身份与两条硬事实。
+ *
+ * 判据不看"初始化有没有返回 OK"（那可能是驱动自己的乐观），看三个固定值：
+ *   WHO_AM_I(0x75) = 0x71 —— 型号指纹（MPU6050 是 0x68、MPU6500 是 0x70）；
+ *   初始化后再读一次 WHO_AM_I 仍为 0x71 —— 证明前面那串配置没把器件写崩
+ *   （写错寄存器把 MPU 配成 slave 模式时，它会从总线上"消失"）；
+ *   AK8963 的 WIA = 0x48 —— 只有 INT_PIN_CFG(0x37).BYPASS_EN 打开后才可见，
+ *   所以这一条同时证了"旁路真的生效"。DTB 没声明磁力计时该条不参与判定
+ *   （报 mag=00 并在判据里说明），不因此判 FAIL —— 那是"没验"，不是"坏了"。
+ *
+ * 加速度/陀螺读数只上报（板子静止时 acc 应接近重力方向、gyr 应接近 0），
+ * 不做"是否倾斜"的自动判定：那需要定标，属于应用。
+ */
+static void post_imu(void)
+{
+    int16_t acc[3];
+    int16_t gyr[3];
+    uint8_t who;
+    uint8_t mag;
+    int ok;
+
+    if (bsl_device_is_ready(BSL_DEV_IMU) == 0) {
+        post_begin("imu dev=not-ready");
+        post_end(0);
+        return;
+    }
+    who = bsl_devapi_imu()->who();
+    mag = bsl_devapi_imu()->mag_wia();
+    if (bsl_devapi_imu()->read(acc, gyr) != BSL_OK) {
+        acc[0] = 0; acc[1] = 0; acc[2] = 0;
+        gyr[0] = 0; gyr[1] = 0; gyr[2] = 0;
+        ok = 0;
+    } else {
+        ok = 1;
+    }
+    post_begin("imu who=");
+    bsl_log_put_hex(who, 2U);
+    BSL_LOG_INF(" mag=");
+    bsl_log_put_hex(mag, 2U);
+    BSL_LOG_INF(" acc=");
+    bsl_log_put_dec((int)acc[0]);
+    BSL_LOG_INF(",");
+    bsl_log_put_dec((int)acc[1]);
+    BSL_LOG_INF(",");
+    bsl_log_put_dec((int)acc[2]);
+    BSL_LOG_INF(" gyr=");
+    bsl_log_put_dec((int)gyr[0]);
+    BSL_LOG_INF(",");
+    bsl_log_put_dec((int)gyr[1]);
+    BSL_LOG_INF(",");
+    bsl_log_put_dec((int)gyr[2]);
+    post_end((ok && who == 0x71U && mag == 0x48U) ? 1 : 0);
+}
+
+/*
+ * als（P6d）：AP3216C 的系统寄存器可读回，所以这条判据是"回读等于写入"，
+ * 与 codec（只写器件只能数 ACK）不同。三个数据值一并上报：
+ *   als = 环境光（遮住板子读数应显著下降，这是人验手段）；
+ *   ps  = 接近距离；ir = 红外强度。
+ * 数据值不参与判定 —— 暗处 als 可以接近 0，拿它当判据会把"黑屋子"判成坏件。
+ */
+static void post_als(void)
+{
+    uint16_t ir = 0U;
+    uint16_t ps = 0U;
+    uint16_t als_v = 0U;
+    int ok;
+
+    if (bsl_device_is_ready(BSL_DEV_ALS) == 0) {
+        post_begin("als dev=not-ready");
+        post_end(0);
+        return;
+    }
+    ok = (bsl_devapi_als()->read(&ir, &ps, &als_v) == BSL_OK) ? 1 : 0;
+    post_begin("als ir=");
+    bsl_log_put_dec((int)ir);
+    BSL_LOG_INF(" ps=");
+    bsl_log_put_dec((int)ps);
+    BSL_LOG_INF(" als=");
+    bsl_log_put_dec((int)als_v);
+    post_end(ok);
+}
+
+/*
+ * eeprom（P6d）：24C02 的写-读-还原三段验证。
+ *
+ * 只碰**地址 0x00 这 1 个字节**，而且必须还原成原值 —— EEPROM 是用户数据，
+ * 自检不能把它当草稿纸。判据三件事：
+ *   1) 写反码后读回 = 反码（证明写真的落盘且读数指向同一字节）；
+ *   2) 还原后读回 = 原值（证明没留副作用）；
+ *   3) 全过程无 NACK。
+ * 任一步失败都要尽力还原（失败路径里再写一次原值），否则下次上电用户会看到
+ * 一个被自检改过的字节，而现场完全不知道是谁改的。
+ */
+static void post_eeprom(void)
+{
+    uint8_t orig = 0U;
+    uint8_t back = 0U;
+    uint8_t flip;
+    int ok = 0;
+
+    if (bsl_device_is_ready(BSL_DEV_EEPROM) == 0) {
+        post_begin("eeprom dev=not-ready");
+        post_end(0);
+        return;
+    }
+    if (bsl_devapi_eeprom()->read(0x00U, &orig, 1U) != BSL_OK) {
+        post_begin("eeprom read fail");
+        post_end(0);
+        return;
+    }
+    flip = (uint8_t)(orig ^ 0xA5U);
+    if (bsl_devapi_eeprom()->write(0x00U, flip) == BSL_OK
+        && bsl_devapi_eeprom()->read(0x00U, &back, 1U) == BSL_OK
+        && back == flip) {
+        ok = 1;
+    }
+    /* 还原：无论上一步成败都要写回去，再用读回确认真的还回去了 */
+    (void)bsl_devapi_eeprom()->write(0x00U, orig);
+    if (bsl_devapi_eeprom()->read(0x00U, &back, 1U) != BSL_OK || back != orig) {
+        ok = 0;
+    }
+    post_begin("eeprom wr=");
+    bsl_log_put_hex(flip, 2U);
+    BSL_LOG_INF(" rd=");
+    bsl_log_put_hex((uint8_t)((ok != 0) ? flip : back), 2U);
+    BSL_LOG_INF(" restore=");
+    bsl_log_put_hex(orig, 2U);
+    post_end(ok);
+}
+
+/*
+ * tpad（P6d）：基线是否落在合理区间。
+ *
+ * 判据 = 参考工程 system_init() 的同一条：`default` 在 (0, arr_max/2] 且 <= 1000。
+ * 上界 1000 是"这块板空载充电时间"的实测量级，超过它说明引脚被持续按压/短路。
+ * 「真的用手指按一下」验不到 —— 那需要人手，POST 只证"定标成功、门限算得出来"；
+ * HIL 里敲 `tpad` 命令看实时计数值，人按一下即可确认灵敏度。
+ */
+static void post_tpad(void)
+{
+    const bsl_tpad_api_t *api = bsl_devapi_tpad();
+    uint16_t base;
+
+    if (bsl_device_is_ready(BSL_DEV_TPAD) == 0) {
+        post_begin("tpad dev=not-ready");
+        post_end(0);
+        return;
+    }
+    base = api->baseline();
+    post_begin("tpad default=");
+    bsl_log_put_dec((int)base);
+    BSL_LOG_INF(" thr=");
+    bsl_log_put_dec((int)api->threshold());
+    post_end((base != 0U && base <= 1000U) ? 1 : 0);
+}
+
+/*
  * 外部项（apl 注册）：
  *
  * "屏上有没有文字"必须用 fml 的字库与画布才验得出来，而 bsl 不能反向依赖 fml
@@ -533,6 +691,10 @@ void board_post_run(void)
     post_rng();
     post_codec();
     post_sai();
+    post_imu();
+    post_als();
+    post_eeprom();
+    post_tpad();
     post_ext();
 
     BSL_LOG_MOD_INF(POST_LOG_MOD, "result ");

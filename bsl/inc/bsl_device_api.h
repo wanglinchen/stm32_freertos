@@ -112,4 +112,39 @@ typedef struct {
     bsl_err_t (*set_volume)(uint8_t vol);
 } bsl_codec_api_t;
 
+/* MPU9250（P6d）：身份 + 原始读数。
+ * who / mag_wia 单独给而不是合成一个"健康度"布尔：型号不对与磁力计没通是
+ * 两件不同的坏消息，合成一个就再也分不开了（而 P6c-0 正是靠 who 值定的型号）。 */
+typedef struct {
+    int (*ready)(void);
+    uint8_t (*who)(void);
+    uint8_t (*mag_wia)(void);
+    bsl_err_t (*read)(int16_t acc[3], int16_t gyr[3]);
+} bsl_imu_api_t;
+
+/* AP3216C（P6d）：可读回的系统寄存器已经由 init 校验，这里只给数据。 */
+typedef struct {
+    int (*ready)(void);
+    bsl_err_t (*read)(uint16_t *ir, uint16_t *ps, uint16_t *als);
+} bsl_als_api_t;
+
+/* 24C02（P6d）：读/写是**设备语义**（含 tWR 等待），不是总线语义，
+ * 所以 write 在本层暴露；应用侧只应使用 read（设置持久化将来再开写）。 */
+typedef struct {
+    int (*ready)(void);
+    bsl_err_t (*read)(uint8_t addr8, uint8_t *buf, unsigned len);
+    bsl_err_t (*write)(uint8_t addr8, uint8_t value);
+} bsl_eeprom_api_t;
+
+/* TPAD（P6d）：基线/门限上报 + 扫描。
+ * scan 的返回值口径是 int 而不是 bool：未初始化要能被区分出来（BSL_ERR_NOINIT），
+ * 否则"没初始化"和"没按下"在应用里长得一样。 */
+typedef struct {
+    int (*ready)(void);
+    uint16_t (*baseline)(void);
+    uint16_t (*threshold)(void);
+    int (*scan)(int continuous);
+} bsl_tpad_api_t;
+
+
 #endif

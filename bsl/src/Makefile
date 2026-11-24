@@ -18,18 +18,22 @@ INCLUDES := $(addprefix -I,$(INCLUDE_DIRS))
 FLAG_DEPS := $(wildcard $(PROJECT_ROOT)/toolchain.make) $(wildcard $(PROJECT_ROOT)/out/$(BUILD_VARIANT)/.config)
 
 LOCAL_OBJS :=
+-include $(BUILD_DIR)/bsl/src/board_ap3216c.d
 -include $(BUILD_DIR)/bsl/src/board_beep.d
 -include $(BUILD_DIR)/bsl/src/board_debug_uart.d
 -include $(BUILD_DIR)/bsl/src/board_dtb.d
+-include $(BUILD_DIR)/bsl/src/board_eeprom.d
 -include $(BUILD_DIR)/bsl/src/board_key.d
 -include $(BUILD_DIR)/bsl/src/board_lcd.d
 -include $(BUILD_DIR)/bsl/src/board_led.d
+-include $(BUILD_DIR)/bsl/src/board_mpu9250.d
 -include $(BUILD_DIR)/bsl/src/board_nor.d
 -include $(BUILD_DIR)/bsl/src/board_post.d
 -include $(BUILD_DIR)/bsl/src/board_rt.d
 -include $(BUILD_DIR)/bsl/src/board_sdram.d
 -include $(BUILD_DIR)/bsl/src/board_system.d
 -include $(BUILD_DIR)/bsl/src/board_touch.d
+-include $(BUILD_DIR)/bsl/src/board_tpad.d
 -include $(BUILD_DIR)/bsl/src/board_wm8978.d
 -include $(BUILD_DIR)/bsl/src/bsl_adc.d
 -include $(BUILD_DIR)/bsl/src/bsl_crc.d
@@ -45,6 +49,19 @@ LOCAL_OBJS :=
 -include $(BUILD_DIR)/bsl/src/bsl_rtc.d
 -include $(BUILD_DIR)/bsl/src/bsl_sai.d
 -include $(BUILD_DIR)/bsl/src/bsl_spi.d
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BOARD_AP3216C),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/board_ap3216c.o
+$(BUILD_DIR)/bsl/src/board_ap3216c.o: $(PROJECT_ROOT)/bsl/src/board_ap3216c.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_ap3216c.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_ap3216c.d
+endif
+endif
+endif
 
 ifeq ($(CONFIG_BSL),y)
 ifeq ($(CONFIG_BSL_SRC),y)
@@ -87,6 +104,19 @@ endif
 
 ifeq ($(CONFIG_BSL),y)
 ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BOARD_EEPROM),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/board_eeprom.o
+$(BUILD_DIR)/bsl/src/board_eeprom.o: $(PROJECT_ROOT)/bsl/src/board_eeprom.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_eeprom.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_eeprom.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
 ifeq ($(CONFIG_BSL_SRC_BOARD_KEY),y)
 LOCAL_OBJS += $(BUILD_DIR)/bsl/src/board_key.o
 $(BUILD_DIR)/bsl/src/board_key.o: $(PROJECT_ROOT)/bsl/src/board_key.c $(FLAG_DEPS)
@@ -120,6 +150,19 @@ $(BUILD_DIR)/bsl/src/board_led.o: $(PROJECT_ROOT)/bsl/src/board_led.c $(FLAG_DEP
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_led.d -c $< -o $@
 	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_led.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BOARD_MPU9250),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/board_mpu9250.o
+$(BUILD_DIR)/bsl/src/board_mpu9250.o: $(PROJECT_ROOT)/bsl/src/board_mpu9250.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_mpu9250.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_mpu9250.d
 endif
 endif
 endif
@@ -198,6 +241,19 @@ $(BUILD_DIR)/bsl/src/board_touch.o: $(PROJECT_ROOT)/bsl/src/board_touch.c $(FLAG
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_touch.d -c $< -o $@
 	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_touch.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BOARD_TPAD),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/board_tpad.o
+$(BUILD_DIR)/bsl/src/board_tpad.o: $(PROJECT_ROOT)/bsl/src/board_tpad.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_tpad.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_tpad.d
 endif
 endif
 endif

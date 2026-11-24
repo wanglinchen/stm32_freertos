@@ -24,6 +24,10 @@ typedef enum {
     BSL_DEV_RTC,
     BSL_DEV_SAI,
     BSL_DEV_CODEC,
+    BSL_DEV_IMU,
+    BSL_DEV_ALS,
+    BSL_DEV_EEPROM,
+    BSL_DEV_TPAD,
     BSL_DEV_COUNT
 } bsl_dev_id_t;
 
@@ -40,6 +44,10 @@ typedef enum {
 /* 节点 rtc: compatible = "brd,rtc" → bsl_driver_brd_rtc */
 /* 节点 sai: compatible = "brd,sai" → bsl_driver_brd_sai */
 /* 节点 wm8978: compatible = "wolfson,wm8978" → bsl_driver_wolfson_wm8978 */
+/* 节点 imu: compatible = "invensense,mpu9250" → bsl_driver_invensense_mpu9250 */
+/* 节点 als: compatible = "liteon,ap3216c" → bsl_driver_liteon_ap3216c */
+/* 节点 eeprom: compatible = "atmel,24c02" → bsl_driver_atmel_24c02 */
+/* 节点 tpad: compatible = "brd,tpad" → bsl_driver_brd_tpad */
 
 struct bsl_device_driver;
 extern const struct bsl_device_driver bsl_driver_brd_gpio_keys;
@@ -55,6 +63,10 @@ extern const struct bsl_device_driver bsl_driver_nxp_pcf8574;
 extern const struct bsl_device_driver bsl_driver_brd_rtc;
 extern const struct bsl_device_driver bsl_driver_brd_sai;
 extern const struct bsl_device_driver bsl_driver_wolfson_wm8978;
+extern const struct bsl_device_driver bsl_driver_invensense_mpu9250;
+extern const struct bsl_device_driver bsl_driver_liteon_ap3216c;
+extern const struct bsl_device_driver bsl_driver_atmel_24c02;
+extern const struct bsl_device_driver bsl_driver_brd_tpad;
 
 extern const bsl_gpio_leds_api_t bsl_api_brd_gpio_leds;
 extern const bsl_gpio_keys_api_t bsl_api_brd_gpio_keys;
@@ -66,6 +78,14 @@ extern const bsl_nor_api_t bsl_api_winbond_w25q256;
 extern const bsl_rtc_api_t bsl_api_brd_rtc;
 extern const bsl_sai_api_t bsl_api_brd_sai;
 extern const bsl_codec_api_t bsl_api_wolfson_wm8978;
+extern const bsl_imu_api_t bsl_api_invensense_mpu9250;
+extern const bsl_als_api_t bsl_api_liteon_ap3216c;
+extern const bsl_eeprom_api_t bsl_api_atmel_24c02;
+extern const bsl_tpad_api_t bsl_api_brd_tpad;
+extern const bsl_imu_api_t bsl_api_invensense_mpu9250;
+extern const bsl_als_api_t bsl_api_liteon_ap3216c;
+extern const bsl_eeprom_api_t bsl_api_atmel_24c02;
+extern const bsl_tpad_api_t bsl_api_brd_tpad;
 
 /* BSL_DEV_LEDS: brd,gpio-leds 的 api，类型在编译期确定 */
 static inline const bsl_gpio_leds_api_t *bsl_devapi_leds(void)
@@ -130,6 +150,28 @@ static inline const bsl_codec_api_t *bsl_devapi_codec(void)
     return &bsl_api_wolfson_wm8978;
 }
 
+/* BSL_DEV_IMU / BSL_DEV_ALS / BSL_DEV_EEPROM / BSL_DEV_TPAD（P6d）：
+ * 消费者是 board_post 的四项自检 + fml_shell 的四条只读命令。 */
+static inline const bsl_imu_api_t *bsl_devapi_imu(void)
+{
+    return &bsl_api_invensense_mpu9250;
+}
+
+static inline const bsl_als_api_t *bsl_devapi_als(void)
+{
+    return &bsl_api_liteon_ap3216c;
+}
+
+static inline const bsl_eeprom_api_t *bsl_devapi_eeprom(void)
+{
+    return &bsl_api_atmel_24c02;
+}
+
+static inline const bsl_tpad_api_t *bsl_devapi_tpad(void)
+{
+    return &bsl_api_brd_tpad;
+}
+
 #define BOARD_DEVICE_REGISTRY_APPLY(M) \
     M(BSL_DEV_DEBUG_UART, "debug_uart", BSL_INIT_LEVEL_POST_CLOCK, bsl_driver_debug_uart, 0) \
     M(BSL_DEV_SDRAM, "sdram", BSL_INIT_LEVEL_BOARD, bsl_driver_brd_fmc_sdram, 0) \
@@ -143,6 +185,10 @@ static inline const bsl_codec_api_t *bsl_devapi_codec(void)
     M(BSL_DEV_BEEP, "beep", BSL_INIT_LEVEL_BOARD, bsl_driver_brd_pcf8574_beep, 1) \
     M(BSL_DEV_RTC, "rtc", BSL_INIT_LEVEL_BOARD, bsl_driver_brd_rtc, 1) \
     M(BSL_DEV_SAI, "sai", BSL_INIT_LEVEL_BOARD, bsl_driver_brd_sai, 0) \
-    M(BSL_DEV_CODEC, "wm8978", BSL_INIT_LEVEL_BOARD, bsl_driver_wolfson_wm8978, 0)
+    M(BSL_DEV_CODEC, "wm8978", BSL_INIT_LEVEL_BOARD, bsl_driver_wolfson_wm8978, 0) \
+    M(BSL_DEV_IMU, "imu", BSL_INIT_LEVEL_BOARD, bsl_driver_invensense_mpu9250, 0) \
+    M(BSL_DEV_ALS, "als", BSL_INIT_LEVEL_BOARD, bsl_driver_liteon_ap3216c, 0) \
+    M(BSL_DEV_EEPROM, "eeprom", BSL_INIT_LEVEL_BOARD, bsl_driver_atmel_24c02, 0) \
+    M(BSL_DEV_TPAD, "tpad", BSL_INIT_LEVEL_BOARD, bsl_driver_brd_tpad, 0)
 
 #endif /* BOARD_DEVICE_REGISTRY_H */

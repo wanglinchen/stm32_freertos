@@ -1,0 +1,125 @@
+# 串口自检证据 · P6d 19 项（2026-11-25）
+
+分支 `feature/full-demo`。本批交付：传感器四件 `board_mpu9250` / `board_ap3216c` /
+`board_tpad` / `board_eeprom`，四个 DTB 节点，四个内置 POST 项，
+`fml_shell` 的四条只读命令（`als` / `imu` / `eeprom` / `tpad`）。
+
+## 一、上电自检全文（userdebug 档）
+
+```
+stm32-freertos: USART1 115200 debug ready
+[sai] init: fs=47973 hz mck-div=4 codec=1a cr1=00400240 frcr=00050f1f slotr=00030100
+[imu] mpu9250 addr=68 who=71 mag=48
+[als] ap3216c addr=1e sys=03
+[eeprom] 24c02 addr=50 bytes=256
+[tpad] default=17 thr=23 tim=20
+[post] sdram size=32M bad=0 PASS
+[post] lcd w=800 h=480 bad=0 PASS
+[post] touch id=9147 points=0 PASS
+[post] nor id=0xef4019 size=32M PASS
+[post] rtc src=lse 2026-11-25 01:59:09 walk=1s PASS
+[post] adc raw=990 cal=935/1205 t=46.2C PASS
+[post] crc 0x4c40e0d7 expect=0x4c40e0d7 PASS
+[post] rng n=16 distinct=16 degen=0 PASS
+[post] codec 1a regs=14 ack=14 PASS
+[sai] play frames=2048 us=42656 us_start=2 ndtr0=2047 err=0
+[post] sai fs=47973 frames=2048 us=42656 expect=42690 err=0 PASS
+[post] imu who=71 mag=48 acc=282,190,3771 gyr=-29,-11,-21 PASS
+[post] als ir=5 ps=17 als=257 PASS
+[post] eeprom wr=5a rd=5a restore=ff PASS
+[post] tpad default=17 thr=23 PASS
+[post] font c0=48 c1=45 c2=70 c3=46 w=8 h=16 ink=22 blank=0 cjk_min=45 PASS
+[post] fatfs total=25568KB ents=2 ... PASS
+[post] ui win=1 btn=8 hit=8/8 ink=520 ovf=0 PASS
+[post] menu apps=8 enter=1 back=1 leave=8 enter2=2 calc=3 set=2 pic=240x320b24 note=2:d6d0/2:18 cal=20261125 depth=0 PASS
+[post] shell cmd=12 help=1 uptime=0ms PASS
+[post] result 19 pass 19 fail 0
+
+[shell] ready cmds=12, type help
+```
+
+## 二、四项判据与读数
+
+| 项 | 判据 | 本条读数 |
+| --- | --- | --- |
+| `imu` | `WHO_AM_I(0x75)==0x71` 且读得到加速度/陀螺；磁力计 `WIA==0x48` | `who=71 mag=48`，`acc=282,190,3771`（Z≈0.92 g，量程 ±8 g / 4096 LSB/g），`gyr=-29,-11,-21`（静止，百以内） |
+| `als` | 初始化时 `SYSTEM(0x00)` 写 0x04 → 50 ms → 写 0x03 → **回读 == 0x03** | `sys=03`（这是唯一硬判据）；数据值 `ir=5 ps=17 als=257` 只上报 |
+| `eeprom` | 读原值 → 写反码 → 读回 == 反码 → 还原 → 读回 == 原值 | `wr=5a rd=5a restore=ff`（原值 `ff`，反码 `5a`，还原后 `eeprom 0` 读到 `ff`） |
+| `tpad` | 10 次采样掐头去尾取中位均值，`0 < default <= 1000` 且 `default < arr_max/2` | `default=17 thr=23`（PSC=20 → 4.5 MHz，充电约 3.8 µs） |
+
+## 三、HIL：四条命令（手敲逐字发送）
+
+```
+[shell] > als
+ir=6 ps=18 als=258
+
+[shell] > imu
+who=71 mag=48 acc=271,197,3774 gyr=-28,-9,-20
+
+[shell] > eeprom 0
+eeprom[0]=ff
+
+[shell] > tpad
+default=17 thr=23 idle
+（连敲 4 次，读数与状态完全一致）
+```
+
+说明：`als` 两次读数（`258` / `257`）差 1，说明它不是常量而是真的在采样；
+`imu` 三次 `acc` 的 Z 轴在 3765/3771/3774 之间，是静止噪声而不是死值；
+`eeprom[0]=ff` 与 `restore=ff` 一致 ⇒ 自检没有留下副作用。
+
+## 四、双档体积与符号
+
+```
+   text	   data	    bss	    dec	    hex	filename
+ 597508	     52	  53116	 650676	  9edb4	out\userdebug\objects\target\stm32-freertos.elf
+ 585480	     52	  53108	 638640	 9beb0	out\user\objects\target\stm32-freertos.elf
+```
+
+相对 P6c（590820 / 52988）text +6688、bss +128。`nm` 复核（四个驱动全部在镜像里，
+说明没有"头里声明、镜像无符号"的假 API）：
+
+```
+T board_mpu9250_init/ready/who/mag_wia/read
+T board_ap3216c_init/ready/read
+T board_eeprom_init/ready/read/write
+T board_tpad_init/ready/default/threshold/scan
+```
+
+## 五、门禁
+
+- `update`：`out/dts/apollo.dtb` 66123 B，零 dtc 诊断（四个新节点进 DTB）。
+- 双档 `build`：`-Werror` 零告警。
+- `check`：仍 37 条历史遗留（1 条 `ffconf.h` 守卫 + 2 条无消费者符号 + 34 条 FatFs 未用函数），**无新增**。
+
+## 六、本批两处"看起来都对、实际错了"的现场
+
+1. **`tpad-pins` 的第二个 cell 语义写错**：我照 `sai-pins` 写成掩码 `0x0020`，
+   而解析器按"脚号 ≤ 15"来验（32 > 15）→ 整节点被拒 → 上电打
+   `[tpad] no dtb node`、`[bsl] device init failed: tpad rc=-5`、POST 打
+   `tpad dev=not-ready FAIL`（**15/19 项里唯一的 FAIL 就来自这里**）。
+   修法：解析器按掩码收，且要求"恰好一位"（两根脚说明 DTS 写错了，直接拒收）。
+   教训：同一张表里三种引脚属性（`gpios` 是 `<phandle pin flags>`、`sai-pins` 是
+   `<phandle mask af>`）语义不同，抄属性名之前先看它是"脚号"还是"掩码"。
+
+2. **`gate-val` 是个零使用的死常量，照抄就做出"永远按不到"的判据**：第一版按
+   `threshold = default + gate_val(100)` 判，而实测基线只有 **17** 个计数 ——
+   等于要求手指把读数放大到 7 倍，物理上做不到。而这一版 POST 仍然会 **PASS**
+   （因为判据只看"基线合法"），是最难查的一类错。查参考工程才发现
+   `TPAD_GATE_VAL` 在 `tpad.c` 里根本没被用过，真正的判定是倍率口径
+   （`> 4/3 基线 && < 10× 基线`）。修法：判定改倍率（`thr=23`），
+   并把 DTB 里的 `gate-val` **删掉** —— 留一个"解析了但没人消费"的属性，
+   正是本工程 §2 规则 3 明令禁止的形态。
+
+## 七、没验到的部分（写清，不粉饰）
+
+- **TPAD 的真手指按下**：`pressed` / `idle` 只能人来按。POST 与 `tpad` 命令只证
+  "定标成功、门限按倍率算得出"；灵敏度是否够用（按下去读数能否超过 23）需要人手。
+- **IMU 的倾斜/姿态**：POST 只证"读数是物理量"（重力落在 Z 轴、静止陀螺近 0），
+  倾斜时三轴如何变化未验；量程换算系数（±8 g / ±2000 dps）也未做数值校验。
+- **磁力计数据**：只验了 `WIA=0x48` 与已开连续测量模式（`CNTL1=0x16`），
+  没有读磁场分量，也没有校准（AK8963 需要软铁/硬铁校准才有意义）。
+- **EEPROM 只碰地址 0x00 一个字节**：多字节跨页写（页 8 字节）未验；写周期
+  用固定 6 ms 等待而非 ACK 轮询，极慢器件上不成立。
+- **AP3216C 的 ALS/PS 响应**：只验了寄存器回读与"两次读数不同"，遮光/靠近的
+  响应幅度未定量。

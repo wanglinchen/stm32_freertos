@@ -150,6 +150,54 @@ GPIO_TypeDef *board_rt_sai_pin_port(unsigned index);
 uint16_t board_rt_sai_pin_mask(unsigned index);
 uint32_t board_rt_sai_pin_af(unsigned index);
 
+/* MPU9250（六轴 + 片内 AK8963 磁力计）：两颗芯片各一个 7 位地址。
+ * 磁力计的地址不是"再挂一颗 I2C 器件"，而是**MPU9250 内部的旁路**：只有先写
+ * INT_PIN_CFG(0x37) 的 BYPASS_EN 位，AK8963 才出现在总线上。mag_addr7 由 DTB 给，
+ * 消费方不得自己猜 0x0C —— P6c-0 那次 `i2c 0c r00=nack` 正是没开旁路时的正常现象。 */
+typedef struct {
+    uint8_t addr7;
+    uint8_t mag_addr7; /* 0 = DTB 未声明，驱动按"不做磁力计自检"降级 */
+} board_rt_mpu9250_t;
+
+int board_rt_mpu9250(board_rt_mpu9250_t *out);
+
+/* AP3216C（ALS / PS+IR 三合一）：只有 7 位地址是板级事实，寄存器表是器件事实。 */
+typedef struct {
+    uint8_t addr7;
+} board_rt_ap3216c_t;
+
+int board_rt_ap3216c(board_rt_ap3216c_t *out);
+
+/* 24C02（256 B，8 位字地址）。 */
+typedef struct {
+    uint8_t addr7;
+} board_rt_eeprom_t;
+
+int board_rt_eeprom(board_rt_eeprom_t *out);
+
+/* TPAD（电容触摸按键）：PA5 走 TIM2_CH1 输入捕获，充电时间就是"键值"。
+ * 引脚 + 定时器 + 通道 + 计数参数成套返回 —— 少一项就量不出充电时间，
+ * 而现场只表现为"永远按不到"，没有任何读数指向 DTB。
+ * prescaler 决定分辨率（越小越灵敏）。
+ *
+ * **这里没有 gate-val**：2026-11-25 实测基线只有 17 个计数（PSC=20 → 4.5 MHz，
+ * 即充电约 3.8 µs），此时"基线 + 100"等于要把读数放大到 7 倍才认按下 ——
+ * 手指根本按不到。参考工程 `tpad.h` 里的 `TPAD_GATE_VAL 100` 也是个**零使用**的
+ * 常量（`tpad_scan` 实际用的是倍率判据）。所以判定改成倍率口径（> 4/3 基线），
+ * 不在这里留一个没有消费者的属性。 */
+typedef struct {
+    GPIO_TypeDef *port;
+    unsigned pin;
+    unsigned af;
+    TIM_TypeDef *inst;
+    unsigned channel;    /* 1..4 */
+    uint32_t arr_max;
+    uint32_t prescaler;  /* PSC = prescaler - 1，与参考工程 tpad_init(psc) 同口径 */
+    uint32_t charge_ms;  /* 放电（推挽输出 0）保持时间 */
+} board_rt_tpad_t;
+
+int board_rt_tpad(board_rt_tpad_t *out);
+
 unsigned board_rt_led_count(void);
 GPIO_TypeDef *board_rt_led_port(void);
 uint16_t board_rt_led_pin(unsigned index);

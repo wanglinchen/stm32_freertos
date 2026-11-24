@@ -1371,6 +1371,33 @@ _BOARD_NODES = """\
             reg = <26>;
             status = "okay";
         };
+
+        /* 传感器三件（P6d）。地址取自 P6c-0 的 `i2c scan`（2026-11-25）：
+         * 1a/1e/20/50/68 五个应答里，0x1E 是 AP3216C、0x50 是 24C02、
+         * 0x68 是 MPU9250（`i2c 68 r75=71` 的 WHO_AM_I 指纹），
+         * 而 QMI8658A(0x6A/0x6B)、ST480MC(0x0C) 均无应答 —— 型号按实测改名。
+         *
+         * mag-addr 是 MPU9250 片内 AK8963 的地址：它**不是**总线上常驻的独立器件，
+         * 只有先写 INT_PIN_CFG(0x37).BYPASS_EN 才出现。P6c-0 那次 `i2c 0c r00=nack`
+         * 正是旁路未开时的正常现象，不是"板上没有磁力计"。 */
+        mpu9250: imu@68 {
+            compatible = "invensense,mpu9250";
+            reg = <104>;
+            mag-addr = <12>;
+            status = "okay";
+        };
+
+        ap3216c: als@1e {
+            compatible = "liteon,ap3216c";
+            reg = <30>;
+            status = "okay";
+        };
+
+        eeprom: eeprom@50 {
+            compatible = "atmel,24c02";
+            reg = <80>;
+            status = "okay";
+        };
     };
 
     beep {
@@ -1446,6 +1473,32 @@ _BOARD_NODES = """\
         pll2-q = <8>;
         pll2-divq = <0>;
         codec = <&wm8978>;
+    };
+
+    /* TPAD（电容触摸按键）：PA5 走 TIM2_CH1 输入捕获。
+     * 硬件事实来自阿波罗 V2 硬件参考手册 V1.1 表 1.5.1（PA5 备注写「ADC 输入引脚，
+     * 同时做 TPAD 检测脚」）与参考工程 `tpad.h`（TPAD_GPIO=PA5、AF1=TIM2_CH1）；
+     * 检出方法不是 ADC 采样，而是"推挽输出 0 放电 → 切回复用浮空 → 用输入捕获
+     * 量 RC 充电到阈值的时间"：手指按下增大电容，充电时间变长，读数值变大。
+     *
+     * 三个参数（prescaler / arr-max / charge-ms）取参考工程 `system_init()` 的实调值
+     * （`tpad_init(20)`、`TPAD_ARR_MAX_VAL=0xFFFF`、放电 `delay_ms(5)`）；它们是
+     * **板级事实**（取决于这块板的 RC 常数），换板要改这里，驱动里的时序逻辑不用动。
+     *
+     * **刻意没有 gate-val**：参考工程头文件里那个 `TPAD_GATE_VAL 100` 是零使用的
+     * 常量（`tpad_scan` 用的是倍率判据）。本板 2026-11-25 实测空载基线只有 17 个
+     * 计数（PSC=20 → 4.5 MHz，充电约 3.8 µs），"基线+100"意味着读数要放大 7 倍才
+     * 算按下，手指按不到。判定口径改为倍率（> 4/3 基线），常量留在驱动里，
+     * 不在这里放一个没人消费的属性。 */
+    tpad: tpad {
+        compatible = "brd,tpad";
+        status = "okay";
+        tpad-pins = <&gpioa 0x0020 1>;
+        timer = "tim2";
+        channel = <1>;
+        arr-max = <0xffff>;
+        prescaler = <20>;
+        charge-ms = <5>;
     };
 """
 

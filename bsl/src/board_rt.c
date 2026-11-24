@@ -93,6 +93,18 @@ typedef struct {
     GPIO_TypeDef *sai_group_port[RT_MAX_PIN_GROUPS];
     uint16_t sai_group_mask[RT_MAX_PIN_GROUPS];
     uint32_t sai_group_af[RT_MAX_PIN_GROUPS];
+
+    int imu_ok;
+    board_rt_mpu9250_t imu;
+
+    int als_ok;
+    board_rt_ap3216c_t als;
+
+    int eeprom_ok;
+    board_rt_eeprom_t eeprom;
+
+    int tpad_ok;
+    board_rt_tpad_t tpad;
 } board_rt_t;
 
 static board_rt_t s_rt;
@@ -870,6 +882,168 @@ static void parse_sai(void)
     s_rt.sai_ok = 1;
 }
 
+/* 节点名与 compatible 是两件事：name 决定 /sys 里怎么称呼这颗器件，
+ * compatible 决定谁来驱动。四个传感器节点的节点名在对照表 P6d 行定死
+ * （`imu@68` / `als@1e` / `eeprom@50` / `tpad`），这里只认 compatible。 */
+#define RT_COMPAT_IMU "invensense,mpu9250"
+#define RT_COMPAT_ALS "liteon,ap3216c"
+#define RT_COMPAT_EEPROM "atmel,24c02"
+#define RT_COMPAT_TPAD "brd,tpad"
+
+/* 触发器实例名 → 指针。只收录本工程真用到的：P6d 的 TPAD 用 TIM2，
+ * P6e 的 PWM 会用别的定时器，那时再往这张表里加一行，而不是让每个驱动
+ * 各自写一份 if-else。 */
+static TIM_TypeDef *timer_of_name(const char *name)
+{
+    if (name == NULL) {
+        return NULL;
+    }
+    if (strcmp(name, "tim2") == 0) {
+        return TIM2;
+    }
+    if (strcmp(name, "tim3") == 0) {
+        return TIM3;
+    }
+    if (strcmp(name, "tim4") == 0) {
+        return TIM4;
+    }
+    if (strcmp(name, "tim5") == 0) {
+        return TIM5;
+    }
+    return NULL;
+}
+
+/* I2C 传感器只解析 7 位地址。地址合法区间是 0x08..0x77（0x00..0x07 与 0x78..0x7F
+ * 是 I2C 规范的保留段）：写进 DTB 的地址若落在这两段，节点整条拒收，
+ * 而不是"照抄着发出去"，让现场变成"偶发 NACK、不知道是地址错还是器件错"。 */
+static int sensor_addr7(bsl_fdt_node_t node, uint8_t *out)
+{
+    uint32_t reg = 0U;
+
+    if (node == NULL) {
+        return 0;
+    }
+    if (bsl_fdt_prop_cells(node, "reg", &reg, 1U) != 1U) {
+        return 0;
+    }
+    if (reg < 0x08U || reg > 0x77U) {
+        return 0;
+    }
+    *out = (uint8_t)reg;
+    return 1;
+}
+
+/* imu：主地址 + 磁力计地址。mag-addr 缺失不算失败（磁力计自检降级），
+ * 但主地址缺失整节点拒收 —— 没有主地址连 WHO_AM_I 都读不到。 */
+static void parse_mpu9250(void)
+{
+    bsl_fdt_node_t node = bsl_fdt_find(RT_COMPAT_IMU, 0U);
+    board_rt_mpu9250_t m;
+    uint32_t mag = 0U;
+
+    if (sensor_addr7(node, &m.addr7) == 0) {
+        return;
+    }
+    m.mag_addr7 = 0U;
+    if (bsl_fdt_prop_u32(node, "mag-addr", &mag) != 0 && mag >= 0x08U && mag <= 0x77U) {
+        m.mag_addr7 = (uint8_t)mag;
+    }
+    s_rt.imu = m;
+    s_rt.imu_ok = 1;
+}
+
+static void parse_ap3216c(void)
+{
+    bsl_fdt_node_t node = bsl_fdt_find(RT_COMPAT_ALS, 0U);
+    board_rt_ap3216c_t a;
+
+    if (sensor_addr7(node, &a.addr7) == 0) {
+        return;
+    }
+    s_rt.als = a;
+    s_rt.als_ok = 1;
+}
+
+static void parse_eeprom(void)
+{
+    bsl_fdt_node_t node = bsl_fdt_find(RT_COMPAT_EEPROM, 0U);
+    board_rt_eeprom_t e;
+
+    if (sensor_addr7(node, &e.addr7) == 0) {
+        return;
+    }
+    s_rt.eeprom = e;
+    s_rt.eeprom_ok = 1;
+}
+
+/* tpad：引脚 + 定时器 + 通道 + 计数/门限参数。
+ *
+ * 通道号与"捕获上升沿"是驱动事实（写死在 board_tpad 里），不是板级事实；
+ * 这里给的是"用哪个脚、哪个定时器、几号通道、计数上限多少、放电多久、
+ * 判定门限多少" —— 换板子/换定时器只改 DTS，不动驱动。
+ *
+ * 校验口径取自参考工程 tpad_init(psc) 的实际取值域：prescaler >= 1（0 会除零）、
+ * arr_max 必须 > 1000（否则超时判据与"基线太大"判据都失去意义）、charge_ms 取 1..20
+ * （参考工程用 5 ms，放电不足会让读数整体偏低，放电过久只是慢）。 */
+static void parse_tpad(void)
+{
+    bsl_fdt_node_t node = bsl_fdt_find(RT_COMPAT_TPAD, 0U);
+    board_rt_tpad_t t;
+    uint32_t cells[3];
+    const char *tim;
+    uint32_t ch = 0U;
+    uint16_t mask;
+    unsigned pin;
+
+    if (node == NULL) {
+        return;
+    }
+    if (bsl_fdt_prop_cells(node, "tpad-pins", cells, 3U) != 3U) {
+        return;
+    }
+    t.port = board_rt_port_of_phandle(cells[0]);
+    if (t.port == NULL || cells[2] > 15U) {
+        return;
+    }
+    /* cells[1] 是**掩码**，与 sai-pins / panel 的引脚组属性同一口径（不是脚号）。
+     * 必须恰好一位：TPAD 只有一根脚，给 0x0021（两根）说明 DTS 写错了，
+     * 直接拒收 —— 拿掩码当"脚号"或反之，都会得到一个看似合法、实际指错脚的配置。 */
+    mask = (uint16_t)(cells[1] & 0xFFFFU);
+    if (mask == 0U || (mask & (uint16_t)(mask - 1U)) != 0U) {
+        return;
+    }
+    for (pin = 0U; pin < 16U; pin++) {
+        if ((mask & (uint16_t)(1U << pin)) != 0U) {
+            break;
+        }
+    }
+    t.pin = pin;
+    t.af = cells[2];
+    tim = bsl_fdt_prop_string(node, "timer");
+    t.inst = timer_of_name(tim);
+    if (t.inst == NULL) {
+        return;
+    }
+    if (bsl_fdt_prop_u32(node, "channel", &ch) == 0 || ch < 1U || ch > 2U) {
+        /* 只收 1..2：这两个通道落在 CCMR1 里，3/4 落 CCMR2，驱动分两套写法；
+         * 本板用 CH1，多留一个 CH2 的空间，3/4 等真有需求再放开。 */
+        return;
+    }
+    t.channel = (unsigned)ch;
+    if (bsl_fdt_prop_u32(node, "arr-max", &t.arr_max) == 0 || t.arr_max < 1000U || t.arr_max > 0xFFFFU) {
+        return;
+    }
+    if (bsl_fdt_prop_u32(node, "prescaler", &t.prescaler) == 0 || t.prescaler < 1U || t.prescaler > 1024U) {
+        return;
+    }
+    if (bsl_fdt_prop_u32(node, "charge-ms", &t.charge_ms) == 0
+        || t.charge_ms < 1U || t.charge_ms > 20U) {
+        return;
+    }
+    s_rt.tpad = t;
+    s_rt.tpad_ok = 1;
+}
+
 static void parse_all(void)
 {
     if (s_rt.parsed) {
@@ -891,6 +1065,10 @@ static void parse_all(void)
     parse_rtc();
     parse_adc();
     parse_sai();
+    parse_mpu9250();
+    parse_ap3216c();
+    parse_eeprom();
+    parse_tpad();
 }
 
 uint32_t board_rt_hse_hz(void)
@@ -1174,4 +1352,47 @@ uint32_t board_rt_sai_pin_af(unsigned index)
 {
     parse_all();
     return (index < s_rt.sai_group_count) ? s_rt.sai_group_af[index] : 0U;
+}
+
+/* 四个传感器访问器：与 panel/sai 同一条纪律 —— 成套值、全成功才写 *out。
+ * 返回 0 表示"DTB 里没有这颗器件或参数不合法"，消费方据此直接失败，
+ * 不去猜地址（猜错的现场是"偶发 NACK"，比"节点缺失"难查得多）。 */
+int board_rt_mpu9250(board_rt_mpu9250_t *out)
+{
+    parse_all();
+    if (!s_rt.imu_ok || out == NULL) {
+        return 0;
+    }
+    *out = s_rt.imu;
+    return 1;
+}
+
+int board_rt_ap3216c(board_rt_ap3216c_t *out)
+{
+    parse_all();
+    if (!s_rt.als_ok || out == NULL) {
+        return 0;
+    }
+    *out = s_rt.als;
+    return 1;
+}
+
+int board_rt_eeprom(board_rt_eeprom_t *out)
+{
+    parse_all();
+    if (!s_rt.eeprom_ok || out == NULL) {
+        return 0;
+    }
+    *out = s_rt.eeprom;
+    return 1;
+}
+
+int board_rt_tpad(board_rt_tpad_t *out)
+{
+    parse_all();
+    if (!s_rt.tpad_ok || out == NULL) {
+        return 0;
+    }
+    *out = s_rt.tpad;
+    return 1;
 }

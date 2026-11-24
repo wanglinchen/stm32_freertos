@@ -51,6 +51,19 @@ bsl_err_t bsl_i2c_gpio_probe(const bsl_i2c_gpio_bus_t *bus, uint8_t addr7);
 bsl_err_t bsl_i2c_gpio_read_reg8(const bsl_i2c_gpio_bus_t *bus, uint8_t addr7,
                                  uint8_t reg8, uint8_t *buf, uint8_t len);
 
+/* 8 位寄存器地址 + 1 字节数据的**写**（P6d 起有消费者：AP3216C / MPU9250 / 24C02
+ * 三家都是"1 字节字地址 + 1 字节数据"）。
+ *
+ * 与 codec 的 `write_reg7_word9` 是两种事务：那家寄存器号 7 位、数据 9 位，硬套这条
+ * 会把控制字写进另一个寄存器。反过来也不行 —— 拿这条写 codec 会丢掉数据最高位。
+ * 所以两条都留着，由器件决定走哪条，而不是"看着像就复用"。
+ *
+ * 事务形状：START, addr<<1|W, reg8, data, STOP。失败返回非 0（NACK 或超时）。
+ * 注意 24C02 这类 EEPROM 的写还需要等内部写周期（约 5 ms）才算落盘，
+ * 那是器件语义，不是总线语义，所以本函数**不等**，由 board_eeprom 自己等。 */
+bsl_err_t bsl_i2c_gpio_write_reg8(const bsl_i2c_gpio_bus_t *bus, uint8_t addr7,
+                                  uint8_t reg8, uint8_t data);
+
 /* 「7 位寄存器 + 9 位数据」的两字节写事务（WM8978 的口径）：一次 16 位控制字，
  * 传输顺序：
  *   字节 1 = reg7[6:0] << 1 | data9[8]

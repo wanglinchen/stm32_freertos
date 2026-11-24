@@ -311,6 +311,31 @@ bsl_err_t bsl_i2c_gpio_read_reg8(const bsl_i2c_gpio_bus_t *bus, uint8_t addr7,
     return BSL_OK;
 }
 
+bsl_err_t bsl_i2c_gpio_write_reg8(const bsl_i2c_gpio_bus_t *bus, uint8_t addr7,
+                                  uint8_t reg8, uint8_t data)
+{
+    bsl_err_t rc;
+
+    if (bus == NULL) {
+        return BSL_ERR_INVAL;
+    }
+    iic_start(bus);
+    rc = iic_send_byte(bus, (uint8_t)(addr7 << 1));
+    if (rc != BSL_OK) {
+        return rc;
+    }
+    rc = iic_send_byte(bus, reg8);
+    if (rc != BSL_OK) {
+        return rc;
+    }
+    rc = iic_send_byte(bus, data);
+    if (rc != BSL_OK) {
+        return rc;
+    }
+    iic_stop(bus);
+    return BSL_OK;
+}
+
 bsl_err_t bsl_i2c_gpio_write_reg7_word9(const bsl_i2c_gpio_bus_t *bus, uint8_t addr7,
                                         uint8_t reg7, uint16_t data9)
 {

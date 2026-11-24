@@ -1,6 +1,10 @@
 # 自动生成，勿手改。刷新：python3 build/build.py update
 menu "src"
 
+config BSL_SRC_BOARD_AP3216C
+	bool "board_ap3216c.c"
+	default y
+
 config BSL_SRC_BOARD_BEEP
 	bool "board_beep.c"
 	default y
@@ -13,6 +17,10 @@ config BSL_SRC_BOARD_DTB
 	bool "board_dtb.s"
 	default y
 
+config BSL_SRC_BOARD_EEPROM
+	bool "board_eeprom.c"
+	default y
+
 config BSL_SRC_BOARD_KEY
 	bool "board_key.c"
 	default y
@@ -23,6 +31,10 @@ config BSL_SRC_BOARD_LCD
 
 config BSL_SRC_BOARD_LED
 	bool "board_led.c"
+	default y
+
+config BSL_SRC_BOARD_MPU9250
+	bool "board_mpu9250.c"
 	default y
 
 config BSL_SRC_BOARD_NOR
@@ -47,6 +59,10 @@ config BSL_SRC_BOARD_SYSTEM
 
 config BSL_SRC_BOARD_TOUCH
 	bool "board_touch.c"
+	default y
+
+config BSL_SRC_BOARD_TPAD
+	bool "board_tpad.c"
 	default y
 
 config BSL_SRC_BOARD_WM8978

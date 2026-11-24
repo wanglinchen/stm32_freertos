@@ -49,6 +49,9 @@ static void sh_dec(sh_out_t *o, int v)
     o->p[o->len] = '\0';
 }
 
+/* 定宽十六进制由已有的 sh_put_hex2 提供（P6c 的 i2c 命令就靠它打 a7/r8）。
+ * 这里不再另写一份 —— 同一件事两种写法，改一处忘一处就会打出位宽不一致的值。 */
+
 /* 定宽两位：`09:05:03` 才读得懂，`9:5:3` 像坏数据 */
 static void sh_put_2(sh_out_t *o, int v)
 {
@@ -167,6 +170,10 @@ static int cmd_led(int argc, char **argv, sh_out_t *o);
 static int cmd_i2c(int argc, char **argv, sh_out_t *o);
 static int cmd_tone(int argc, char **argv, sh_out_t *o);
 static int cmd_vol(int argc, char **argv, sh_out_t *o);
+static int cmd_als(int argc, char **argv, sh_out_t *o);
+static int cmd_imu(int argc, char **argv, sh_out_t *o);
+static int cmd_eeprom(int argc, char **argv, sh_out_t *o);
+static int cmd_tpad(int argc, char **argv, sh_out_t *o);
 
 static const sh_cmd_t s_cmds[] = {
     {"help", "help", cmd_help},
@@ -177,6 +184,10 @@ static const sh_cmd_t s_cmds[] = {
     {"i2c", "i2c scan | i2c rd <a7> <r8>", cmd_i2c},
     {"tone", "tone <hz 20..20000> <ms 1..5000>", cmd_tone},
     {"vol", "vol <0..63>", cmd_vol},
+    {"als", "als", cmd_als},
+    {"imu", "imu", cmd_imu},
+    {"eeprom", "eeprom <addr8 0..255>", cmd_eeprom},
+    {"tpad", "tpad", cmd_tpad},
 };
 
 /* `beep` 命令已删除：蜂鸣器由策略永久禁用（bsl/board_beep.c 的 BEEP_ALLOW_ON），
@@ -396,6 +407,120 @@ static int cmd_vol(int argc, char **argv, sh_out_t *o)
     }
     sh_puts(o, "vol=");
     sh_dec(o, v);
+    return 1;
+}
+
+/* als / imu / eeprom / tpad（P6d）：四条**只读**命令，充当四个驱动的真消费者。
+ *
+ * 为什么必须有它们：`check` 的 G 组会把"头里声明、镜像里没符号"的接口判成假 API，
+ * 而 `--gc-sections` 会把"只有 POST 调一次"的函数也留下 —— 但那仍然只是自检路径；
+ * 串口命令是"运行期可达"的第二条路径，也让人能现场复验（不必重新烧机看 POST）。
+ *
+ * `eeprom` 刻意**只读不写**：写 EEPROM 是持久副作用，命令行里不该有这条通道；
+ * 写-读-还原只发生在 POST 自检里，且必须还原。 */
+static int cmd_als(int argc, char **argv, sh_out_t *o)
+{
+    uint16_t ir = 0U;
+    uint16_t ps = 0U;
+    uint16_t als_v = 0U;
+
+    (void)argc;
+    (void)argv;
+    if (bsl_devapi_als()->ready() == 0) {
+        sh_puts(o, "als=not-ready");
+        return 0;
+    }
+    if (bsl_devapi_als()->read(&ir, &ps, &als_v) != BSL_OK) {
+        sh_puts(o, "als FAIL");
+        return 0;
+    }
+    sh_puts(o, "ir=");
+    sh_dec(o, (int)ir);
+    sh_puts(o, " ps=");
+    sh_dec(o, (int)ps);
+    sh_puts(o, " als=");
+    sh_dec(o, (int)als_v);
+    return 1;
+}
+
+static int cmd_imu(int argc, char **argv, sh_out_t *o)
+{
+    int16_t acc[3];
+    int16_t gyr[3];
+
+    (void)argc;
+    (void)argv;
+    if (bsl_devapi_imu()->ready() == 0) {
+        sh_puts(o, "imu=not-ready");
+        return 0;
+    }
+    if (bsl_devapi_imu()->read(acc, gyr) != BSL_OK) {
+        sh_puts(o, "imu FAIL");
+        return 0;
+    }
+    sh_puts(o, "who=");
+    sh_put_hex2(o, (int)bsl_devapi_imu()->who());
+    sh_puts(o, " mag=");
+    sh_put_hex2(o, (int)bsl_devapi_imu()->mag_wia());
+    sh_puts(o, " acc=");
+    sh_dec(o, acc[0]);
+    sh_puts(o, ",");
+    sh_dec(o, acc[1]);
+    sh_puts(o, ",");
+    sh_dec(o, acc[2]);
+    sh_puts(o, " gyr=");
+    sh_dec(o, gyr[0]);
+    sh_puts(o, ",");
+    sh_dec(o, gyr[1]);
+    sh_puts(o, ",");
+    sh_dec(o, gyr[2]);
+    return 1;
+}
+
+static int cmd_eeprom(int argc, char **argv, sh_out_t *o)
+{
+    int addr = 0;
+    uint8_t v = 0U;
+
+    if ((argc < 2) || (sh_atoi(argv[1], &addr) != 0) || (addr < 0) || (addr > 255)) {
+        sh_puts(o, "usage: eeprom <addr8 0..255>");
+        return 0;
+    }
+    if (bsl_devapi_eeprom()->ready() == 0) {
+        sh_puts(o, "eeprom=not-ready");
+        return 0;
+    }
+    if (bsl_devapi_eeprom()->read((uint8_t)addr, &v, 1U) != BSL_OK) {
+        sh_puts(o, "eeprom FAIL");
+        return 0;
+    }
+    sh_puts(o, "eeprom[");
+    sh_dec(o, addr);
+    sh_puts(o, "]=");
+    sh_put_hex2(o, (int)v);
+    return 1;
+}
+
+/* tpad：报实时计数值与判定结果。"按一下"要人手，所以这条命令的设计意图是
+ * HIL 里盯着读数按下去 —— 打印原始值比只打"按下/没按下"更能定位灵敏度问题。 */
+static int cmd_tpad(int argc, char **argv, sh_out_t *o)
+{
+    int hit;
+    uint16_t base;
+
+    (void)argc;
+    (void)argv;
+    if (bsl_devapi_tpad()->ready() == 0) {
+        sh_puts(o, "tpad=not-ready");
+        return 0;
+    }
+    base = bsl_devapi_tpad()->baseline();
+    hit = bsl_devapi_tpad()->scan(0);
+    sh_puts(o, "default=");
+    sh_dec(o, (int)base);
+    sh_puts(o, " thr=");
+    sh_dec(o, (int)bsl_devapi_tpad()->threshold());
+    sh_puts(o, (hit == 1) ? " pressed" : " idle");
     return 1;
 }
 

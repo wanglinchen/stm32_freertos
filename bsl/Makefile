@@ -21,6 +21,13 @@ LOCAL_OBJS :=
 ARCHIVE_OBJS :=
 ifeq ($(CONFIG_BSL),y)
 ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BOARD_AP3216C),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/board_ap3216c.o
+endif
+endif
+endif
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
 ifeq ($(CONFIG_BSL_SRC_BOARD_BEEP),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/board_beep.o
 endif
@@ -42,6 +49,13 @@ endif
 endif
 ifeq ($(CONFIG_BSL),y)
 ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BOARD_EEPROM),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/board_eeprom.o
+endif
+endif
+endif
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
 ifeq ($(CONFIG_BSL_SRC_BOARD_KEY),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/board_key.o
 endif
@@ -58,6 +72,13 @@ ifeq ($(CONFIG_BSL),y)
 ifeq ($(CONFIG_BSL_SRC),y)
 ifeq ($(CONFIG_BSL_SRC_BOARD_LED),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/board_led.o
+endif
+endif
+endif
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BOARD_MPU9250),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/board_mpu9250.o
 endif
 endif
 endif
@@ -100,6 +121,13 @@ ifeq ($(CONFIG_BSL),y)
 ifeq ($(CONFIG_BSL_SRC),y)
 ifeq ($(CONFIG_BSL_SRC_BOARD_TOUCH),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/board_touch.o
+endif
+endif
+endif
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BOARD_TPAD),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/board_tpad.o
 endif
 endif
 endif
