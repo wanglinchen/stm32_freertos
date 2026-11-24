@@ -92,6 +92,20 @@ python build/build.py install-toolchain  # 工具链
 
 ## 硬规则
 
+- **蜂鸣器永久禁用（2026-11-25 用户明确要求：「关闭蜂鸣器，以后都不要打开」）**。
+  这一条不随批次变化，也不要为任何演示/自检/告警"临时"打开：
+  - 实现上断在**唯一执行器** `bsl/src/board_beep.c` 的 `BEEP_ALLOW_ON = 0` ——
+    `board_beep_set(1)` / `bsl_devapi_beep()->on()` 一律被吞掉成 0，并打一行
+    `[beep] on request ignored: buzzer disabled by policy`（一家人不见响的时候，
+    这行是唯一能说明"被策略拦下"而不是"驱动坏了"的证据）。
+  - **不要**把 `BEEP_ALLOW_ON` 改成 1；**不要**绕过 `board_beep_set` 直接写
+    PCF8574 的 P0（BEEP）；**不要**新增任何会响的命令或应用 —— `fml_shell` 的
+    `beep` 命令因此已删除，不要加回来。
+  - `app_beep` 保留（对照表里它是参考工程的 24 个应用之一），但标题写
+    `BEEP - disabled`、日志写 `req on (muted)`：请求到执行器、声音不发出。
+    它现在只用于验证"按压 → 请求"这条链路，不是发声功能。
+  - 需要提示人的地方用**屏幕**或**串口日志**，不要用声音；panic 播报也不借蜂鸣器
+    （`board_panic_beep_silence()` 仍然每轮调用，保证静音状态是显式设置过的）。
 - **不要手改**自动生成的 `Makefile` / `Kconfig` / `toolchain.make`（除非随后 `update`）；
   `project/config/stm32f429_defconfig_common`（公共项，两档共用）与 `stm32f429_defconfig_<variant>`（档位差异层）里的 `# >>> USER_CUSTOM` 区可长期手改；`build` 时按「common → 档位」合并，同名符号档位优先。
 - 增删参与编译的层内源文件或子目录后：**`update`**，再视需要 `build`。

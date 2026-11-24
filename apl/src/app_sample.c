@@ -103,7 +103,7 @@ static void sample_button_task(void *argument)
          * 交给 HAL_UART_Transmit。 */
         if (bsl_device_is_ready(BSL_DEV_DEBUG_UART) != 0) {
             BSL_LOG_MOD_ERR(SAMPLE_LOG_MOD_BTN,
-                            "KEYS 未就绪（init 失败），按键降级\r\n");
+                            "KEYS not ready (init failed): key input degraded\r\n");
         }
         for (;;) {
             osl_health_stack_mark(OSL_HEALTH_SLOT_BUTTON);
@@ -111,8 +111,9 @@ static void sample_button_task(void *argument)
         }
     }
     if (beep == NULL && bsl_device_is_ready(BSL_DEV_DEBUG_UART) != 0) {
+        /* ASCII：非 ASCII 在这条 UART 直出链上是 '?'，等于没日志 */
         BSL_LOG_MOD_ERR(SAMPLE_LOG_MOD_BTN,
-                        "BEEP 未就绪（init 失败），按键继续、无提示音\r\n");
+                        "BEEP not ready (init failed): keys continue, no tone\r\n");
     }
     last_wake = osl_tick_now();
     beep_try(beep, 1);

@@ -978,7 +978,7 @@ END GROUP
                 0x08000000                g_pfnVectors
                 0x080001ac                        . = ALIGN (0x4)
 
-.text           0x080001b0     0xd31c
+.text           0x080001b0     0xd5ec
                 0x080001b0                        . = ALIGN (0x4)
  *(.text)
  .text          0x080001b0       0x14 ./tool/win_x86_64/bin/../lib/gcc/arm-none-eabi/13.3.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strcmp.o)
@@ -1391,1350 +1391,1369 @@ END GROUP
  *fill*         0x0800399a        0x2 
  .text.sh_put_2
                 0x0800399c       0x20 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
+ .text.sh_put_hex2
+                0x080039bc       0x30 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
  .text.cmd_help
-                0x080039bc       0x4c ./out/user/objects/target/lib/libfml.a(fml_shell.o)
- .text.cmd_rtc  0x08003a08       0xcc ./out/user/objects/target/lib/libfml.a(fml_shell.o)
+                0x080039ec       0x4c ./out/user/objects/target/lib/libfml.a(fml_shell.o)
+ .text.cmd_rtc  0x08003a38       0xcc ./out/user/objects/target/lib/libfml.a(fml_shell.o)
  .text.cmd_temp
-                0x08003ad4       0x90 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
+                0x08003b04       0x90 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
  .text.cmd_uptime
-                0x08003b64       0x2c ./out/user/objects/target/lib/libfml.a(fml_shell.o)
+                0x08003b94       0x2c ./out/user/objects/target/lib/libfml.a(fml_shell.o)
  .text.sh_atoi.constprop.0
-                0x08003b90       0x30 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
- .text.cmd_beep
-                0x08003bc0       0x6c ./out/user/objects/target/lib/libfml.a(fml_shell.o)
- .text.cmd_led  0x08003c2c       0x7c ./out/user/objects/target/lib/libfml.a(fml_shell.o)
+                0x08003bc0       0x30 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
+ .text.cmd_led  0x08003bf0       0x7c ./out/user/objects/target/lib/libfml.a(fml_shell.o)
+ .text.sh_hex.constprop.0
+                0x08003c6c       0x5c ./out/user/objects/target/lib/libfml.a(fml_shell.o)
+ .text.cmd_i2c  0x08003cc8      0x140 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
  .text.fml_shell_exec
-                0x08003ca8       0xe8 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
-                0x08003ca8                fml_shell_exec
+                0x08003e08       0xe8 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
+                0x08003e08                fml_shell_exec
  .text.fml_shell_init
-                0x08003d90        0x4 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
-                0x08003d90                fml_shell_init
+                0x08003ef0        0x4 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
+                0x08003ef0                fml_shell_init
  .text.fml_shell_cmd_count
-                0x08003d94        0x4 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
-                0x08003d94                fml_shell_cmd_count
+                0x08003ef4        0x4 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
+                0x08003ef4                fml_shell_cmd_count
  .text.fml_shell_poll
-                0x08003d98       0x8c ./out/user/objects/target/lib/libfml.a(fml_shell.o)
-                0x08003d98                fml_shell_poll
+                0x08003ef8       0x8c ./out/user/objects/target/lib/libfml.a(fml_shell.o)
+                0x08003ef8                fml_shell_poll
  .text.shell_task
-                0x08003e24       0x44 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
+                0x08003f84       0x44 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
  .text.fml_shell_start
-                0x08003e68       0x34 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
-                0x08003e68                fml_shell_start
+                0x08003fc8       0x34 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
+                0x08003fc8                fml_shell_start
  .text.syl_index.part.0
-                0x08003e9c       0x38 ./out/user/objects/target/lib/libfml.a(fml_t9.o)
+                0x08003ffc       0x38 ./out/user/objects/target/lib/libfml.a(fml_t9.o)
  .text.fml_t9_digit_of
-                0x08003ed4       0x14 ./out/user/objects/target/lib/libfml.a(fml_t9.o)
-                0x08003ed4                fml_t9_digit_of
+                0x08004034       0x14 ./out/user/objects/target/lib/libfml.a(fml_t9.o)
+                0x08004034                fml_t9_digit_of
  .text.match_build
-                0x08003ee8       0xd0 ./out/user/objects/target/lib/libfml.a(fml_t9.o)
+                0x08004048       0xd0 ./out/user/objects/target/lib/libfml.a(fml_t9.o)
  .text.fml_t9_match_count
-                0x08003fb8       0x10 ./out/user/objects/target/lib/libfml.a(fml_t9.o)
-                0x08003fb8                fml_t9_match_count
+                0x08004118       0x10 ./out/user/objects/target/lib/libfml.a(fml_t9.o)
+                0x08004118                fml_t9_match_count
  .text.fml_t9_match_at
-                0x08003fc8       0x24 ./out/user/objects/target/lib/libfml.a(fml_t9.o)
-                0x08003fc8                fml_t9_match_at
+                0x08004128       0x24 ./out/user/objects/target/lib/libfml.a(fml_t9.o)
+                0x08004128                fml_t9_match_at
  .text.fml_t9_resolve
-                0x08003fec       0x16 ./out/user/objects/target/lib/libfml.a(fml_t9.o)
-                0x08003fec                fml_t9_resolve
- *fill*         0x08004002        0x2 
+                0x0800414c       0x16 ./out/user/objects/target/lib/libfml.a(fml_t9.o)
+                0x0800414c                fml_t9_resolve
+ *fill*         0x08004162        0x2 
  .text.fml_t9_hans_total
-                0x08004004       0x1c ./out/user/objects/target/lib/libfml.a(fml_t9.o)
-                0x08004004                fml_t9_hans_total
+                0x08004164       0x1c ./out/user/objects/target/lib/libfml.a(fml_t9.o)
+                0x08004164                fml_t9_hans_total
  .text.fml_t9_hans_at
-                0x08004020       0x38 ./out/user/objects/target/lib/libfml.a(fml_t9.o)
-                0x08004020                fml_t9_hans_at
- .text.ui_push  0x08004058       0x48 ./out/user/objects/target/lib/libfml.a(fml_ui.o)
+                0x08004180       0x38 ./out/user/objects/target/lib/libfml.a(fml_t9.o)
+                0x08004180                fml_t9_hans_at
+ .text.ui_push  0x080041b8       0x48 ./out/user/objects/target/lib/libfml.a(fml_ui.o)
  .text.fml_ui_win_init
-                0x080040a0       0x34 ./out/user/objects/target/lib/libfml.a(fml_ui.o)
-                0x080040a0                fml_ui_win_init
+                0x08004200       0x34 ./out/user/objects/target/lib/libfml.a(fml_ui.o)
+                0x08004200                fml_ui_win_init
  .text.fml_ui_btn_add
-                0x080040d4       0x38 ./out/user/objects/target/lib/libfml.a(fml_ui.o)
-                0x080040d4                fml_ui_btn_add
+                0x08004234       0x38 ./out/user/objects/target/lib/libfml.a(fml_ui.o)
+                0x08004234                fml_ui_btn_add
  .text.fml_ui_hit
-                0x0800410c       0x42 ./out/user/objects/target/lib/libfml.a(fml_ui.o)
-                0x0800410c                fml_ui_hit
+                0x0800426c       0x42 ./out/user/objects/target/lib/libfml.a(fml_ui.o)
+                0x0800426c                fml_ui_hit
  .text.fml_ui_btn_by_id
-                0x0800414e       0x2c ./out/user/objects/target/lib/libfml.a(fml_ui.o)
-                0x0800414e                fml_ui_btn_by_id
- *fill*         0x0800417a        0x2 
+                0x080042ae       0x2c ./out/user/objects/target/lib/libfml.a(fml_ui.o)
+                0x080042ae                fml_ui_btn_by_id
+ *fill*         0x080042da        0x2 
  .text.fml_ui_draw_btn
-                0x0800417c       0xb4 ./out/user/objects/target/lib/libfml.a(fml_ui.o)
-                0x0800417c                fml_ui_draw_btn
+                0x080042dc       0xb4 ./out/user/objects/target/lib/libfml.a(fml_ui.o)
+                0x080042dc                fml_ui_draw_btn
  .text.fml_ui_draw
-                0x08004230      0x128 ./out/user/objects/target/lib/libfml.a(fml_ui.o)
-                0x08004230                fml_ui_draw
+                0x08004390      0x128 ./out/user/objects/target/lib/libfml.a(fml_ui.o)
+                0x08004390                fml_ui_draw
  .text.fml_ui_feed
-                0x08004358      0x108 ./out/user/objects/target/lib/libfml.a(fml_ui.o)
-                0x08004358                fml_ui_feed
+                0x080044b8      0x108 ./out/user/objects/target/lib/libfml.a(fml_ui.o)
+                0x080044b8                fml_ui_feed
  .text.fml_ui_next
-                0x08004460       0x3c ./out/user/objects/target/lib/libfml.a(fml_ui.o)
-                0x08004460                fml_ui_next
+                0x080045c0       0x3c ./out/user/objects/target/lib/libfml.a(fml_ui.o)
+                0x080045c0                fml_ui_next
  .text.fml_ui_overflow
-                0x0800449c        0xc ./out/user/objects/target/lib/libfml.a(fml_ui.o)
-                0x0800449c                fml_ui_overflow
+                0x080045fc        0xc ./out/user/objects/target/lib/libfml.a(fml_ui.o)
+                0x080045fc                fml_ui_overflow
  .text.fml_ui_reset
-                0x080044a8       0x40 ./out/user/objects/target/lib/libfml.a(fml_ui.o)
-                0x080044a8                fml_ui_reset
+                0x08004608       0x40 ./out/user/objects/target/lib/libfml.a(fml_ui.o)
+                0x08004608                fml_ui_reset
  .text.ld_dword
-                0x080044e8        0x4 ./out/user/objects/target/lib/libfml.a(ff.o)
+                0x08004648        0x4 ./out/user/objects/target/lib/libfml.a(ff.o)
  .text.clst2sect
-                0x080044ec       0x16 ./out/user/objects/target/lib/libfml.a(ff.o)
- .text.sum_sfn  0x08004502       0x1e ./out/user/objects/target/lib/libfml.a(ff.o)
+                0x0800464c       0x16 ./out/user/objects/target/lib/libfml.a(ff.o)
+ .text.sum_sfn  0x08004662       0x1e ./out/user/objects/target/lib/libfml.a(ff.o)
  .text.get_ldnumber
-                0x08004520       0x2a ./out/user/objects/target/lib/libfml.a(ff.o)
+                0x08004680       0x2a ./out/user/objects/target/lib/libfml.a(ff.o)
  .text.validate
-                0x0800454a       0x34 ./out/user/objects/target/lib/libfml.a(ff.o)
+                0x080046aa       0x34 ./out/user/objects/target/lib/libfml.a(ff.o)
  .text.sync_window
-                0x0800457e       0x42 ./out/user/objects/target/lib/libfml.a(ff.o)
+                0x080046de       0x42 ./out/user/objects/target/lib/libfml.a(ff.o)
  .text.get_fileinfo
-                0x080045c0      0x138 ./out/user/objects/target/lib/libfml.a(ff.o)
+                0x08004720      0x138 ./out/user/objects/target/lib/libfml.a(ff.o)
  .text.st_clust
-                0x080046f8       0x18 ./out/user/objects/target/lib/libfml.a(ff.o)
+                0x08004858       0x18 ./out/user/objects/target/lib/libfml.a(ff.o)
  .text.move_window
-                0x08004710       0x32 ./out/user/objects/target/lib/libfml.a(ff.o)
- *fill*         0x08004742        0x2 
+                0x08004870       0x32 ./out/user/objects/target/lib/libfml.a(ff.o)
+ *fill*         0x080048a2        0x2 
  .text.check_fs
-                0x08004744       0xa4 ./out/user/objects/target/lib/libfml.a(ff.o)
- .text.put_fat  0x080047e8       0xf8 ./out/user/objects/target/lib/libfml.a(ff.o)
+                0x080048a4       0xa4 ./out/user/objects/target/lib/libfml.a(ff.o)
+ .text.put_fat  0x08004948       0xf8 ./out/user/objects/target/lib/libfml.a(ff.o)
  .text.dir_clear
-                0x080048e0       0x52 ./out/user/objects/target/lib/libfml.a(ff.o)
- *fill*         0x08004932        0x2 
+                0x08004a40       0x52 ./out/user/objects/target/lib/libfml.a(ff.o)
+ *fill*         0x08004a92        0x2 
  .text.mount_volume
-                0x08004934      0x248 ./out/user/objects/target/lib/libfml.a(ff.o)
+                0x08004a94      0x248 ./out/user/objects/target/lib/libfml.a(ff.o)
  .text.ld_clust.isra.0
-                0x08004b7c       0x10 ./out/user/objects/target/lib/libfml.a(ff.o)
+                0x08004cdc       0x10 ./out/user/objects/target/lib/libfml.a(ff.o)
  .text.get_fat.isra.0
-                0x08004b8c       0xac ./out/user/objects/target/lib/libfml.a(ff.o)
+                0x08004cec       0xac ./out/user/objects/target/lib/libfml.a(ff.o)
  .text.remove_chain
-                0x08004c38       0x6e ./out/user/objects/target/lib/libfml.a(ff.o)
+                0x08004d98       0x6e ./out/user/objects/target/lib/libfml.a(ff.o)
  .text.create_chain
-                0x08004ca6       0xee ./out/user/objects/target/lib/libfml.a(ff.o)
+                0x08004e06       0xee ./out/user/objects/target/lib/libfml.a(ff.o)
  .text.dir_next
-                0x08004d94       0xaa ./out/user/objects/target/lib/libfml.a(ff.o)
- *fill*         0x08004e3e        0x2 
+                0x08004ef4       0xaa ./out/user/objects/target/lib/libfml.a(ff.o)
+ *fill*         0x08004f9e        0x2 
  .text.dir_read.constprop.0
-                0x08004e40       0xf8 ./out/user/objects/target/lib/libfml.a(ff.o)
- .text.dir_sdi  0x08004f38       0x80 ./out/user/objects/target/lib/libfml.a(ff.o)
+                0x08004fa0       0xf8 ./out/user/objects/target/lib/libfml.a(ff.o)
+ .text.dir_sdi  0x08005098       0x80 ./out/user/objects/target/lib/libfml.a(ff.o)
  .text.dir_find
-                0x08004fb8      0x148 ./out/user/objects/target/lib/libfml.a(ff.o)
+                0x08005118      0x148 ./out/user/objects/target/lib/libfml.a(ff.o)
  .text.follow_path
-                0x08005100      0x2d8 ./out/user/objects/target/lib/libfml.a(ff.o)
+                0x08005260      0x2d8 ./out/user/objects/target/lib/libfml.a(ff.o)
  .text.dir_register
-                0x080053d8      0x2ac ./out/user/objects/target/lib/libfml.a(ff.o)
- .text.sync_fs  0x08005684       0xb2 ./out/user/objects/target/lib/libfml.a(ff.o)
- *fill*         0x08005736        0x2 
- .text.f_mount  0x08005738       0x50 ./out/user/objects/target/lib/libfml.a(ff.o)
-                0x08005738                f_mount
- .text.f_open   0x08005788      0x1ce ./out/user/objects/target/lib/libfml.a(ff.o)
-                0x08005788                f_open
- .text.f_read   0x08005956      0x162 ./out/user/objects/target/lib/libfml.a(ff.o)
-                0x08005956                f_read
- .text.f_sync   0x08005ab8       0x92 ./out/user/objects/target/lib/libfml.a(ff.o)
-                0x08005ab8                f_sync
- .text.f_close  0x08005b4a       0x1a ./out/user/objects/target/lib/libfml.a(ff.o)
-                0x08005b4a                f_close
- .text.f_lseek  0x08005b64      0x140 ./out/user/objects/target/lib/libfml.a(ff.o)
-                0x08005b64                f_lseek
+                0x08005538      0x2ac ./out/user/objects/target/lib/libfml.a(ff.o)
+ .text.sync_fs  0x080057e4       0xb2 ./out/user/objects/target/lib/libfml.a(ff.o)
+ *fill*         0x08005896        0x2 
+ .text.f_mount  0x08005898       0x50 ./out/user/objects/target/lib/libfml.a(ff.o)
+                0x08005898                f_mount
+ .text.f_open   0x080058e8      0x1ce ./out/user/objects/target/lib/libfml.a(ff.o)
+                0x080058e8                f_open
+ .text.f_read   0x08005ab6      0x162 ./out/user/objects/target/lib/libfml.a(ff.o)
+                0x08005ab6                f_read
+ .text.f_sync   0x08005c18       0x92 ./out/user/objects/target/lib/libfml.a(ff.o)
+                0x08005c18                f_sync
+ .text.f_close  0x08005caa       0x1a ./out/user/objects/target/lib/libfml.a(ff.o)
+                0x08005caa                f_close
+ .text.f_lseek  0x08005cc4      0x140 ./out/user/objects/target/lib/libfml.a(ff.o)
+                0x08005cc4                f_lseek
  .text.f_opendir
-                0x08005ca4       0x66 ./out/user/objects/target/lib/libfml.a(ff.o)
-                0x08005ca4                f_opendir
+                0x08005e04       0x66 ./out/user/objects/target/lib/libfml.a(ff.o)
+                0x08005e04                f_opendir
  .text.f_closedir
-                0x08005d0a       0x12 ./out/user/objects/target/lib/libfml.a(ff.o)
-                0x08005d0a                f_closedir
+                0x08005e6a       0x12 ./out/user/objects/target/lib/libfml.a(ff.o)
+                0x08005e6a                f_closedir
  .text.f_readdir
-                0x08005d1c       0x44 ./out/user/objects/target/lib/libfml.a(ff.o)
-                0x08005d1c                f_readdir
+                0x08005e7c       0x44 ./out/user/objects/target/lib/libfml.a(ff.o)
+                0x08005e7c                f_readdir
  .text.ff_uni2oem
-                0x08005d60       0x50 ./out/user/objects/target/lib/libfml.a(ffunicode.o)
-                0x08005d60                ff_uni2oem
+                0x08005ec0       0x50 ./out/user/objects/target/lib/libfml.a(ffunicode.o)
+                0x08005ec0                ff_uni2oem
  .text.ff_oem2uni
-                0x08005db0       0x44 ./out/user/objects/target/lib/libfml.a(ffunicode.o)
-                0x08005db0                ff_oem2uni
+                0x08005f10       0x44 ./out/user/objects/target/lib/libfml.a(ffunicode.o)
+                0x08005f10                ff_oem2uni
  .text.ff_wtoupper
-                0x08005df4       0x90 ./out/user/objects/target/lib/libfml.a(ffunicode.o)
-                0x08005df4                ff_wtoupper
+                0x08005f54       0x90 ./out/user/objects/target/lib/libfml.a(ffunicode.o)
+                0x08005f54                ff_wtoupper
  .text.fml_font_stride
-                0x08005e84        0xc ./out/user/objects/target/lib/libfml.a(fml_font.o)
-                0x08005e84                fml_font_stride
+                0x08005fe4        0xc ./out/user/objects/target/lib/libfml.a(fml_font.o)
+                0x08005fe4                fml_font_stride
  .text.fml_font_glyph
-                0x08005e90       0x58 ./out/user/objects/target/lib/libfml.a(fml_font.o)
-                0x08005e90                fml_font_glyph
+                0x08005ff0       0x58 ./out/user/objects/target/lib/libfml.a(fml_font.o)
+                0x08005ff0                fml_font_glyph
  .text.fml_font_text_width
-                0x08005ee8       0x14 ./out/user/objects/target/lib/libfml.a(fml_font.o)
-                0x08005ee8                fml_font_text_width
+                0x08006048       0x14 ./out/user/objects/target/lib/libfml.a(fml_font.o)
+                0x08006048                fml_font_text_width
  .text.beep_set_pcf8574_logical
-                0x08005efc       0x88 ./out/user/objects/target/lib/libbsl.a(board_beep.o)
+                0x0800605c       0x9c ./out/user/objects/target/lib/libbsl.a(board_beep.o)
  .text.board_beep_init
-                0x08005f84       0x4c ./out/user/objects/target/lib/libbsl.a(board_beep.o)
-                0x08005f84                board_beep_init
+                0x080060f8       0x4c ./out/user/objects/target/lib/libbsl.a(board_beep.o)
+                0x080060f8                board_beep_init
  .text.board_beep_set
-                0x08005fd0        0x4 ./out/user/objects/target/lib/libbsl.a(board_beep.o)
-                0x08005fd0                board_beep_set
+                0x08006144        0x4 ./out/user/objects/target/lib/libbsl.a(board_beep.o)
+                0x08006144                board_beep_set
  .text.board_beep_on
-                0x08005fd4        0x6 ./out/user/objects/target/lib/libbsl.a(board_beep.o)
-                0x08005fd4                board_beep_on
+                0x08006148        0x6 ./out/user/objects/target/lib/libbsl.a(board_beep.o)
+                0x08006148                board_beep_on
  .text.board_beep_off
-                0x08005fda        0x6 ./out/user/objects/target/lib/libbsl.a(board_beep.o)
-                0x08005fda                board_beep_off
+                0x0800614e        0x6 ./out/user/objects/target/lib/libbsl.a(board_beep.o)
+                0x0800614e                board_beep_off
  .text.board_panic_beep_silence
-                0x08005fe0        0x4 ./out/user/objects/target/lib/libbsl.a(board_beep.o)
-                0x08005fe0                board_panic_beep_silence
+                0x08006154        0x4 ./out/user/objects/target/lib/libbsl.a(board_beep.o)
+                0x08006154                board_panic_beep_silence
  .text.board_debug_uart_init
-                0x08005fe4       0x78 ./out/user/objects/target/lib/libbsl.a(board_debug_uart.o)
-                0x08005fe4                board_debug_uart_init
+                0x08006158       0x78 ./out/user/objects/target/lib/libbsl.a(board_debug_uart.o)
+                0x08006158                board_debug_uart_init
  .text.board_uart_write
-                0x0800605c       0x4c ./out/user/objects/target/lib/libbsl.a(board_debug_uart.o)
+                0x080061d0       0x4c ./out/user/objects/target/lib/libbsl.a(board_debug_uart.o)
  .text.port_clk_enable
-                0x080060a8      0x198 ./out/user/objects/target/lib/libbsl.a(board_debug_uart.o)
+                0x0800621c      0x198 ./out/user/objects/target/lib/libbsl.a(board_debug_uart.o)
  .text.HAL_UART_MspInit
-                0x08006240      0x1c8 ./out/user/objects/target/lib/libbsl.a(board_debug_uart.o)
-                0x08006240                HAL_UART_MspInit
+                0x080063b4      0x1c8 ./out/user/objects/target/lib/libbsl.a(board_debug_uart.o)
+                0x080063b4                HAL_UART_MspInit
  .text.osl_debug_uart_write
-                0x08006408        0x4 ./out/user/objects/target/lib/libbsl.a(board_debug_uart.o)
-                0x08006408                osl_debug_uart_write
+                0x0800657c        0x4 ./out/user/objects/target/lib/libbsl.a(board_debug_uart.o)
+                0x0800657c                osl_debug_uart_write
  .text.board_debug_uart_puts
-                0x0800640c       0x18 ./out/user/objects/target/lib/libbsl.a(board_debug_uart.o)
-                0x0800640c                board_debug_uart_puts
+                0x08006580       0x18 ./out/user/objects/target/lib/libbsl.a(board_debug_uart.o)
+                0x08006580                board_debug_uart_puts
  .text.board_debug_uart_getc
-                0x08006424       0x48 ./out/user/objects/target/lib/libbsl.a(board_debug_uart.o)
-                0x08006424                board_debug_uart_getc
+                0x08006598       0x48 ./out/user/objects/target/lib/libbsl.a(board_debug_uart.o)
+                0x08006598                board_debug_uart_getc
  .text.board_key_init
-                0x0800646c       0xe4 ./out/user/objects/target/lib/libbsl.a(board_key.o)
-                0x0800646c                board_key_init
+                0x080065e0       0xe4 ./out/user/objects/target/lib/libbsl.a(board_key.o)
+                0x080065e0                board_key_init
  .text.board_key_pin_high
-                0x08006550       0x30 ./out/user/objects/target/lib/libbsl.a(board_key.o)
-                0x08006550                board_key_pin_high
+                0x080066c4       0x30 ./out/user/objects/target/lib/libbsl.a(board_key.o)
+                0x080066c4                board_key_pin_high
  .text.board_key_pressed
-                0x08006580       0x30 ./out/user/objects/target/lib/libbsl.a(board_key.o)
-                0x08006580                board_key_pressed
+                0x080066f4       0x30 ./out/user/objects/target/lib/libbsl.a(board_key.o)
+                0x080066f4                board_key_pressed
  .text.lcd_exp_bpcr
-                0x080065b0       0x30 ./out/user/objects/target/lib/libbsl.a(board_lcd.o)
+                0x08006724       0x30 ./out/user/objects/target/lib/libbsl.a(board_lcd.o)
  .text.lcd_exp_awcr
-                0x080065e0       0x44 ./out/user/objects/target/lib/libbsl.a(board_lcd.o)
+                0x08006754       0x44 ./out/user/objects/target/lib/libbsl.a(board_lcd.o)
  .text.board_lcd_base
-                0x08006624       0x14 ./out/user/objects/target/lib/libbsl.a(board_lcd.o)
-                0x08006624                board_lcd_base
+                0x08006798       0x14 ./out/user/objects/target/lib/libbsl.a(board_lcd.o)
+                0x08006798                board_lcd_base
  .text.board_lcd_width
-                0x08006638       0x14 ./out/user/objects/target/lib/libbsl.a(board_lcd.o)
-                0x08006638                board_lcd_width
+                0x080067ac       0x14 ./out/user/objects/target/lib/libbsl.a(board_lcd.o)
+                0x080067ac                board_lcd_width
  .text.board_lcd_height
-                0x0800664c       0x14 ./out/user/objects/target/lib/libbsl.a(board_lcd.o)
-                0x0800664c                board_lcd_height
+                0x080067c0       0x14 ./out/user/objects/target/lib/libbsl.a(board_lcd.o)
+                0x080067c0                board_lcd_height
  .text.lcd_exp_twcr
-                0x08006660       0x5c ./out/user/objects/target/lib/libbsl.a(board_lcd.o)
+                0x080067d4       0x5c ./out/user/objects/target/lib/libbsl.a(board_lcd.o)
  .text.board_lcd_backlight
-                0x080066bc       0x40 ./out/user/objects/target/lib/libbsl.a(board_lcd.o)
-                0x080066bc                board_lcd_backlight
+                0x08006830       0x40 ./out/user/objects/target/lib/libbsl.a(board_lcd.o)
+                0x08006830                board_lcd_backlight
  .text.board_lcd_fill
-                0x080066fc       0x6c ./out/user/objects/target/lib/libbsl.a(board_lcd.o)
-                0x080066fc                board_lcd_fill
+                0x08006870       0x6c ./out/user/objects/target/lib/libbsl.a(board_lcd.o)
+                0x08006870                board_lcd_fill
  .text.board_lcd_init
-                0x08006768      0x268 ./out/user/objects/target/lib/libbsl.a(board_lcd.o)
-                0x08006768                board_lcd_init
+                0x080068dc      0x268 ./out/user/objects/target/lib/libbsl.a(board_lcd.o)
+                0x080068dc                board_lcd_init
  .text.board_lcd_selftest
-                0x080069d0       0x9c ./out/user/objects/target/lib/libbsl.a(board_lcd.o)
-                0x080069d0                board_lcd_selftest
+                0x08006b44       0x9c ./out/user/objects/target/lib/libbsl.a(board_lcd.o)
+                0x08006b44                board_lcd_selftest
  .text.board_led_init
-                0x08006a6c       0x90 ./out/user/objects/target/lib/libbsl.a(board_led.o)
-                0x08006a6c                board_led_init
+                0x08006be0       0x90 ./out/user/objects/target/lib/libbsl.a(board_led.o)
+                0x08006be0                board_led_init
  .text.board_led_set
-                0x08006afc       0x34 ./out/user/objects/target/lib/libbsl.a(board_led.o)
-                0x08006afc                board_led_set
+                0x08006c70       0x34 ./out/user/objects/target/lib/libbsl.a(board_led.o)
+                0x08006c70                board_led_set
  .text.board_led_on
-                0x08006b30        0x6 ./out/user/objects/target/lib/libbsl.a(board_led.o)
-                0x08006b30                board_led_on
+                0x08006ca4        0x6 ./out/user/objects/target/lib/libbsl.a(board_led.o)
+                0x08006ca4                board_led_on
  .text.board_led_off
-                0x08006b36        0x6 ./out/user/objects/target/lib/libbsl.a(board_led.o)
-                0x08006b36                board_led_off
+                0x08006caa        0x6 ./out/user/objects/target/lib/libbsl.a(board_led.o)
+                0x08006caa                board_led_off
  .text.board_led_toggle
-                0x08006b3c       0x20 ./out/user/objects/target/lib/libbsl.a(board_led.o)
-                0x08006b3c                board_led_toggle
+                0x08006cb0       0x20 ./out/user/objects/target/lib/libbsl.a(board_led.o)
+                0x08006cb0                board_led_toggle
  .text.board_nor_jedec
-                0x08006b5c       0x14 ./out/user/objects/target/lib/libbsl.a(board_nor.o)
-                0x08006b5c                board_nor_jedec
+                0x08006cd0       0x14 ./out/user/objects/target/lib/libbsl.a(board_nor.o)
+                0x08006cd0                board_nor_jedec
  .text.board_nor_size
-                0x08006b70       0x14 ./out/user/objects/target/lib/libbsl.a(board_nor.o)
-                0x08006b70                board_nor_size
+                0x08006ce4       0x14 ./out/user/objects/target/lib/libbsl.a(board_nor.o)
+                0x08006ce4                board_nor_size
  .text.board_nor_page_size
-                0x08006b84       0x14 ./out/user/objects/target/lib/libbsl.a(board_nor.o)
-                0x08006b84                board_nor_page_size
+                0x08006cf8       0x14 ./out/user/objects/target/lib/libbsl.a(board_nor.o)
+                0x08006cf8                board_nor_page_size
  .text.board_nor_sector_size
-                0x08006b98       0x14 ./out/user/objects/target/lib/libbsl.a(board_nor.o)
-                0x08006b98                board_nor_sector_size
+                0x08006d0c       0x14 ./out/user/objects/target/lib/libbsl.a(board_nor.o)
+                0x08006d0c                board_nor_sector_size
  .text.cs_assert
-                0x08006bac       0x1c ./out/user/objects/target/lib/libbsl.a(board_nor.o)
+                0x08006d20       0x1c ./out/user/objects/target/lib/libbsl.a(board_nor.o)
  .text.cs_release
-                0x08006bc8       0x1c ./out/user/objects/target/lib/libbsl.a(board_nor.o)
+                0x08006d3c       0x1c ./out/user/objects/target/lib/libbsl.a(board_nor.o)
  .text.board_nor_init
-                0x08006be4      0x104 ./out/user/objects/target/lib/libbsl.a(board_nor.o)
-                0x08006be4                board_nor_init
+                0x08006d58      0x104 ./out/user/objects/target/lib/libbsl.a(board_nor.o)
+                0x08006d58                board_nor_init
  .text.write_enable
-                0x08006ce8       0x38 ./out/user/objects/target/lib/libbsl.a(board_nor.o)
+                0x08006e5c       0x38 ./out/user/objects/target/lib/libbsl.a(board_nor.o)
  .text.wait_not_busy
-                0x08006d20       0x70 ./out/user/objects/target/lib/libbsl.a(board_nor.o)
+                0x08006e94       0x70 ./out/user/objects/target/lib/libbsl.a(board_nor.o)
  .text.board_nor_erase_sector
-                0x08006d90       0x84 ./out/user/objects/target/lib/libbsl.a(board_nor.o)
-                0x08006d90                board_nor_erase_sector
+                0x08006f04       0x84 ./out/user/objects/target/lib/libbsl.a(board_nor.o)
+                0x08006f04                board_nor_erase_sector
  .text.board_nor_read
-                0x08006e14       0xd0 ./out/user/objects/target/lib/libbsl.a(board_nor.o)
-                0x08006e14                board_nor_read
+                0x08006f88       0xd0 ./out/user/objects/target/lib/libbsl.a(board_nor.o)
+                0x08006f88                board_nor_read
  .text.board_nor_write
-                0x08006ee4       0xdc ./out/user/objects/target/lib/libbsl.a(board_nor.o)
-                0x08006ee4                board_nor_write
+                0x08007058       0xdc ./out/user/objects/target/lib/libbsl.a(board_nor.o)
+                0x08007058                board_nor_write
  .text.post_begin
-                0x08006fc0        0xc ./out/user/objects/target/lib/libbsl.a(board_post.o)
+                0x08007134        0xc ./out/user/objects/target/lib/libbsl.a(board_post.o)
  .text.post_put_2
-                0x08006fcc       0x18 ./out/user/objects/target/lib/libbsl.a(board_post.o)
+                0x08007140       0x18 ./out/user/objects/target/lib/libbsl.a(board_post.o)
  .text.post_end
-                0x08006fe4       0x38 ./out/user/objects/target/lib/libbsl.a(board_post.o)
+                0x08007158       0x38 ./out/user/objects/target/lib/libbsl.a(board_post.o)
  .text.board_post_register
-                0x0800701c       0x34 ./out/user/objects/target/lib/libbsl.a(board_post.o)
-                0x0800701c                board_post_register
+                0x08007190       0x34 ./out/user/objects/target/lib/libbsl.a(board_post.o)
+                0x08007190                board_post_register
  .text.board_post_run
-                0x08007050      0x594 ./out/user/objects/target/lib/libbsl.a(board_post.o)
-                0x08007050                board_post_run
+                0x080071c4      0x594 ./out/user/objects/target/lib/libbsl.a(board_post.o)
+                0x080071c4                board_post_run
  .text.board_rt_port_of_phandle
-                0x080075e4       0x68 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x080075e4                board_rt_port_of_phandle
+                0x08007758       0x68 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x08007758                board_rt_port_of_phandle
  .text.gpio_spec.constprop.0
-                0x0800764c       0x40 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x080077c0       0x40 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
  .text.parse_all
-                0x0800768c      0xa34 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x08007800      0xa34 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
  .text.board_rt_hse_hz
-                0x080080c0       0x10 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x080080c0                board_rt_hse_hz
+                0x08008234       0x10 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x08008234                board_rt_hse_hz
  .text.board_rt_led_count
-                0x080080d0       0x10 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x080080d0                board_rt_led_count
+                0x08008244       0x10 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x08008244                board_rt_led_count
  .text.board_rt_led_port
-                0x080080e0       0x10 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x080080e0                board_rt_led_port
+                0x08008254       0x10 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x08008254                board_rt_led_port
  .text.board_rt_led_pin
-                0x080080f0       0x20 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x080080f0                board_rt_led_pin
+                0x08008264       0x20 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x08008264                board_rt_led_pin
  .text.board_rt_led_active_low
-                0x08008110       0x10 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x08008110                board_rt_led_active_low
+                0x08008284       0x10 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x08008284                board_rt_led_active_low
  .text.board_rt_key_count
-                0x08008120       0x10 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x08008120                board_rt_key_count
+                0x08008294       0x10 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x08008294                board_rt_key_count
  .text.board_rt_key_port
-                0x08008130       0x20 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x08008130                board_rt_key_port
+                0x080082a4       0x20 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x080082a4                board_rt_key_port
  .text.board_rt_key_pin
-                0x08008150       0x20 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x08008150                board_rt_key_pin
+                0x080082c4       0x20 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x080082c4                board_rt_key_pin
  .text.board_rt_key_pressed
-                0x08008170       0x20 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x08008170                board_rt_key_pressed
+                0x080082e4       0x20 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x080082e4                board_rt_key_pressed
  .text.board_rt_i2c_scl_port
-                0x08008190       0x10 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x08008190                board_rt_i2c_scl_port
+                0x08008304       0x10 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x08008304                board_rt_i2c_scl_port
  .text.board_rt_i2c_scl_pin
-                0x080081a0       0x14 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x080081a0                board_rt_i2c_scl_pin
+                0x08008314       0x14 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x08008314                board_rt_i2c_scl_pin
  .text.board_rt_i2c_sda_port
-                0x080081b4       0x10 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x080081b4                board_rt_i2c_sda_port
+                0x08008328       0x10 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x08008328                board_rt_i2c_sda_port
  .text.board_rt_i2c_sda_pin
-                0x080081c4       0x14 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x080081c4                board_rt_i2c_sda_pin
+                0x08008338       0x14 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x08008338                board_rt_i2c_sda_pin
  .text.board_rt_i2c_ready
-                0x080081d8       0x10 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x080081d8                board_rt_i2c_ready
+                0x0800834c       0x10 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x0800834c                board_rt_i2c_ready
  .text.board_rt_beep_via_pcf8574
-                0x080081e8       0x10 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x080081e8                board_rt_beep_via_pcf8574
+                0x0800835c       0x10 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x0800835c                board_rt_beep_via_pcf8574
  .text.board_rt_pcf8574_addr7
-                0x080081f8       0x14 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x080081f8                board_rt_pcf8574_addr7
+                0x0800836c       0x14 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x0800836c                board_rt_pcf8574_addr7
  .text.board_rt_beep_bit
-                0x0800820c       0x10 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x0800820c                board_rt_beep_bit
+                0x08008380       0x10 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x08008380                board_rt_beep_bit
  .text.board_rt_beep_active_high
-                0x0800821c       0x14 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x0800821c                board_rt_beep_active_high
+                0x08008390       0x14 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x08008390                board_rt_beep_active_high
  .text.board_rt_uart
-                0x08008230       0x6c ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x08008230                board_rt_uart
+                0x080083a4       0x6c ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x080083a4                board_rt_uart
  .text.board_rt_sdram
-                0x0800829c       0x5c ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x0800829c                board_rt_sdram
+                0x08008410       0x5c ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x08008410                board_rt_sdram
  .text.board_rt_sdram_pin_groups
-                0x080082f8       0x14 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x080082f8                board_rt_sdram_pin_groups
+                0x0800846c       0x14 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x0800846c                board_rt_sdram_pin_groups
  .text.board_rt_sdram_pin_port
-                0x0800830c       0x24 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x0800830c                board_rt_sdram_pin_port
+                0x08008480       0x24 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x08008480                board_rt_sdram_pin_port
  .text.board_rt_sdram_pin_mask
-                0x08008330       0x24 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x08008330                board_rt_sdram_pin_mask
+                0x080084a4       0x24 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x080084a4                board_rt_sdram_pin_mask
  .text.board_rt_sdram_pin_af
-                0x08008354       0x20 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x08008354                board_rt_sdram_pin_af
+                0x080084c8       0x20 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x080084c8                board_rt_sdram_pin_af
  .text.board_rt_panel
-                0x08008374       0x30 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x08008374                board_rt_panel
+                0x080084e8       0x30 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x080084e8                board_rt_panel
  .text.board_rt_panel_pin_groups
-                0x080083a4       0x14 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x080083a4                board_rt_panel_pin_groups
+                0x08008518       0x14 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x08008518                board_rt_panel_pin_groups
  .text.board_rt_panel_pin_port
-                0x080083b8       0x24 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x080083b8                board_rt_panel_pin_port
+                0x0800852c       0x24 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x0800852c                board_rt_panel_pin_port
  .text.board_rt_panel_pin_mask
-                0x080083dc       0x24 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x080083dc                board_rt_panel_pin_mask
+                0x08008550       0x24 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x08008550                board_rt_panel_pin_mask
  .text.board_rt_panel_pin_af
-                0x08008400       0x20 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x08008400                board_rt_panel_pin_af
+                0x08008574       0x20 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x08008574                board_rt_panel_pin_af
  .text.board_rt_panel_backlight
-                0x08008420       0x38 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x08008420                board_rt_panel_backlight
+                0x08008594       0x38 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x08008594                board_rt_panel_backlight
  .text.board_rt_touch
-                0x08008458       0x34 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x08008458                board_rt_touch
+                0x080085cc       0x34 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x080085cc                board_rt_touch
  .text.board_rt_nor
-                0x0800848c       0x38 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x0800848c                board_rt_nor
+                0x08008600       0x38 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x08008600                board_rt_nor
  .text.board_rt_rtc
-                0x080084c4       0x28 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x080084c4                board_rt_rtc
+                0x08008638       0x28 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x08008638                board_rt_rtc
  .text.board_rt_adc_temp
-                0x080084ec       0x24 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
-                0x080084ec                board_rt_adc_temp
+                0x08008660       0x24 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x08008660                board_rt_adc_temp
  .text.board_sdram_base
-                0x08008510       0x14 ./out/user/objects/target/lib/libbsl.a(board_sdram.o)
-                0x08008510                board_sdram_base
+                0x08008684       0x14 ./out/user/objects/target/lib/libbsl.a(board_sdram.o)
+                0x08008684                board_sdram_base
  .text.board_sdram_size
-                0x08008524       0x14 ./out/user/objects/target/lib/libbsl.a(board_sdram.o)
-                0x08008524                board_sdram_size
+                0x08008698       0x14 ./out/user/objects/target/lib/libbsl.a(board_sdram.o)
+                0x08008698                board_sdram_size
  .text.board_sdram_init
-                0x08008538      0x124 ./out/user/objects/target/lib/libbsl.a(board_sdram.o)
-                0x08008538                board_sdram_init
+                0x080086ac      0x124 ./out/user/objects/target/lib/libbsl.a(board_sdram.o)
+                0x080086ac                board_sdram_init
  .text.board_sdram_selftest
-                0x0800865c       0x50 ./out/user/objects/target/lib/libbsl.a(board_sdram.o)
-                0x0800865c                board_sdram_selftest
+                0x080087d0       0x50 ./out/user/objects/target/lib/libbsl.a(board_sdram.o)
+                0x080087d0                board_sdram_selftest
  .text.board_system_init
-                0x080086ac       0x34 ./out/user/objects/target/lib/libbsl.a(board_system.o)
-                0x080086ac                board_system_init
+                0x08008820       0x34 ./out/user/objects/target/lib/libbsl.a(board_system.o)
+                0x08008820                board_system_init
  .text.board_touch_product_id
-                0x080086e0       0x18 ./out/user/objects/target/lib/libbsl.a(board_touch.o)
-                0x080086e0                board_touch_product_id
+                0x08008854       0x18 ./out/user/objects/target/lib/libbsl.a(board_touch.o)
+                0x08008854                board_touch_product_id
  .text.board_touch_init
-                0x080086f8      0x194 ./out/user/objects/target/lib/libbsl.a(board_touch.o)
-                0x080086f8                board_touch_init
+                0x0800886c      0x24c ./out/user/objects/target/lib/libbsl.a(board_touch.o)
+                0x0800886c                board_touch_init
  .text.board_touch_read
-                0x0800888c       0xbc ./out/user/objects/target/lib/libbsl.a(board_touch.o)
-                0x0800888c                board_touch_read
+                0x08008ab8       0xbc ./out/user/objects/target/lib/libbsl.a(board_touch.o)
+                0x08008ab8                board_touch_read
  .text.bsl_adc_temp_init
-                0x08008948       0x74 ./out/user/objects/target/lib/libbsl.a(bsl_adc.o)
-                0x08008948                bsl_adc_temp_init
+                0x08008b74       0x74 ./out/user/objects/target/lib/libbsl.a(bsl_adc.o)
+                0x08008b74                bsl_adc_temp_init
  .text.bsl_adc_temp_read
-                0x080089bc       0xac ./out/user/objects/target/lib/libbsl.a(bsl_adc.o)
-                0x080089bc                bsl_adc_temp_read
+                0x08008be8       0xac ./out/user/objects/target/lib/libbsl.a(bsl_adc.o)
+                0x08008be8                bsl_adc_temp_read
  .text.bsl_crc32_words
-                0x08008a68       0x48 ./out/user/objects/target/lib/libbsl.a(bsl_crc.o)
-                0x08008a68                bsl_crc32_words
+                0x08008c94       0x48 ./out/user/objects/target/lib/libbsl.a(bsl_crc.o)
+                0x08008c94                bsl_crc32_words
  .text.bsl_device_count
-                0x08008ab0        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_device.o)
-                0x08008ab0                bsl_device_count
+                0x08008cdc        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_device.o)
+                0x08008cdc                bsl_device_count
  .text.bsl_device_at
-                0x08008ab4       0x14 ./out/user/objects/target/lib/libbsl.a(bsl_device.o)
-                0x08008ab4                bsl_device_at
+                0x08008ce0       0x14 ./out/user/objects/target/lib/libbsl.a(bsl_device.o)
+                0x08008ce0                bsl_device_at
  .text.bsl_device_state
-                0x08008ac8       0x2c ./out/user/objects/target/lib/libbsl.a(bsl_device.o)
-                0x08008ac8                bsl_device_state
+                0x08008cf4       0x2c ./out/user/objects/target/lib/libbsl.a(bsl_device.o)
+                0x08008cf4                bsl_device_state
  .text.bsl_device_is_ready
-                0x08008af4        0xe ./out/user/objects/target/lib/libbsl.a(bsl_device.o)
-                0x08008af4                bsl_device_is_ready
- *fill*         0x08008b02        0x2 
+                0x08008d20        0xe ./out/user/objects/target/lib/libbsl.a(bsl_device.o)
+                0x08008d20                bsl_device_is_ready
+ *fill*         0x08008d2e        0x2 
  .text.bsl_device_mark
-                0x08008b04       0x28 ./out/user/objects/target/lib/libbsl.a(bsl_device.o)
-                0x08008b04                bsl_device_mark
+                0x08008d30       0x28 ./out/user/objects/target/lib/libbsl.a(bsl_device.o)
+                0x08008d30                bsl_device_mark
  .text.bsl_fb_pixel
-                0x08008b2c       0x2e ./out/user/objects/target/lib/libbsl.a(bsl_fb.o)
-                0x08008b2c                bsl_fb_pixel
+                0x08008d58       0x2e ./out/user/objects/target/lib/libbsl.a(bsl_fb.o)
+                0x08008d58                bsl_fb_pixel
  .text.bsl_fb_hline
-                0x08008b5a       0x46 ./out/user/objects/target/lib/libbsl.a(bsl_fb.o)
-                0x08008b5a                bsl_fb_hline
+                0x08008d86       0x46 ./out/user/objects/target/lib/libbsl.a(bsl_fb.o)
+                0x08008d86                bsl_fb_hline
  .text.bsl_fb_vline
-                0x08008ba0       0x4c ./out/user/objects/target/lib/libbsl.a(bsl_fb.o)
-                0x08008ba0                bsl_fb_vline
+                0x08008dcc       0x4c ./out/user/objects/target/lib/libbsl.a(bsl_fb.o)
+                0x08008dcc                bsl_fb_vline
  .text.bsl_fb_fill
-                0x08008bec       0x2e ./out/user/objects/target/lib/libbsl.a(bsl_fb.o)
-                0x08008bec                bsl_fb_fill
+                0x08008e18       0x2e ./out/user/objects/target/lib/libbsl.a(bsl_fb.o)
+                0x08008e18                bsl_fb_fill
  .text.bsl_fb_frame
-                0x08008c1a       0x52 ./out/user/objects/target/lib/libbsl.a(bsl_fb.o)
-                0x08008c1a                bsl_fb_frame
+                0x08008e46       0x52 ./out/user/objects/target/lib/libbsl.a(bsl_fb.o)
+                0x08008e46                bsl_fb_frame
  .text.bsl_fb_mono
-                0x08008c6c       0xc0 ./out/user/objects/target/lib/libbsl.a(bsl_fb.o)
-                0x08008c6c                bsl_fb_mono
+                0x08008e98       0xc0 ./out/user/objects/target/lib/libbsl.a(bsl_fb.o)
+                0x08008e98                bsl_fb_mono
  .text.bsl_fb_count_nonbg
-                0x08008d2c       0x60 ./out/user/objects/target/lib/libbsl.a(bsl_fb.o)
-                0x08008d2c                bsl_fb_count_nonbg
+                0x08008f58       0x60 ./out/user/objects/target/lib/libbsl.a(bsl_fb.o)
+                0x08008f58                bsl_fb_count_nonbg
  .text.fdt_be32
-                0x08008d8c        0x6 ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
+                0x08008fb8        0x6 ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
  .text.fdt_streq
-                0x08008d92       0x1a ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
+                0x08008fbe       0x1a ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
  .text.fdt_after_name
-                0x08008dac       0x20 ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
+                0x08008fd8       0x20 ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
  .text.fdt_find_prop.constprop.0
-                0x08008dcc       0xa0 ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
+                0x08008ff8       0xa0 ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
  .text.bsl_fdt_init
-                0x08008e6c       0xc4 ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
-                0x08008e6c                bsl_fdt_init
+                0x08009098       0xc4 ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
+                0x08009098                bsl_fdt_init
  .text.bsl_fdt_find
-                0x08008f30      0x11c ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
-                0x08008f30                bsl_fdt_find
+                0x0800915c      0x11c ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
+                0x0800915c                bsl_fdt_find
  .text.bsl_fdt_child
-                0x0800904c       0x90 ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
-                0x0800904c                bsl_fdt_child
+                0x08009278       0x90 ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
+                0x08009278                bsl_fdt_child
  .text.bsl_fdt_child_count
-                0x080090dc       0x8c ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
-                0x080090dc                bsl_fdt_child_count
+                0x08009308       0x8c ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
+                0x08009308                bsl_fdt_child_count
  .text.bsl_fdt_prop_u32
-                0x08009168       0x2c ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
-                0x08009168                bsl_fdt_prop_u32
+                0x08009394       0x2c ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
+                0x08009394                bsl_fdt_prop_u32
  .text.bsl_fdt_prop_string
-                0x08009194       0x1c ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
-                0x08009194                bsl_fdt_prop_string
+                0x080093c0       0x1c ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
+                0x080093c0                bsl_fdt_prop_string
  .text.bsl_fdt_prop_cells
-                0x080091b0       0x46 ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
-                0x080091b0                bsl_fdt_prop_cells
+                0x080093dc       0x46 ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
+                0x080093dc                bsl_fdt_prop_cells
  .text.bsl_fdt_prop_flag
-                0x080091f6       0x2c ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
-                0x080091f6                bsl_fdt_prop_flag
- *fill*         0x08009222        0x2 
+                0x08009422       0x2c ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
+                0x08009422                bsl_fdt_prop_flag
+ *fill*         0x0800944e        0x2 
  .text.bsl_fdt_by_phandle
-                0x08009224       0xe4 ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
-                0x08009224                bsl_fdt_by_phandle
+                0x08009450       0xe4 ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
+                0x08009450                bsl_fdt_by_phandle
  .text.enable_port_clock
-                0x08009308      0x18c ./out/user/objects/target/lib/libbsl.a(bsl_gpio.o)
+                0x08009534      0x18c ./out/user/objects/target/lib/libbsl.a(bsl_gpio.o)
  .text.gpio_init
-                0x08009494       0x36 ./out/user/objects/target/lib/libbsl.a(bsl_gpio.o)
+                0x080096c0       0x36 ./out/user/objects/target/lib/libbsl.a(bsl_gpio.o)
  .text.bsl_gpio_port_clk_enable
-                0x080094ca        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_gpio.o)
-                0x080094ca                bsl_gpio_port_clk_enable
+                0x080096f6        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_gpio.o)
+                0x080096f6                bsl_gpio_port_clk_enable
  .text.bsl_gpio_init_output_pp
-                0x080094ce        0xe ./out/user/objects/target/lib/libbsl.a(bsl_gpio.o)
-                0x080094ce                bsl_gpio_init_output_pp
+                0x080096fa        0xe ./out/user/objects/target/lib/libbsl.a(bsl_gpio.o)
+                0x080096fa                bsl_gpio_init_output_pp
  .text.bsl_gpio_init_output_od
-                0x080094dc        0xe ./out/user/objects/target/lib/libbsl.a(bsl_gpio.o)
-                0x080094dc                bsl_gpio_init_output_od
+                0x08009708        0xe ./out/user/objects/target/lib/libbsl.a(bsl_gpio.o)
+                0x08009708                bsl_gpio_init_output_od
  .text.bsl_gpio_init_input
-                0x080094ea        0xe ./out/user/objects/target/lib/libbsl.a(bsl_gpio.o)
-                0x080094ea                bsl_gpio_init_input
+                0x08009716        0xe ./out/user/objects/target/lib/libbsl.a(bsl_gpio.o)
+                0x08009716                bsl_gpio_init_input
  .text.bsl_gpio_init_af
-                0x080094f8       0x44 ./out/user/objects/target/lib/libbsl.a(bsl_gpio.o)
-                0x080094f8                bsl_gpio_init_af
+                0x08009724       0x44 ./out/user/objects/target/lib/libbsl.a(bsl_gpio.o)
+                0x08009724                bsl_gpio_init_af
  .text.bsl_gpio_write
-                0x0800953c        0x8 ./out/user/objects/target/lib/libbsl.a(bsl_gpio.o)
-                0x0800953c                bsl_gpio_write
+                0x08009768        0x8 ./out/user/objects/target/lib/libbsl.a(bsl_gpio.o)
+                0x08009768                bsl_gpio_write
  .text.bsl_gpio_read
-                0x08009544        0x8 ./out/user/objects/target/lib/libbsl.a(bsl_gpio.o)
-                0x08009544                bsl_gpio_read
+                0x08009770        0x8 ./out/user/objects/target/lib/libbsl.a(bsl_gpio.o)
+                0x08009770                bsl_gpio_read
  .text.bsl_gpio_write_port_pin
-                0x0800954c        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_gpio.o)
-                0x0800954c                bsl_gpio_write_port_pin
+                0x08009778        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_gpio.o)
+                0x08009778                bsl_gpio_write_port_pin
  .text.bsl_gpio_toggle
-                0x08009550        0x8 ./out/user/objects/target/lib/libbsl.a(bsl_gpio.o)
-                0x08009550                bsl_gpio_toggle
+                0x0800977c        0x8 ./out/user/objects/target/lib/libbsl.a(bsl_gpio.o)
+                0x0800977c                bsl_gpio_toggle
  .text.iic_delay
-                0x08009558       0x14 ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
- .text.sda_out  0x0800956c        0xc ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
+                0x08009784       0x14 ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
+ .text.sda_out  0x08009798        0xc ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
  .text.scl_high
-                0x08009578        0xa ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
+                0x080097a4        0xa ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
  .text.sda_high
-                0x08009582        0xa ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
- .text.sda_low  0x0800958c        0xa ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
- .text.scl_low  0x08009596        0xa ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
+                0x080097ae        0xa ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
+ .text.sda_low  0x080097b8        0xa ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
+ .text.scl_low  0x080097c2        0xa ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
  .text.iic_start
-                0x080095a0       0x2c ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
+                0x080097cc       0x2c ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
  .text.iic_stop
-                0x080095cc       0x30 ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
+                0x080097f8       0x30 ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
+ .text.iic_read_byte
+                0x08009828       0x80 ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
  .text.iic_send_byte
-                0x080095fc       0xa0 ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
+                0x080098a8       0xa0 ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
  .text.bsl_i2c_gpio_init
-                0x0800969c       0x34 ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
-                0x0800969c                bsl_i2c_gpio_init
+                0x08009948       0x34 ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
+                0x08009948                bsl_i2c_gpio_init
  .text.bsl_board_i2c_gpio_init
-                0x080096d0       0x6c ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
+                0x0800997c       0x6c ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
  .text.bsl_i2c_gpio_write_byte
-                0x0800973c       0x3a ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
-                0x0800973c                bsl_i2c_gpio_write_byte
+                0x080099e8       0x3a ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
+                0x080099e8                bsl_i2c_gpio_write_byte
  .text.bsl_i2c_gpio_write_reg16
-                0x08009776       0x72 ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
-                0x08009776                bsl_i2c_gpio_write_reg16
+                0x08009a22       0x72 ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
+                0x08009a22                bsl_i2c_gpio_write_reg16
  .text.bsl_i2c_gpio_read_reg16
-                0x080097e8      0x108 ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
-                0x080097e8                bsl_i2c_gpio_read_reg16
+                0x08009a94       0x8e ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
+                0x08009a94                bsl_i2c_gpio_read_reg16
+ .text.bsl_i2c_gpio_probe
+                0x08009b22       0x2c ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
+                0x08009b22                bsl_i2c_gpio_probe
+ .text.bsl_i2c_gpio_read_reg8
+                0x08009b4e       0x7c ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
+                0x08009b4e                bsl_i2c_gpio_read_reg8
+ *fill*         0x08009bca        0x2 
  .text.bsl_board_i2c_gpio_bus
-                0x080098f0        0x8 ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
-                0x080098f0                bsl_board_i2c_gpio_bus
+                0x08009bcc        0x8 ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
+                0x08009bcc                bsl_board_i2c_gpio_bus
  .text.bsl_board_i2c_gpio_ready
-                0x080098f8        0xc ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
-                0x080098f8                bsl_board_i2c_gpio_ready
+                0x08009bd4        0xc ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
+                0x08009bd4                bsl_board_i2c_gpio_ready
  .text.bsl_init_run
-                0x08009904       0x98 ./out/user/objects/target/lib/libbsl.a(bsl_init.o)
-                0x08009904                bsl_init_run
+                0x08009be0       0x98 ./out/user/objects/target/lib/libbsl.a(bsl_init.o)
+                0x08009be0                bsl_init_run
  .text.bsl_board_periph_init
-                0x0800999c       0x48 ./out/user/objects/target/lib/libbsl.a(bsl_init.o)
-                0x0800999c                bsl_board_periph_init
+                0x08009c78       0x48 ./out/user/objects/target/lib/libbsl.a(bsl_init.o)
+                0x08009c78                bsl_board_periph_init
  .text.bsl_log_puts.part.0
-                0x080099e4       0xe4 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
+                0x08009cc0       0xe4 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
  .text.bsl_log_puts
-                0x08009ac8        0x8 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
-                0x08009ac8                bsl_log_puts
+                0x08009da4        0x8 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
+                0x08009da4                bsl_log_puts
  .text.bsl_log_mod_puts
-                0x08009ad0       0x34 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
-                0x08009ad0                bsl_log_mod_puts
+                0x08009dac       0x34 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
+                0x08009dac                bsl_log_mod_puts
  .text.bsl_log_put_dec
-                0x08009b04       0x74 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
-                0x08009b04                bsl_log_put_dec
+                0x08009de0       0x74 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
+                0x08009de0                bsl_log_put_dec
  .text.bsl_log_startup_banner
-                0x08009b78      0x128 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
-                0x08009b78                bsl_log_startup_banner
+                0x08009e54      0x128 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
+                0x08009e54                bsl_log_startup_banner
  .text.bsl_log_put_hex
-                0x08009ca0       0x40 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
-                0x08009ca0                bsl_log_put_hex
+                0x08009f7c       0x40 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
+                0x08009f7c                bsl_log_put_hex
  .text.bsl_log_dump_ring
-                0x08009ce0       0xcc ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
-                0x08009ce0                bsl_log_dump_ring
+                0x08009fbc       0xcc ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
+                0x08009fbc                bsl_log_dump_ring
  .text.bsl_pcf8574_init
-                0x08009dac        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_pcf8574.o)
+                0x0800a088        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_pcf8574.o)
  .text.bsl_rng_init
-                0x08009db0       0x40 ./out/user/objects/target/lib/libbsl.a(bsl_rng.o)
-                0x08009db0                bsl_rng_init
+                0x0800a08c       0x40 ./out/user/objects/target/lib/libbsl.a(bsl_rng.o)
+                0x0800a08c                bsl_rng_init
  .text.bsl_rng_read
-                0x08009df0       0x58 ./out/user/objects/target/lib/libbsl.a(bsl_rng.o)
-                0x08009df0                bsl_rng_read
+                0x0800a0cc       0x58 ./out/user/objects/target/lib/libbsl.a(bsl_rng.o)
+                0x0800a0cc                bsl_rng_read
  .text.bsl_rtc_src
-                0x08009e48        0xc ./out/user/objects/target/lib/libbsl.a(bsl_rtc.o)
-                0x08009e48                bsl_rtc_src
+                0x0800a124        0xc ./out/user/objects/target/lib/libbsl.a(bsl_rtc.o)
+                0x0800a124                bsl_rtc_src
  .text.bsl_rtc_ready
-                0x08009e54        0xc ./out/user/objects/target/lib/libbsl.a(bsl_rtc.o)
-                0x08009e54                bsl_rtc_ready
+                0x0800a130        0xc ./out/user/objects/target/lib/libbsl.a(bsl_rtc.o)
+                0x0800a130                bsl_rtc_ready
  .text.wait_flag
-                0x08009e60       0x2a ./out/user/objects/target/lib/libbsl.a(bsl_rtc.o)
- *fill*         0x08009e8a        0x2 
+                0x0800a13c       0x2a ./out/user/objects/target/lib/libbsl.a(bsl_rtc.o)
+ *fill*         0x0800a166        0x2 
  .text.bsl_rtc_get
-                0x08009e8c       0xec ./out/user/objects/target/lib/libbsl.a(bsl_rtc.o)
-                0x08009e8c                bsl_rtc_get
+                0x0800a168       0xec ./out/user/objects/target/lib/libbsl.a(bsl_rtc.o)
+                0x0800a168                bsl_rtc_get
  .text.bsl_rtc_init
-                0x08009f78      0x1b4 ./out/user/objects/target/lib/libbsl.a(bsl_rtc.o)
-                0x08009f78                bsl_rtc_init
+                0x0800a254      0x1b4 ./out/user/objects/target/lib/libbsl.a(bsl_rtc.o)
+                0x0800a254                bsl_rtc_init
  .text.bsl_rtc_measure
-                0x0800a12c       0x74 ./out/user/objects/target/lib/libbsl.a(bsl_rtc.o)
-                0x0800a12c                bsl_rtc_measure
+                0x0800a408       0x74 ./out/user/objects/target/lib/libbsl.a(bsl_rtc.o)
+                0x0800a408                bsl_rtc_measure
  .text.HAL_SPI_MspInit
-                0x0800a1a0       0xe4 ./out/user/objects/target/lib/libbsl.a(bsl_spi.o)
-                0x0800a1a0                HAL_SPI_MspInit
+                0x0800a47c       0xe4 ./out/user/objects/target/lib/libbsl.a(bsl_spi.o)
+                0x0800a47c                HAL_SPI_MspInit
  .text.bsl_spi_init
-                0x0800a284       0xcc ./out/user/objects/target/lib/libbsl.a(bsl_spi.o)
-                0x0800a284                bsl_spi_init
+                0x0800a560       0xcc ./out/user/objects/target/lib/libbsl.a(bsl_spi.o)
+                0x0800a560                bsl_spi_init
  .text.bsl_spi_xfer
-                0x0800a350       0x5c ./out/user/objects/target/lib/libbsl.a(bsl_spi.o)
-                0x0800a350                bsl_spi_xfer
+                0x0800a62c       0x5c ./out/user/objects/target/lib/libbsl.a(bsl_spi.o)
+                0x0800a62c                bsl_spi_xfer
  .text.stack_guard_check
-                0x0800a3ac       0x1c ./out/user/objects/target/lib/libosl.a(osl_boot.o)
+                0x0800a688       0x1c ./out/user/objects/target/lib/libosl.a(osl_boot.o)
  .text.hal_time_base_init
-                0x0800a3c8       0x2c ./out/user/objects/target/lib/libosl.a(osl_boot.o)
+                0x0800a6a4       0x2c ./out/user/objects/target/lib/libosl.a(osl_boot.o)
  .text.iwdg_wait_sync.isra.0
-                0x0800a3f4       0x28 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
+                0x0800a6d0       0x28 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
  .text.osl_boot_stage_note
-                0x0800a41c        0xc ./out/user/objects/target/lib/libosl.a(osl_boot.o)
-                0x0800a41c                osl_boot_stage_note
+                0x0800a6f8        0xc ./out/user/objects/target/lib/libosl.a(osl_boot.o)
+                0x0800a6f8                osl_boot_stage_note
  .text.osl_reset_cause_capture
-                0x0800a428       0x70 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
-                0x0800a428                osl_reset_cause_capture
+                0x0800a704       0x70 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
+                0x0800a704                osl_reset_cause_capture
  .text.osl_watchdog_start
-                0x0800a498       0x34 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
-                0x0800a498                osl_watchdog_start
+                0x0800a774       0x34 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
+                0x0800a774                osl_watchdog_start
  .text.osl_watchdog_feed
-                0x0800a4cc       0x10 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
-                0x0800a4cc                osl_watchdog_feed
+                0x0800a7a8       0x10 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
+                0x0800a7a8                osl_watchdog_feed
  .text.osl_watchdog_relax
-                0x0800a4dc       0x34 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
-                0x0800a4dc                osl_watchdog_relax
+                0x0800a7b8       0x34 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
+                0x0800a7b8                osl_watchdog_relax
  .text.osl_tick_ms_align
-                0x0800a510       0x3c ./out/user/objects/target/lib/libosl.a(osl_boot.o)
-                0x0800a510                osl_tick_ms_align
+                0x0800a7ec       0x3c ./out/user/objects/target/lib/libosl.a(osl_boot.o)
+                0x0800a7ec                osl_tick_ms_align
  .text.osl_tick_ms_advance
-                0x0800a54c       0x14 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
-                0x0800a54c                osl_tick_ms_advance
+                0x0800a828       0x14 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
+                0x0800a828                osl_tick_ms_advance
  .text.vApplicationTickHook
-                0x0800a560       0x38 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
-                0x0800a560                vApplicationTickHook
+                0x0800a83c       0x38 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
+                0x0800a83c                vApplicationTickHook
  .text.HAL_InitTick
-                0x0800a598       0x12 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
-                0x0800a598                HAL_InitTick
- *fill*         0x0800a5aa        0x2 
+                0x0800a874       0x12 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
+                0x0800a874                HAL_InitTick
+ *fill*         0x0800a886        0x2 
  .text.HAL_GetTick
-                0x0800a5ac       0x54 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
-                0x0800a5ac                HAL_GetTick
- .text._sbrk    0x0800a600       0x54 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
-                0x0800a600                _sbrk
+                0x0800a888       0x54 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
+                0x0800a888                HAL_GetTick
+ .text._sbrk    0x0800a8dc       0x54 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
+                0x0800a8dc                _sbrk
  .text.__malloc_lock
-                0x0800a654       0x1c ./out/user/objects/target/lib/libosl.a(osl_boot.o)
-                0x0800a654                __malloc_lock
- .text._write   0x0800a670       0x30 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
-                0x0800a670                _write
+                0x0800a930       0x1c ./out/user/objects/target/lib/libosl.a(osl_boot.o)
+                0x0800a930                __malloc_lock
+ .text._write   0x0800a94c       0x30 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
+                0x0800a94c                _write
  .text.osl_health_init
-                0x0800a6a0       0x24 ./out/user/objects/target/lib/libosl.a(osl_health.o)
-                0x0800a6a0                osl_health_init
+                0x0800a97c       0x24 ./out/user/objects/target/lib/libosl.a(osl_health.o)
+                0x0800a97c                osl_health_init
  .text.osl_health_stack_mark
-                0x0800a6c4       0x30 ./out/user/objects/target/lib/libosl.a(osl_health.o)
-                0x0800a6c4                osl_health_stack_mark
+                0x0800a9a0       0x30 ./out/user/objects/target/lib/libosl.a(osl_health.o)
+                0x0800a9a0                osl_health_stack_mark
  .text.panic_clear_fault_scene
-                0x0800a6f4       0x2c ./out/user/objects/target/lib/libosl.a(osl_panic.o)
+                0x0800a9d0       0x2c ./out/user/objects/target/lib/libosl.a(osl_panic.o)
  .text.panic_leds
-                0x0800a720       0x70 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
+                0x0800a9fc       0x70 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
  .text.panic_copy_task_name.constprop.0
-                0x0800a790       0x28 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
+                0x0800aa6c       0x28 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
  .text.panic_mask_all_irqs
-                0x0800a7b8       0x34 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
-                0x0800a7b8                panic_mask_all_irqs
+                0x0800aa94       0x34 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
+                0x0800aa94                panic_mask_all_irqs
  .text.osl_panic_report
-                0x0800a7ec      0x1c0 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
-                0x0800a7ec                osl_panic_report
+                0x0800aac8      0x1c0 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
+                0x0800aac8                osl_panic_report
  .text.panic_assert_from
-                0x0800a9ac       0x2c ./out/user/objects/target/lib/libosl.a(osl_panic.o)
+                0x0800ac88       0x2c ./out/user/objects/target/lib/libosl.a(osl_panic.o)
  .text.osl_fault_monitor_init
-                0x0800a9d8       0x18 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
-                0x0800a9d8                osl_fault_monitor_init
+                0x0800acb4       0x18 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
+                0x0800acb4                osl_fault_monitor_init
  .text.fault_entry_stub
-                0x0800a9f0        0xe ./out/user/objects/target/lib/libosl.a(osl_panic.o)
-                0x0800a9f0                fault_entry_stub
- *fill*         0x0800a9fe        0x2 
+                0x0800accc        0xe ./out/user/objects/target/lib/libosl.a(osl_panic.o)
+                0x0800accc                fault_entry_stub
+ *fill*         0x0800acda        0x2 
  .text.fault_report
-                0x0800aa00       0x98 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
+                0x0800acdc       0x98 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
  .text.HardFault_Handler
-                0x0800aa98        0x6 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
-                0x0800aa98                HardFault_Handler
+                0x0800ad74        0x6 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
+                0x0800ad74                HardFault_Handler
  .text.MemManage_Handler
-                0x0800aa9e        0x6 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
-                0x0800aa9e                MemManage_Handler
+                0x0800ad7a        0x6 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
+                0x0800ad7a                MemManage_Handler
  .text.BusFault_Handler
-                0x0800aaa4        0x6 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
-                0x0800aaa4                BusFault_Handler
+                0x0800ad80        0x6 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
+                0x0800ad80                BusFault_Handler
  .text.UsageFault_Handler
-                0x0800aaaa        0x6 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
-                0x0800aaaa                UsageFault_Handler
+                0x0800ad86        0x6 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
+                0x0800ad86                UsageFault_Handler
  .text.UnhandledIRQ_Handler
-                0x0800aab0       0x48 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
-                0x0800aab0                UnhandledIRQ_Handler
+                0x0800ad8c       0x48 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
+                0x0800ad8c                UnhandledIRQ_Handler
  .text.osl_panic_stack_guard_report
-                0x0800aaf8       0x18 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
-                0x0800aaf8                osl_panic_stack_guard_report
+                0x0800add4       0x18 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
+                0x0800add4                osl_panic_stack_guard_report
  .text.vApplicationStackOverflowHook
-                0x0800ab10       0x1c ./out/user/objects/target/lib/libosl.a(osl_panic.o)
-                0x0800ab10                vApplicationStackOverflowHook
+                0x0800adec       0x1c ./out/user/objects/target/lib/libosl.a(osl_panic.o)
+                0x0800adec                vApplicationStackOverflowHook
  .text.vAssertFailed
-                0x0800ab2c        0x6 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
-                0x0800ab2c                vAssertFailed
+                0x0800ae08        0x6 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
+                0x0800ae08                vAssertFailed
  .text.assert_failed
-                0x0800ab32        0x6 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
-                0x0800ab32                assert_failed
+                0x0800ae0e        0x6 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
+                0x0800ae0e                assert_failed
  .text.vApplicationGetIdleTaskMemory
-                0x0800ab38       0x18 ./out/user/objects/target/lib/libosl.a(osl_thread.o)
-                0x0800ab38                vApplicationGetIdleTaskMemory
+                0x0800ae14       0x18 ./out/user/objects/target/lib/libosl.a(osl_thread.o)
+                0x0800ae14                vApplicationGetIdleTaskMemory
  .text.osl_thread_create
-                0x0800ab50       0x54 ./out/user/objects/target/lib/libosl.a(osl_thread.o)
-                0x0800ab50                osl_thread_create
+                0x0800ae2c       0x54 ./out/user/objects/target/lib/libosl.a(osl_thread.o)
+                0x0800ae2c                osl_thread_create
  .text.osl_thread_delay_until
-                0x0800aba4        0x4 ./out/user/objects/target/lib/libosl.a(osl_thread.o)
-                0x0800aba4                osl_thread_delay_until
+                0x0800ae80        0x4 ./out/user/objects/target/lib/libosl.a(osl_thread.o)
+                0x0800ae80                osl_thread_delay_until
  .text.osl_thread_delay_ms
-                0x0800aba8        0x4 ./out/user/objects/target/lib/libosl.a(osl_thread.o)
-                0x0800aba8                osl_thread_delay_ms
+                0x0800ae84        0x4 ./out/user/objects/target/lib/libosl.a(osl_thread.o)
+                0x0800ae84                osl_thread_delay_ms
  .text.osl_tick_now
-                0x0800abac        0x4 ./out/user/objects/target/lib/libosl.a(osl_thread.o)
-                0x0800abac                osl_tick_now
+                0x0800ae88        0x4 ./out/user/objects/target/lib/libosl.a(osl_thread.o)
+                0x0800ae88                osl_tick_now
  .text.osl_scheduler_start
-                0x0800abb0        0xe ./out/user/objects/target/lib/libosl.a(osl_thread.o)
-                0x0800abb0                osl_scheduler_start
+                0x0800ae8c        0xe ./out/user/objects/target/lib/libosl.a(osl_thread.o)
+                0x0800ae8c                osl_scheduler_start
  .text.osl_thread_stack_high_watermark
-                0x0800abbe        0x6 ./out/user/objects/target/lib/libosl.a(osl_thread.o)
-                0x0800abbe                osl_thread_stack_high_watermark
+                0x0800ae9a        0x6 ./out/user/objects/target/lib/libosl.a(osl_thread.o)
+                0x0800ae9a                osl_thread_stack_high_watermark
  .text.vPortFree
-                0x0800abc4       0xd4 ./out/user/objects/target/lib/libosl.a(heap_4.o)
-                0x0800abc4                vPortFree
+                0x0800aea0       0xd4 ./out/user/objects/target/lib/libosl.a(heap_4.o)
+                0x0800aea0                vPortFree
  .text.xPortGetMinimumEverFreeHeapSize
-                0x0800ac98        0xc ./out/user/objects/target/lib/libosl.a(heap_4.o)
-                0x0800ac98                xPortGetMinimumEverFreeHeapSize
- *fill*         0x0800aca4        0xc 
+                0x0800af74        0xc ./out/user/objects/target/lib/libosl.a(heap_4.o)
+                0x0800af74                xPortGetMinimumEverFreeHeapSize
  .text.SVC_Handler
-                0x0800acb0       0x24 ./out/user/objects/target/lib/libosl.a(port_m4.o)
-                0x0800acb0                SVC_Handler
+                0x0800af80       0x24 ./out/user/objects/target/lib/libosl.a(port_m4.o)
+                0x0800af80                SVC_Handler
  .text.prvPortStartFirstTask
-                0x0800acd4       0x28 ./out/user/objects/target/lib/libosl.a(port_m4.o)
- *fill*         0x0800acfc        0x4 
+                0x0800afa4       0x28 ./out/user/objects/target/lib/libosl.a(port_m4.o)
+ *fill*         0x0800afcc        0x4 
  .text.PendSV_Handler
-                0x0800ad00       0x64 ./out/user/objects/target/lib/libosl.a(port_m4.o)
-                0x0800ad00                PendSV_Handler
+                0x0800afd0       0x64 ./out/user/objects/target/lib/libosl.a(port_m4.o)
+                0x0800afd0                PendSV_Handler
  .text.vPortEnableVFP
-                0x0800ad64       0x14 ./out/user/objects/target/lib/libosl.a(port_m4.o)
+                0x0800b034       0x14 ./out/user/objects/target/lib/libosl.a(port_m4.o)
  .text.prvTaskExitError
-                0x0800ad78       0x3c ./out/user/objects/target/lib/libosl.a(port_m4.o)
+                0x0800b048       0x3c ./out/user/objects/target/lib/libosl.a(port_m4.o)
  .text.pxPortInitialiseStack
-                0x0800adb4       0x2c ./out/user/objects/target/lib/libosl.a(port_m4.o)
-                0x0800adb4                pxPortInitialiseStack
+                0x0800b084       0x2c ./out/user/objects/target/lib/libosl.a(port_m4.o)
+                0x0800b084                pxPortInitialiseStack
  .text.vPortEnterCritical
-                0x0800ade0       0x40 ./out/user/objects/target/lib/libosl.a(port_m4.o)
-                0x0800ade0                vPortEnterCritical
+                0x0800b0b0       0x40 ./out/user/objects/target/lib/libosl.a(port_m4.o)
+                0x0800b0b0                vPortEnterCritical
  .text.vPortExitCritical
-                0x0800ae20       0x28 ./out/user/objects/target/lib/libosl.a(port_m4.o)
-                0x0800ae20                vPortExitCritical
+                0x0800b0f0       0x28 ./out/user/objects/target/lib/libosl.a(port_m4.o)
+                0x0800b0f0                vPortExitCritical
  .text.SysTick_Handler
-                0x0800ae48       0x2c ./out/user/objects/target/lib/libosl.a(port_m4.o)
-                0x0800ae48                SysTick_Handler
+                0x0800b118       0x2c ./out/user/objects/target/lib/libosl.a(port_m4.o)
+                0x0800b118                SysTick_Handler
  .text.vPortSetupTimerInterrupt
-                0x0800ae74       0x24 ./out/user/objects/target/lib/libosl.a(port_m4.o)
-                0x0800ae74                vPortSetupTimerInterrupt
+                0x0800b144       0x24 ./out/user/objects/target/lib/libosl.a(port_m4.o)
+                0x0800b144                vPortSetupTimerInterrupt
  .text.xPortStartScheduler
-                0x0800ae98      0x138 ./out/user/objects/target/lib/libosl.a(port_m4.o)
-                0x0800ae98                xPortStartScheduler
+                0x0800b168      0x138 ./out/user/objects/target/lib/libosl.a(port_m4.o)
+                0x0800b168                xPortStartScheduler
  .text.prvAddNewTaskToReadyList
-                0x0800afd0      0x124 ./out/user/objects/target/lib/libosl.a(tasks.o)
+                0x0800b2a0      0x124 ./out/user/objects/target/lib/libosl.a(tasks.o)
  .text.prvAddCurrentTaskToDelayedList
-                0x0800b0f4       0xac ./out/user/objects/target/lib/libosl.a(tasks.o)
+                0x0800b3c4       0xac ./out/user/objects/target/lib/libosl.a(tasks.o)
  .text.prvResetNextTaskUnblockTime
-                0x0800b1a0       0x24 ./out/user/objects/target/lib/libosl.a(tasks.o)
+                0x0800b470       0x24 ./out/user/objects/target/lib/libosl.a(tasks.o)
  .text.prvDeleteTCB
-                0x0800b1c4       0x34 ./out/user/objects/target/lib/libosl.a(tasks.o)
+                0x0800b494       0x34 ./out/user/objects/target/lib/libosl.a(tasks.o)
  .text.prvCheckTasksWaitingTermination
-                0x0800b1f8       0x40 ./out/user/objects/target/lib/libosl.a(tasks.o)
+                0x0800b4c8       0x40 ./out/user/objects/target/lib/libosl.a(tasks.o)
  .text.prvIdleTask
-                0x0800b238       0x28 ./out/user/objects/target/lib/libosl.a(tasks.o)
+                0x0800b508       0x28 ./out/user/objects/target/lib/libosl.a(tasks.o)
  .text.prvInitialiseNewTask.constprop.0
-                0x0800b260       0x8c ./out/user/objects/target/lib/libosl.a(tasks.o)
+                0x0800b530       0x8c ./out/user/objects/target/lib/libosl.a(tasks.o)
  .text.xTaskCreateStatic
-                0x0800b2ec       0x78 ./out/user/objects/target/lib/libosl.a(tasks.o)
-                0x0800b2ec                xTaskCreateStatic
+                0x0800b5bc       0x78 ./out/user/objects/target/lib/libosl.a(tasks.o)
+                0x0800b5bc                xTaskCreateStatic
  .text.vTaskStartScheduler
-                0x0800b364       0x8c ./out/user/objects/target/lib/libosl.a(tasks.o)
-                0x0800b364                vTaskStartScheduler
+                0x0800b634       0x8c ./out/user/objects/target/lib/libosl.a(tasks.o)
+                0x0800b634                vTaskStartScheduler
  .text.vTaskSuspendAll
-                0x0800b3f0       0x10 ./out/user/objects/target/lib/libosl.a(tasks.o)
-                0x0800b3f0                vTaskSuspendAll
+                0x0800b6c0       0x10 ./out/user/objects/target/lib/libosl.a(tasks.o)
+                0x0800b6c0                vTaskSuspendAll
  .text.xTaskGetTickCount
-                0x0800b400        0xc ./out/user/objects/target/lib/libosl.a(tasks.o)
-                0x0800b400                xTaskGetTickCount
+                0x0800b6d0        0xc ./out/user/objects/target/lib/libosl.a(tasks.o)
+                0x0800b6d0                xTaskGetTickCount
  .text.pcTaskGetName
-                0x0800b40c       0x20 ./out/user/objects/target/lib/libosl.a(tasks.o)
-                0x0800b40c                pcTaskGetName
+                0x0800b6dc       0x20 ./out/user/objects/target/lib/libosl.a(tasks.o)
+                0x0800b6dc                pcTaskGetName
  .text.xTaskIncrementTick
-                0x0800b42c      0x19c ./out/user/objects/target/lib/libosl.a(tasks.o)
-                0x0800b42c                xTaskIncrementTick
+                0x0800b6fc      0x19c ./out/user/objects/target/lib/libosl.a(tasks.o)
+                0x0800b6fc                xTaskIncrementTick
  .text.xTaskResumeAll
-                0x0800b5c8      0x15c ./out/user/objects/target/lib/libosl.a(tasks.o)
-                0x0800b5c8                xTaskResumeAll
+                0x0800b898      0x15c ./out/user/objects/target/lib/libosl.a(tasks.o)
+                0x0800b898                xTaskResumeAll
  .text.xTaskDelayUntil
-                0x0800b724       0x80 ./out/user/objects/target/lib/libosl.a(tasks.o)
-                0x0800b724                xTaskDelayUntil
+                0x0800b9f4       0x80 ./out/user/objects/target/lib/libosl.a(tasks.o)
+                0x0800b9f4                xTaskDelayUntil
  .text.vTaskDelay
-                0x0800b7a4       0x48 ./out/user/objects/target/lib/libosl.a(tasks.o)
-                0x0800b7a4                vTaskDelay
+                0x0800ba74       0x48 ./out/user/objects/target/lib/libosl.a(tasks.o)
+                0x0800ba74                vTaskDelay
  .text.vTaskSwitchContext
-                0x0800b7ec       0xa0 ./out/user/objects/target/lib/libosl.a(tasks.o)
-                0x0800b7ec                vTaskSwitchContext
+                0x0800babc       0xa0 ./out/user/objects/target/lib/libosl.a(tasks.o)
+                0x0800babc                vTaskSwitchContext
  .text.uxTaskGetStackHighWaterMark
-                0x0800b88c       0x1c ./out/user/objects/target/lib/libosl.a(tasks.o)
-                0x0800b88c                uxTaskGetStackHighWaterMark
+                0x0800bb5c       0x1c ./out/user/objects/target/lib/libosl.a(tasks.o)
+                0x0800bb5c                uxTaskGetStackHighWaterMark
  .text.xTaskGetCurrentTaskHandle
-                0x0800b8a8        0xc ./out/user/objects/target/lib/libosl.a(tasks.o)
-                0x0800b8a8                xTaskGetCurrentTaskHandle
+                0x0800bb78        0xc ./out/user/objects/target/lib/libosl.a(tasks.o)
+                0x0800bb78                xTaskGetCurrentTaskHandle
  .text.xTaskGetSchedulerState
-                0x0800b8b4       0x20 ./out/user/objects/target/lib/libosl.a(tasks.o)
-                0x0800b8b4                xTaskGetSchedulerState
+                0x0800bb84       0x20 ./out/user/objects/target/lib/libosl.a(tasks.o)
+                0x0800bb84                xTaskGetSchedulerState
  .text.vListInitialise
-                0x0800b8d4       0x16 ./out/user/objects/target/lib/libosl.a(list.o)
-                0x0800b8d4                vListInitialise
+                0x0800bba4       0x16 ./out/user/objects/target/lib/libosl.a(list.o)
+                0x0800bba4                vListInitialise
  .text.vListInitialiseItem
-                0x0800b8ea        0x6 ./out/user/objects/target/lib/libosl.a(list.o)
-                0x0800b8ea                vListInitialiseItem
+                0x0800bbba        0x6 ./out/user/objects/target/lib/libosl.a(list.o)
+                0x0800bbba                vListInitialiseItem
  .text.vListInsert
-                0x0800b8f0       0x2e ./out/user/objects/target/lib/libosl.a(list.o)
-                0x0800b8f0                vListInsert
+                0x0800bbc0       0x2e ./out/user/objects/target/lib/libosl.a(list.o)
+                0x0800bbc0                vListInsert
  .text.uxListRemove
-                0x0800b91e       0x1e ./out/user/objects/target/lib/libosl.a(list.o)
-                0x0800b91e                uxListRemove
+                0x0800bbee       0x1e ./out/user/objects/target/lib/libosl.a(list.o)
+                0x0800bbee                uxListRemove
  .text.SystemInit
-                0x0800b93c       0x14 ./out/user/objects/target/lib/libhal.a(system_stm32f4xx.o)
-                0x0800b93c                SystemInit
+                0x0800bc0c       0x14 ./out/user/objects/target/lib/libhal.a(system_stm32f4xx.o)
+                0x0800bc0c                SystemInit
  .text.SystemClock_Config
-                0x0800b950      0x114 ./out/user/objects/target/lib/libhal.a(system_stm32f4xx.o)
-                0x0800b950                SystemClock_Config
+                0x0800bc20      0x114 ./out/user/objects/target/lib/libhal.a(system_stm32f4xx.o)
+                0x0800bc20                SystemClock_Config
  .text.SystemCoreClockUpdate
-                0x0800ba64       0x6c ./out/user/objects/target/lib/libhal.a(system_stm32f4xx.o)
-                0x0800ba64                SystemCoreClockUpdate
+                0x0800bd34       0x6c ./out/user/objects/target/lib/libhal.a(system_stm32f4xx.o)
+                0x0800bd34                SystemCoreClockUpdate
  .text.HAL_MspInit
-                0x0800bad0        0x2 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal.o)
-                0x0800bad0                HAL_MspInit
- *fill*         0x0800bad2        0x2 
+                0x0800bda0        0x2 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal.o)
+                0x0800bda0                HAL_MspInit
+ *fill*         0x0800bda2        0x2 
  .text.HAL_Init
-                0x0800bad4       0x34 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal.o)
-                0x0800bad4                HAL_Init
+                0x0800bda4       0x34 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal.o)
+                0x0800bda4                HAL_Init
  .text.HAL_Delay
-                0x0800bb08       0x28 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal.o)
-                0x0800bb08                HAL_Delay
+                0x0800bdd8       0x28 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal.o)
+                0x0800bdd8                HAL_Delay
  .text.HAL_NVIC_SetPriorityGrouping
-                0x0800bb30       0x3c ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_cortex.o)
-                0x0800bb30                HAL_NVIC_SetPriorityGrouping
+                0x0800be00       0x3c ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_cortex.o)
+                0x0800be00                HAL_NVIC_SetPriorityGrouping
  .text.HAL_GPIO_Init
-                0x0800bb6c      0x2c4 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_gpio.o)
-                0x0800bb6c                HAL_GPIO_Init
+                0x0800be3c      0x2c4 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_gpio.o)
+                0x0800be3c                HAL_GPIO_Init
  .text.HAL_GPIO_ReadPin
-                0x0800be30       0x24 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_gpio.o)
-                0x0800be30                HAL_GPIO_ReadPin
+                0x0800c100       0x24 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_gpio.o)
+                0x0800c100                HAL_GPIO_ReadPin
  .text.HAL_GPIO_WritePin
-                0x0800be54       0x34 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_gpio.o)
-                0x0800be54                HAL_GPIO_WritePin
+                0x0800c124       0x34 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_gpio.o)
+                0x0800c124                HAL_GPIO_WritePin
  .text.HAL_GPIO_TogglePin
-                0x0800be88       0x28 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_gpio.o)
-                0x0800be88                HAL_GPIO_TogglePin
+                0x0800c158       0x28 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_gpio.o)
+                0x0800c158                HAL_GPIO_TogglePin
  .text.HAL_PWR_EnableBkUpAccess
-                0x0800beb0       0x1c ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_pwr.o)
-                0x0800beb0                HAL_PWR_EnableBkUpAccess
+                0x0800c180       0x1c ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_pwr.o)
+                0x0800c180                HAL_PWR_EnableBkUpAccess
  .text.HAL_RCC_OscConfig
-                0x0800becc      0x44c ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_rcc.o)
-                0x0800becc                HAL_RCC_OscConfig
+                0x0800c19c      0x44c ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_rcc.o)
+                0x0800c19c                HAL_RCC_OscConfig
  .text.HAL_RCC_GetSysClockFreq
-                0x0800c318       0x5c ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_rcc.o)
-                0x0800c318                HAL_RCC_GetSysClockFreq
+                0x0800c5e8       0x5c ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_rcc.o)
+                0x0800c5e8                HAL_RCC_GetSysClockFreq
  .text.HAL_RCC_ClockConfig
-                0x0800c374      0x1e8 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_rcc.o)
-                0x0800c374                HAL_RCC_ClockConfig
+                0x0800c644      0x1e8 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_rcc.o)
+                0x0800c644                HAL_RCC_ClockConfig
  .text.HAL_RCC_GetPCLK1Freq
-                0x0800c55c       0x20 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_rcc.o)
-                0x0800c55c                HAL_RCC_GetPCLK1Freq
+                0x0800c82c       0x20 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_rcc.o)
+                0x0800c82c                HAL_RCC_GetPCLK1Freq
  .text.HAL_RCC_GetPCLK2Freq
-                0x0800c57c       0x20 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_rcc.o)
-                0x0800c57c                HAL_RCC_GetPCLK2Freq
+                0x0800c84c       0x20 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_rcc.o)
+                0x0800c84c                HAL_RCC_GetPCLK2Freq
  .text.SPI_WaitFlagStateUntilTimeout
-                0x0800c59c       0xb8 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_spi.o)
+                0x0800c86c       0xb8 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_spi.o)
  .text.SPI_EndRxTxTransaction
-                0x0800c654       0x78 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_spi.o)
+                0x0800c924       0x78 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_spi.o)
  .text.HAL_SPI_Init
-                0x0800c6cc      0x274 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_spi.o)
-                0x0800c6cc                HAL_SPI_Init
+                0x0800c99c      0x274 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_spi.o)
+                0x0800c99c                HAL_SPI_Init
  .text.HAL_SPI_Transmit
-                0x0800c940      0x1a0 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_spi.o)
-                0x0800c940                HAL_SPI_Transmit
+                0x0800cc10      0x1a0 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_spi.o)
+                0x0800cc10                HAL_SPI_Transmit
  .text.HAL_SPI_TransmitReceive
-                0x0800cae0      0x2d4 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_spi.o)
-                0x0800cae0                HAL_SPI_TransmitReceive
+                0x0800cdb0      0x2d4 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_spi.o)
+                0x0800cdb0                HAL_SPI_TransmitReceive
  .text.UART_EndRxTransfer
-                0x0800cdb4       0x5c ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_uart.o)
+                0x0800d084       0x5c ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_uart.o)
  .text.UART_SetConfig
-                0x0800ce10      0x118 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_uart.o)
+                0x0800d0e0      0x118 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_uart.o)
  .text.UART_WaitOnFlagUntilTimeout.constprop.0
-                0x0800cf28       0x64 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_uart.o)
+                0x0800d1f8       0x64 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_uart.o)
  .text.HAL_UART_Init
-                0x0800cf8c      0x114 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_uart.o)
-                0x0800cf8c                HAL_UART_Init
+                0x0800d25c      0x114 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_uart.o)
+                0x0800d25c                HAL_UART_Init
  .text.HAL_UART_Transmit
-                0x0800d0a0       0x9c ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_uart.o)
-                0x0800d0a0                HAL_UART_Transmit
- .text.memcmp   0x0800d13c       0x20 ./tool/win_x86_64/bin/../lib/gcc/arm-none-eabi/13.3.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-memcmp.o)
-                0x0800d13c                memcmp
- .text.memset   0x0800d15c       0x10 ./tool/win_x86_64/bin/../lib/gcc/arm-none-eabi/13.3.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-memset.o)
-                0x0800d15c                memset
- .text.strchr   0x0800d16c       0x1a ./tool/win_x86_64/bin/../lib/gcc/arm-none-eabi/13.3.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strchr.o)
-                0x0800d16c                strchr
- .text.strncmp  0x0800d186       0x24 ./tool/win_x86_64/bin/../lib/gcc/arm-none-eabi/13.3.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strncmp.o)
-                0x0800d186                strncmp
- *fill*         0x0800d1aa        0x2 
+                0x0800d370       0x9c ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_uart.o)
+                0x0800d370                HAL_UART_Transmit
+ .text.memcmp   0x0800d40c       0x20 ./tool/win_x86_64/bin/../lib/gcc/arm-none-eabi/13.3.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-memcmp.o)
+                0x0800d40c                memcmp
+ .text.memset   0x0800d42c       0x10 ./tool/win_x86_64/bin/../lib/gcc/arm-none-eabi/13.3.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-memset.o)
+                0x0800d42c                memset
+ .text.strchr   0x0800d43c       0x1a ./tool/win_x86_64/bin/../lib/gcc/arm-none-eabi/13.3.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strchr.o)
+                0x0800d43c                strchr
+ .text.strncmp  0x0800d456       0x24 ./tool/win_x86_64/bin/../lib/gcc/arm-none-eabi/13.3.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strncmp.o)
+                0x0800d456                strncmp
+ *fill*         0x0800d47a        0x2 
  .text.__libc_init_array
-                0x0800d1ac       0x48 ./tool/win_x86_64/bin/../lib/gcc/arm-none-eabi/13.3.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-init.o)
-                0x0800d1ac                __libc_init_array
- .text.memcpy   0x0800d1f4       0x1c ./tool/win_x86_64/bin/../lib/gcc/arm-none-eabi/13.3.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-memcpy-stub.o)
-                0x0800d1f4                memcpy
+                0x0800d47c       0x48 ./tool/win_x86_64/bin/../lib/gcc/arm-none-eabi/13.3.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-init.o)
+                0x0800d47c                __libc_init_array
+ .text.memcpy   0x0800d4c4       0x1c ./tool/win_x86_64/bin/../lib/gcc/arm-none-eabi/13.3.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-memcpy-stub.o)
+                0x0800d4c4                memcpy
  .text.__udivmoddi4
-                0x0800d210      0x2bc ./tool/win_x86_64/bin/../lib/gcc/arm-none-eabi/13.3.1/thumb/v7e-m+fp/hard\libgcc.a(_udivmoddi4.o)
-                0x0800d210                __udivmoddi4
+                0x0800d4e0      0x2bc ./tool/win_x86_64/bin/../lib/gcc/arm-none-eabi/13.3.1/thumb/v7e-m+fp/hard\libgcc.a(_udivmoddi4.o)
+                0x0800d4e0                __udivmoddi4
  *(.glue_7)
- .glue_7        0x0800d4cc        0x0 linker stubs
+ .glue_7        0x0800d79c        0x0 linker stubs
  *(.glue_7t)
- .glue_7t       0x0800d4cc        0x0 linker stubs
+ .glue_7t       0x0800d79c        0x0 linker stubs
  *(.eh_frame)
  *(.init)
  *(.fini)
-                0x0800d4cc                        . = ALIGN (0x4)
-                0x0800d4cc                        _etext = .
+                0x0800d79c                        . = ALIGN (0x4)
+                0x0800d79c                        _etext = .
 
-.vfp11_veneer   0x0800d4cc        0x0
- .vfp11_veneer  0x0800d4cc        0x0 linker stubs
+.vfp11_veneer   0x0800d79c        0x0
+ .vfp11_veneer  0x0800d79c        0x0 linker stubs
 
-.v4_bx          0x0800d4cc        0x0
- .v4_bx         0x0800d4cc        0x0 linker stubs
+.v4_bx          0x0800d79c        0x0
+ .v4_bx         0x0800d79c        0x0 linker stubs
 
-.iplt           0x0800d4cc        0x0
- .iplt          0x0800d4cc        0x0 ./out/user/objects/hal/chip/startup/src/startup_stm32f429xx.o
+.iplt           0x0800d79c        0x0
+ .iplt          0x0800d79c        0x0 ./out/user/objects/hal/chip/startup/src/startup_stm32f429xx.o
 
-.rodata         0x0800d4cc    0x6eeac
-                0x0800d4cc                        . = ALIGN (0x4)
+.rodata         0x0800d79c    0x6ef74
+                0x0800d79c                        . = ALIGN (0x4)
  *(.rodata)
  *(.rodata*)
  .rodata.app_fatfs_print_dirent.str1.1
-                0x0800d4cc     0x11f1 ./out/user/objects/target/lib/libapl.a(main.o)
+                0x0800d79c     0x1290 ./out/user/objects/target/lib/libapl.a(main.o)
                                   0xe (size before relaxing)
  .rodata.app_ui_check.str1.1
-                0x0800e6bd       0x25 ./out/user/objects/target/lib/libapl.a(main.o)
+                0x0800ea2c       0x25 ./out/user/objects/target/lib/libapl.a(main.o)
  .rodata.app_display_check.str1.1
-                0x0800e6bd       0x47 ./out/user/objects/target/lib/libapl.a(main.o)
+                0x0800ea2c       0x47 ./out/user/objects/target/lib/libapl.a(main.o)
  .rodata.app_shell_check.str1.1
-                0x0800e6bd       0x2d ./out/user/objects/target/lib/libapl.a(main.o)
+                0x0800ea2c       0x2d ./out/user/objects/target/lib/libapl.a(main.o)
  .rodata.app_fatfs_check.str1.1
-                0x0800e6bd       0x33 ./out/user/objects/target/lib/libapl.a(main.o)
+                0x0800ea2c       0x33 ./out/user/objects/target/lib/libapl.a(main.o)
  .rodata.app_menu_check.str1.1
-                0x0800e6bd       0x86 ./out/user/objects/target/lib/libapl.a(main.o)
+                0x0800ea2c       0x86 ./out/user/objects/target/lib/libapl.a(main.o)
  .rodata.main.str1.1
-                0x0800e6bd       0xc0 ./out/user/objects/target/lib/libapl.a(main.o)
+                0x0800ea2c       0xc0 ./out/user/objects/target/lib/libapl.a(main.o)
  .rodata.cjk_line.0
-                0x0800e6bd        0x9 ./out/user/objects/target/lib/libapl.a(main.o)
- .rodata.hx.1   0x0800e6c6       0x11 ./out/user/objects/target/lib/libapl.a(main.o)
+                0x0800ea2c        0x9 ./out/user/objects/target/lib/libapl.a(main.o)
+ .rodata.hx.1   0x0800ea35       0x11 ./out/user/objects/target/lib/libapl.a(main.o)
  .rodata.app_menu_init.str1.1
-                0x0800e6d7       0x20 ./out/user/objects/target/lib/libapl.a(app.o)
+                0x0800ea46       0x20 ./out/user/objects/target/lib/libapl.a(app.o)
  .rodata.menu_task.str1.1
-                0x0800e6d7       0x84 ./out/user/objects/target/lib/libapl.a(app.o)
+                0x0800ea46       0x7f ./out/user/objects/target/lib/libapl.a(app.o)
  .rodata.app_start.str1.1
-                0x0800e6d7        0x9 ./out/user/objects/target/lib/libapl.a(app.o)
+                0x0800ea46        0x9 ./out/user/objects/target/lib/libapl.a(app.o)
  .rodata.beep_set.str1.1
-                0x0800e6d7       0x14 ./out/user/objects/target/lib/libapl.a(app_beep.o)
+                0x0800ea46       0x20 ./out/user/objects/target/lib/libapl.a(app_beep.o)
  .rodata.beep_enter.str1.1
-                0x0800e6d7       0x1f ./out/user/objects/target/lib/libapl.a(app_beep.o)
- *fill*         0x0800e6d7        0x1 
+                0x0800ea46       0x1a ./out/user/objects/target/lib/libapl.a(app_beep.o)
+ *fill*         0x0800ea46        0x2 
  .rodata.s_desc
-                0x0800e6d8       0x1c ./out/user/objects/target/lib/libapl.a(app_beep.o)
+                0x0800ea48       0x1c ./out/user/objects/target/lib/libapl.a(app_beep.o)
  .rodata.calc_event.str1.1
-                0x0800e6f4       0x18 ./out/user/objects/target/lib/libapl.a(app_calc.o)
+                0x0800ea64       0x18 ./out/user/objects/target/lib/libapl.a(app_calc.o)
  .rodata.calc_enter.str1.1
-                0x0800e6f4       0x14 ./out/user/objects/target/lib/libapl.a(app_calc.o)
+                0x0800ea64       0x14 ./out/user/objects/target/lib/libapl.a(app_calc.o)
  .rodata.str1.1
-                0x0800e6f4       0x25 ./out/user/objects/target/lib/libapl.a(app_calc.o)
+                0x0800ea64       0x25 ./out/user/objects/target/lib/libapl.a(app_calc.o)
  .rodata.s_desc
-                0x0800e6f4       0x1c ./out/user/objects/target/lib/libapl.a(app_calc.o)
+                0x0800ea64       0x1c ./out/user/objects/target/lib/libapl.a(app_calc.o)
  .rodata.s_key_label
-                0x0800e710       0x40 ./out/user/objects/target/lib/libapl.a(app_calc.o)
+                0x0800ea80       0x40 ./out/user/objects/target/lib/libapl.a(app_calc.o)
  .rodata.cal_enter.str1.1
-                0x0800e750       0x29 ./out/user/objects/target/lib/libapl.a(app_calendar.o)
+                0x0800eac0       0x29 ./out/user/objects/target/lib/libapl.a(app_calendar.o)
  .rodata.base.0
-                0x0800e750        0xc ./out/user/objects/target/lib/libapl.a(app_calendar.o)
+                0x0800eac0        0xc ./out/user/objects/target/lib/libapl.a(app_calendar.o)
  .rodata.str1.1
-                0x0800e75c       0x3e ./out/user/objects/target/lib/libapl.a(app_calendar.o)
+                0x0800eacc       0x3e ./out/user/objects/target/lib/libapl.a(app_calendar.o)
  .rodata.names.1
-                0x0800e75c       0x30 ./out/user/objects/target/lib/libapl.a(app_calendar.o)
- .rodata.wd.2   0x0800e78c       0x1c ./out/user/objects/target/lib/libapl.a(app_calendar.o)
- .rodata.s_ops  0x0800e7a8       0x1c ./out/user/objects/target/lib/libapl.a(app_calendar.o)
+                0x0800eacc       0x30 ./out/user/objects/target/lib/libapl.a(app_calendar.o)
+ .rodata.wd.2   0x0800eafc       0x1c ./out/user/objects/target/lib/libapl.a(app_calendar.o)
+ .rodata.s_ops  0x0800eb18       0x1c ./out/user/objects/target/lib/libapl.a(app_calendar.o)
  .rodata.s_build_time
-                0x0800e7c4        0x9 ./out/user/objects/target/lib/libapl.a(app_calendar.o)
+                0x0800eb34        0x9 ./out/user/objects/target/lib/libapl.a(app_calendar.o)
  .rodata.s_build_date
-                0x0800e7cd        0xc ./out/user/objects/target/lib/libapl.a(app_calendar.o)
+                0x0800eb3d        0xc ./out/user/objects/target/lib/libapl.a(app_calendar.o)
  .rodata.key_tick.str1.1
-                0x0800e7d9       0x1f ./out/user/objects/target/lib/libapl.a(app_key.o)
+                0x0800eb49       0x1f ./out/user/objects/target/lib/libapl.a(app_key.o)
  .rodata.key_enter.str1.1
-                0x0800e7d9       0x16 ./out/user/objects/target/lib/libapl.a(app_key.o)
+                0x0800eb49       0x16 ./out/user/objects/target/lib/libapl.a(app_key.o)
  .rodata.str1.1
-                0x0800e7d9       0x11 ./out/user/objects/target/lib/libapl.a(app_key.o)
- *fill*         0x0800e7d9        0x3 
+                0x0800eb49       0x11 ./out/user/objects/target/lib/libapl.a(app_key.o)
+ *fill*         0x0800eb49        0x3 
  .rodata.s_desc
-                0x0800e7dc       0x1c ./out/user/objects/target/lib/libapl.a(app_key.o)
+                0x0800eb4c       0x1c ./out/user/objects/target/lib/libapl.a(app_key.o)
  .rodata.s_names
-                0x0800e7f8       0x10 ./out/user/objects/target/lib/libapl.a(app_key.o)
+                0x0800eb68       0x10 ./out/user/objects/target/lib/libapl.a(app_key.o)
  .rodata.led_draw_status.str1.1
-                0x0800e808        0xa ./out/user/objects/target/lib/libapl.a(app_led.o)
+                0x0800eb78        0xa ./out/user/objects/target/lib/libapl.a(app_led.o)
  .rodata.led_event.str1.1
-                0x0800e808       0x1f ./out/user/objects/target/lib/libapl.a(app_led.o)
+                0x0800eb78       0x1f ./out/user/objects/target/lib/libapl.a(app_led.o)
  .rodata.led_enter.str1.1
-                0x0800e808       0x28 ./out/user/objects/target/lib/libapl.a(app_led.o)
+                0x0800eb78       0x28 ./out/user/objects/target/lib/libapl.a(app_led.o)
  .rodata.str1.1
-                0x0800e808        0x4 ./out/user/objects/target/lib/libapl.a(app_led.o)
+                0x0800eb78        0x4 ./out/user/objects/target/lib/libapl.a(app_led.o)
  .rodata.s_desc
-                0x0800e808       0x1c ./out/user/objects/target/lib/libapl.a(app_led.o)
+                0x0800eb78       0x1c ./out/user/objects/target/lib/libapl.a(app_led.o)
  .rodata.note_draw.str1.1
-                0x0800e824       0x12 ./out/user/objects/target/lib/libapl.a(app_notepad.o)
+                0x0800eb94       0x12 ./out/user/objects/target/lib/libapl.a(app_notepad.o)
  .rodata.note_enter.str1.1
-                0x0800e824       0x2f ./out/user/objects/target/lib/libapl.a(app_notepad.o)
+                0x0800eb94       0x2f ./out/user/objects/target/lib/libapl.a(app_notepad.o)
  .rodata.str1.1
-                0x0800e824       0x1d ./out/user/objects/target/lib/libapl.a(app_notepad.o)
+                0x0800eb94       0x1d ./out/user/objects/target/lib/libapl.a(app_notepad.o)
  .rodata.key_label.0
-                0x0800e824       0x2c ./out/user/objects/target/lib/libapl.a(app_notepad.o)
- .rodata.s_ops  0x0800e850       0x1c ./out/user/objects/target/lib/libapl.a(app_notepad.o)
+                0x0800eb94       0x2c ./out/user/objects/target/lib/libapl.a(app_notepad.o)
+ .rodata.s_ops  0x0800ebc0       0x1c ./out/user/objects/target/lib/libapl.a(app_notepad.o)
  .rodata.pic_find.constprop.0.str1.1
-                0x0800e86c        0x2 ./out/user/objects/target/lib/libapl.a(app_picviewer.o)
+                0x0800ebdc        0x2 ./out/user/objects/target/lib/libapl.a(app_picviewer.o)
  .rodata.pic_enter.str1.1
-                0x0800e86c       0x7a ./out/user/objects/target/lib/libapl.a(app_picviewer.o)
+                0x0800ebdc       0x7a ./out/user/objects/target/lib/libapl.a(app_picviewer.o)
  .rodata.str1.1
-                0x0800e86c        0x4 ./out/user/objects/target/lib/libapl.a(app_picviewer.o)
- .rodata.s_ops  0x0800e86c       0x1c ./out/user/objects/target/lib/libapl.a(app_picviewer.o)
+                0x0800ebdc        0x4 ./out/user/objects/target/lib/libapl.a(app_picviewer.o)
+ .rodata.s_ops  0x0800ebdc       0x1c ./out/user/objects/target/lib/libapl.a(app_picviewer.o)
  .rodata.sample_button_task.str1.1
-                0x0800e888       0x99 ./out/user/objects/target/lib/libapl.a(app_sample.o)
+                0x0800ebf8       0x92 ./out/user/objects/target/lib/libapl.a(app_sample.o)
  .rodata.app_sample_start.str1.1
-                0x0800e888        0x7 ./out/user/objects/target/lib/libapl.a(app_sample.o)
+                0x0800ebf8        0x7 ./out/user/objects/target/lib/libapl.a(app_sample.o)
  .rodata.set_status_draw.str1.1
-                0x0800e888       0x10 ./out/user/objects/target/lib/libapl.a(app_settings.o)
+                0x0800ebf8       0x10 ./out/user/objects/target/lib/libapl.a(app_settings.o)
  .rodata.set_enter.str1.1
-                0x0800e888       0x20 ./out/user/objects/target/lib/libapl.a(app_settings.o)
+                0x0800ebf8       0x20 ./out/user/objects/target/lib/libapl.a(app_settings.o)
  .rodata.set_event.str1.1
-                0x0800e888       0x1a ./out/user/objects/target/lib/libapl.a(app_settings.o)
+                0x0800ebf8       0x1a ./out/user/objects/target/lib/libapl.a(app_settings.o)
  .rodata.str1.1
-                0x0800e888       0x17 ./out/user/objects/target/lib/libapl.a(app_settings.o)
+                0x0800ebf8       0x17 ./out/user/objects/target/lib/libapl.a(app_settings.o)
  .rodata.s_desc
-                0x0800e888       0x1c ./out/user/objects/target/lib/libapl.a(app_settings.o)
+                0x0800ebf8       0x1c ./out/user/objects/target/lib/libapl.a(app_settings.o)
  .rodata.s_dbl_name
-                0x0800e8a4        0xc ./out/user/objects/target/lib/libapl.a(app_settings.o)
+                0x0800ec14        0xc ./out/user/objects/target/lib/libapl.a(app_settings.o)
  .rodata.s_dbl_ms
-                0x0800e8b0        0xc ./out/user/objects/target/lib/libapl.a(app_settings.o)
+                0x0800ec20        0xc ./out/user/objects/target/lib/libapl.a(app_settings.o)
  .rodata.fml_fatfs_mount.str1.1
-                0x0800e8bc        0x1 ./out/user/objects/target/lib/libfml.a(fml_fatfs.o)
+                0x0800ec2c        0x1 ./out/user/objects/target/lib/libfml.a(fml_fatfs.o)
  .rodata.fml_font_ascii8x16
-                0x0800e8bc       0x18 ./out/user/objects/target/lib/libfml.a(fml_font_ascii8x16.o)
-                0x0800e8bc                fml_font_ascii8x16
+                0x0800ec2c       0x18 ./out/user/objects/target/lib/libfml.a(fml_font_ascii8x16.o)
+                0x0800ec2c                fml_font_ascii8x16
  .rodata.ascii8x16_glyphs
-                0x0800e8d4      0x5f0 ./out/user/objects/target/lib/libfml.a(fml_font_ascii8x16.o)
+                0x0800ec44      0x5f0 ./out/user/objects/target/lib/libfml.a(fml_font_ascii8x16.o)
  .rodata.fml_font_gbk16
-                0x0800eec4       0x18 ./out/user/objects/target/lib/libfml.a(fml_font_gbk16.o)
-                0x0800eec4                fml_font_gbk16
+                0x0800f234       0x18 ./out/user/objects/target/lib/libfml.a(fml_font_gbk16.o)
+                0x0800f234                fml_font_gbk16
  .rodata.gbk16_glyphs
-                0x0800eedc    0x3fe40 ./out/user/objects/target/lib/libfml.a(fml_font_gbk16.o)
+                0x0800f24c    0x3fe40 ./out/user/objects/target/lib/libfml.a(fml_font_gbk16.o)
  .rodata.sh_put_2.str1.1
-                0x0804ed1c        0x2 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
+                0x0804f08c        0x2 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
  .rodata.cmd_help.str1.1
-                0x0804ed1c        0xb ./out/user/objects/target/lib/libfml.a(fml_shell.o)
+                0x0804f08c        0xb ./out/user/objects/target/lib/libfml.a(fml_shell.o)
  .rodata.cmd_rtc.str1.1
-                0x0804ed1c       0x32 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
+                0x0804f08c       0x32 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
  .rodata.cmd_temp.str1.1
-                0x0804ed1c       0x2b ./out/user/objects/target/lib/libfml.a(fml_shell.o)
+                0x0804f08c       0x2b ./out/user/objects/target/lib/libfml.a(fml_shell.o)
  .rodata.cmd_uptime.str1.1
-                0x0804ed1c        0xb ./out/user/objects/target/lib/libfml.a(fml_shell.o)
- .rodata.cmd_beep.str1.1
-                0x0804ed1c       0x1f ./out/user/objects/target/lib/libfml.a(fml_shell.o)
+                0x0804f08c        0xb ./out/user/objects/target/lib/libfml.a(fml_shell.o)
  .rodata.cmd_led.str1.1
-                0x0804ed1c       0x1f ./out/user/objects/target/lib/libfml.a(fml_shell.o)
+                0x0804f08c       0x1f ./out/user/objects/target/lib/libfml.a(fml_shell.o)
+ .rodata.cmd_i2c.str1.1
+                0x0804f08c       0x7b ./out/user/objects/target/lib/libfml.a(fml_shell.o)
  .rodata.fml_shell_exec.str1.1
-                0x0804ed1c       0x17 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
+                0x0804f08c       0x17 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
  .rodata.fml_shell_poll.str1.1
-                0x0804ed1c        0xe ./out/user/objects/target/lib/libfml.a(fml_shell.o)
+                0x0804f08c        0xe ./out/user/objects/target/lib/libfml.a(fml_shell.o)
  .rodata.shell_task.str1.1
-                0x0804ed1c       0x22 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
+                0x0804f08c       0x22 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
  .rodata.fml_shell_start.str1.1
-                0x0804ed1c        0x6 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
+                0x0804f08c        0x6 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
+ .rodata.s_digits.0
+                0x0804f08c       0x11 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
  .rodata.str1.1
-                0x0804ed1c       0x41 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
+                0x0804f09d       0x4a ./out/user/objects/target/lib/libfml.a(fml_shell.o)
+ *fill*         0x0804f09d        0x3 
  .rodata.s_cmds
-                0x0804ed1c       0x48 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
+                0x0804f0a0       0x48 ./out/user/objects/target/lib/libfml.a(fml_shell.o)
  .rodata.CSWTCH.12
-                0x0804ed64       0x1a ./out/user/objects/target/lib/libfml.a(fml_t9.o)
+                0x0804f0e8       0x1a ./out/user/objects/target/lib/libfml.a(fml_t9.o)
  .rodata.fml_t9_han
-                0x0804ed7e     0x1d56 ./out/user/objects/target/lib/libfml.a(fml_t9_table.o)
-                0x0804ed7e                fml_t9_han
+                0x0804f102     0x1d56 ./out/user/objects/target/lib/libfml.a(fml_t9_table.o)
+                0x0804f102                fml_t9_han
  .rodata.fml_t9_syl_count
-                0x08050ad4      0x18c ./out/user/objects/target/lib/libfml.a(fml_t9_table.o)
-                0x08050ad4                fml_t9_syl_count
+                0x08050e58      0x18c ./out/user/objects/target/lib/libfml.a(fml_t9_table.o)
+                0x08050e58                fml_t9_syl_count
  .rodata.fml_t9_syl_first
-                0x08050c60      0x318 ./out/user/objects/target/lib/libfml.a(fml_t9_table.o)
-                0x08050c60                fml_t9_syl_first
+                0x08050fe4      0x318 ./out/user/objects/target/lib/libfml.a(fml_t9_table.o)
+                0x08050fe4                fml_t9_syl_first
  .rodata.str1.1
-                0x08050f78      0x690 ./out/user/objects/target/lib/libfml.a(fml_t9_table.o)
+                0x080512fc      0x690 ./out/user/objects/target/lib/libfml.a(fml_t9_table.o)
  .rodata.fml_t9_syl
-                0x08050f78      0x630 ./out/user/objects/target/lib/libfml.a(fml_t9_table.o)
-                0x08050f78                fml_t9_syl
+                0x080512fc      0x630 ./out/user/objects/target/lib/libfml.a(fml_t9_table.o)
+                0x080512fc                fml_t9_syl
  .rodata.fml_ui_draw.str1.1
-                0x080515a8        0x5 ./out/user/objects/target/lib/libfml.a(fml_ui.o)
+                0x0805192c        0x5 ./out/user/objects/target/lib/libfml.a(fml_ui.o)
  .rodata.check_fs.str1.1
-                0x080515a8        0x9 ./out/user/objects/target/lib/libfml.a(ff.o)
+                0x0805192c        0x9 ./out/user/objects/target/lib/libfml.a(ff.o)
  .rodata.follow_path.str1.1
-                0x080515a8       0x10 ./out/user/objects/target/lib/libfml.a(ff.o)
+                0x0805192c       0x10 ./out/user/objects/target/lib/libfml.a(ff.o)
  .rodata.LfnOfs
-                0x080515a8        0xd ./out/user/objects/target/lib/libfml.a(ff.o)
- *fill*         0x080515b5        0x1 
+                0x0805192c        0xd ./out/user/objects/target/lib/libfml.a(ff.o)
+ *fill*         0x08051939        0x1 
  .rodata.cvt2.0
-                0x080515b6       0xbc ./out/user/objects/target/lib/libfml.a(ffunicode.o)
+                0x0805193a       0xbc ./out/user/objects/target/lib/libfml.a(ffunicode.o)
  .rodata.cvt1.1
-                0x08051672      0x1f2 ./out/user/objects/target/lib/libfml.a(ffunicode.o)
+                0x080519f6      0x1f2 ./out/user/objects/target/lib/libfml.a(ffunicode.o)
  .rodata.oem2uni936
-                0x08051864    0x15484 ./out/user/objects/target/lib/libfml.a(ffunicode.o)
+                0x08051be8    0x15484 ./out/user/objects/target/lib/libfml.a(ffunicode.o)
  .rodata.uni2oem936
-                0x08066ce8    0x15484 ./out/user/objects/target/lib/libfml.a(ffunicode.o)
+                0x0806706c    0x15484 ./out/user/objects/target/lib/libfml.a(ffunicode.o)
  .rodata.beep_set_pcf8574_logical.str1.1
-                0x0807c16c       0x25 ./out/user/objects/target/lib/libbsl.a(board_beep.o)
+                0x0807c4f0       0x5c ./out/user/objects/target/lib/libbsl.a(board_beep.o)
  .rodata.bsl_driver_brd_pcf8574_beep
-                0x0807c16c        0x4 ./out/user/objects/target/lib/libbsl.a(board_beep.o)
-                0x0807c16c                bsl_driver_brd_pcf8574_beep
+                0x0807c4f0        0x4 ./out/user/objects/target/lib/libbsl.a(board_beep.o)
+                0x0807c4f0                bsl_driver_brd_pcf8574_beep
  .rodata.bsl_api_brd_beep
-                0x0807c170        0xc ./out/user/objects/target/lib/libbsl.a(board_beep.o)
-                0x0807c170                bsl_api_brd_beep
+                0x0807c4f4        0xc ./out/user/objects/target/lib/libbsl.a(board_beep.o)
+                0x0807c4f4                bsl_api_brd_beep
  .rodata.bsl_driver_debug_uart
-                0x0807c17c        0x4 ./out/user/objects/target/lib/libbsl.a(board_debug_uart.o)
-                0x0807c17c                bsl_driver_debug_uart
+                0x0807c500        0x4 ./out/user/objects/target/lib/libbsl.a(board_debug_uart.o)
+                0x0807c500                bsl_driver_debug_uart
  .rodata.bsl_driver_brd_gpio_keys
-                0x0807c180        0x4 ./out/user/objects/target/lib/libbsl.a(board_key.o)
-                0x0807c180                bsl_driver_brd_gpio_keys
+                0x0807c504        0x4 ./out/user/objects/target/lib/libbsl.a(board_key.o)
+                0x0807c504                bsl_driver_brd_gpio_keys
  .rodata.bsl_api_brd_gpio_keys
-                0x0807c184        0x8 ./out/user/objects/target/lib/libbsl.a(board_key.o)
-                0x0807c184                bsl_api_brd_gpio_keys
+                0x0807c508        0x8 ./out/user/objects/target/lib/libbsl.a(board_key.o)
+                0x0807c508                bsl_api_brd_gpio_keys
  .rodata.bsl_driver_brd_rgb_panel
-                0x0807c18c        0x4 ./out/user/objects/target/lib/libbsl.a(board_lcd.o)
-                0x0807c18c                bsl_driver_brd_rgb_panel
+                0x0807c510        0x4 ./out/user/objects/target/lib/libbsl.a(board_lcd.o)
+                0x0807c510                bsl_driver_brd_rgb_panel
  .rodata.bsl_api_brd_rgb_panel
-                0x0807c190        0xc ./out/user/objects/target/lib/libbsl.a(board_lcd.o)
-                0x0807c190                bsl_api_brd_rgb_panel
+                0x0807c514        0xc ./out/user/objects/target/lib/libbsl.a(board_lcd.o)
+                0x0807c514                bsl_api_brd_rgb_panel
  .rodata.bsl_driver_brd_gpio_leds
-                0x0807c19c        0x4 ./out/user/objects/target/lib/libbsl.a(board_led.o)
-                0x0807c19c                bsl_driver_brd_gpio_leds
+                0x0807c520        0x4 ./out/user/objects/target/lib/libbsl.a(board_led.o)
+                0x0807c520                bsl_driver_brd_gpio_leds
  .rodata.bsl_api_brd_gpio_leds
-                0x0807c1a0       0x10 ./out/user/objects/target/lib/libbsl.a(board_led.o)
-                0x0807c1a0                bsl_api_brd_gpio_leds
+                0x0807c524       0x10 ./out/user/objects/target/lib/libbsl.a(board_led.o)
+                0x0807c524                bsl_api_brd_gpio_leds
  .rodata.bsl_driver_winbond_w25q256
-                0x0807c1b0        0x4 ./out/user/objects/target/lib/libbsl.a(board_nor.o)
-                0x0807c1b0                bsl_driver_winbond_w25q256
+                0x0807c534        0x4 ./out/user/objects/target/lib/libbsl.a(board_nor.o)
+                0x0807c534                bsl_driver_winbond_w25q256
  .rodata.bsl_api_winbond_w25q256
-                0x0807c1b4       0x1c ./out/user/objects/target/lib/libbsl.a(board_nor.o)
-                0x0807c1b4                bsl_api_winbond_w25q256
+                0x0807c538       0x1c ./out/user/objects/target/lib/libbsl.a(board_nor.o)
+                0x0807c538                bsl_api_winbond_w25q256
  .rodata.post_begin.str1.1
-                0x0807c1d0        0x5 ./out/user/objects/target/lib/libbsl.a(board_post.o)
+                0x0807c554        0x5 ./out/user/objects/target/lib/libbsl.a(board_post.o)
  .rodata.post_end.str1.1
-                0x0807c1d0       0x10 ./out/user/objects/target/lib/libbsl.a(board_post.o)
+                0x0807c554       0x10 ./out/user/objects/target/lib/libbsl.a(board_post.o)
  .rodata.board_post_run.str1.1
-                0x0807c1d0      0x134 ./out/user/objects/target/lib/libbsl.a(board_post.o)
+                0x0807c554      0x134 ./out/user/objects/target/lib/libbsl.a(board_post.o)
  .rodata.k_words.0
-                0x0807c1d0       0x10 ./out/user/objects/target/lib/libbsl.a(board_post.o)
+                0x0807c554       0x10 ./out/user/objects/target/lib/libbsl.a(board_post.o)
  .rodata.board_rt_port_of_phandle.str1.1
-                0x0807c1e0        0x4 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x0807c564        0x4 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
  .rodata.gpio_spec.constprop.0.str1.1
-                0x0807c1e0        0x6 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x0807c564        0x6 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
  .rodata.parse_all.str1.1
-                0x0807c1e0      0x22b ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x0807c564      0x22b ./out/user/objects/target/lib/libbsl.a(board_rt.o)
  .rodata.CSWTCH.85
-                0x0807c1e0       0x18 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
+                0x0807c564       0x18 ./out/user/objects/target/lib/libbsl.a(board_rt.o)
  .rodata.bsl_driver_brd_fmc_sdram
-                0x0807c1f8        0x4 ./out/user/objects/target/lib/libbsl.a(board_sdram.o)
-                0x0807c1f8                bsl_driver_brd_fmc_sdram
+                0x0807c57c        0x4 ./out/user/objects/target/lib/libbsl.a(board_sdram.o)
+                0x0807c57c                bsl_driver_brd_fmc_sdram
  .rodata.bsl_api_brd_fmc_sdram
-                0x0807c1fc        0x8 ./out/user/objects/target/lib/libbsl.a(board_sdram.o)
-                0x0807c1fc                bsl_api_brd_fmc_sdram
+                0x0807c580        0x8 ./out/user/objects/target/lib/libbsl.a(board_sdram.o)
+                0x0807c580                bsl_api_brd_fmc_sdram
+ .rodata.board_touch_init.str1.1
+                0x0807c588       0x11 ./out/user/objects/target/lib/libbsl.a(board_touch.o)
+ .rodata.s_hex.0
+                0x0807c588       0x11 ./out/user/objects/target/lib/libbsl.a(board_touch.o)
  .rodata.str1.1
-                0x0807c204       0x10 ./out/user/objects/target/lib/libbsl.a(board_touch.o)
- .rodata.known.0
-                0x0807c204       0x10 ./out/user/objects/target/lib/libbsl.a(board_touch.o)
+                0x0807c599       0x10 ./out/user/objects/target/lib/libbsl.a(board_touch.o)
+ *fill*         0x0807c599        0x3 
+ .rodata.known.1
+                0x0807c59c       0x10 ./out/user/objects/target/lib/libbsl.a(board_touch.o)
  .rodata.bsl_driver_goodix_gt9147
-                0x0807c214        0x4 ./out/user/objects/target/lib/libbsl.a(board_touch.o)
-                0x0807c214                bsl_driver_goodix_gt9147
+                0x0807c5ac        0x4 ./out/user/objects/target/lib/libbsl.a(board_touch.o)
+                0x0807c5ac                bsl_driver_goodix_gt9147
  .rodata.bsl_api_goodix_gt9147
-                0x0807c218        0x8 ./out/user/objects/target/lib/libbsl.a(board_touch.o)
-                0x0807c218                bsl_api_goodix_gt9147
+                0x0807c5b0        0x8 ./out/user/objects/target/lib/libbsl.a(board_touch.o)
+                0x0807c5b0                bsl_api_goodix_gt9147
  .rodata.str1.1
-                0x0807c220       0x45 ./out/user/objects/target/lib/libbsl.a(bsl_device.o)
+                0x0807c5b8       0x45 ./out/user/objects/target/lib/libbsl.a(bsl_device.o)
  .rodata.s_devices
-                0x0807c220       0xdc ./out/user/objects/target/lib/libbsl.a(bsl_device.o)
+                0x0807c5b8       0xdc ./out/user/objects/target/lib/libbsl.a(bsl_device.o)
  .rodata.bsl_fdt_find.str1.1
-                0x0807c2fc        0xb ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
+                0x0807c694        0xb ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
  .rodata.bsl_fdt_by_phandle.str1.1
-                0x0807c2fc        0x8 ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
+                0x0807c694        0x8 ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
  .rodata.bsl_driver_brd_i2c_gpio
-                0x0807c2fc        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
-                0x0807c2fc                bsl_driver_brd_i2c_gpio
+                0x0807c694        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
+                0x0807c694                bsl_driver_brd_i2c_gpio
  .rodata.bsl_init_run.str1.1
-                0x0807c300       0x21 ./out/user/objects/target/lib/libbsl.a(bsl_init.o)
+                0x0807c698       0x21 ./out/user/objects/target/lib/libbsl.a(bsl_init.o)
  .rodata.bsl_board_periph_init.str1.1
-                0x0807c300       0x20 ./out/user/objects/target/lib/libbsl.a(bsl_init.o)
+                0x0807c698       0x20 ./out/user/objects/target/lib/libbsl.a(bsl_init.o)
  .rodata.bsl_log_mod_puts.str1.1
-                0x0807c300        0x5 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
+                0x0807c698        0x5 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
  .rodata.bsl_log_put_dec.str1.1
-                0x0807c300        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
+                0x0807c698        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
  .rodata.bsl_log_startup_banner.str1.1
-                0x0807c300       0x75 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
+                0x0807c698       0x75 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
  .rodata.bsl_log_dump_ring.str1.1
-                0x0807c300       0x5d ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
- .rodata.hex.0  0x0807c300       0x11 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
- *fill*         0x0807c311        0x3 
+                0x0807c698       0x5d ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
+ .rodata.hex.0  0x0807c698       0x11 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
+ *fill*         0x0807c6a9        0x3 
  .rodata.bsl_driver_nxp_pcf8574
-                0x0807c314        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_pcf8574.o)
-                0x0807c314                bsl_driver_nxp_pcf8574
+                0x0807c6ac        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_pcf8574.o)
+                0x0807c6ac                bsl_driver_nxp_pcf8574
  .rodata.bsl_rtc_init.str1.1
-                0x0807c318        0xc ./out/user/objects/target/lib/libbsl.a(bsl_rtc.o)
+                0x0807c6b0        0xc ./out/user/objects/target/lib/libbsl.a(bsl_rtc.o)
  .rodata.bsl_driver_brd_rtc
-                0x0807c318        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_rtc.o)
-                0x0807c318                bsl_driver_brd_rtc
+                0x0807c6b0        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_rtc.o)
+                0x0807c6b0                bsl_driver_brd_rtc
  .rodata.bsl_api_brd_rtc
-                0x0807c31c        0xc ./out/user/objects/target/lib/libbsl.a(bsl_rtc.o)
-                0x0807c31c                bsl_api_brd_rtc
- .rodata.k_mon  0x0807c328       0x30 ./out/user/objects/target/lib/libbsl.a(bsl_rtc.o)
+                0x0807c6b4        0xc ./out/user/objects/target/lib/libbsl.a(bsl_rtc.o)
+                0x0807c6b4                bsl_api_brd_rtc
+ .rodata.k_mon  0x0807c6c0       0x30 ./out/user/objects/target/lib/libbsl.a(bsl_rtc.o)
  .rodata.panic_led_pin
-                0x0807c358        0x3 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
+                0x0807c6f0        0x3 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
  .rodata.pvPortMalloc.str1.1
-                0x0807c35b       0x1c ./out/user/objects/target/lib/libosl.a(heap_4.o)
+                0x0807c6f3       0x1c ./out/user/objects/target/lib/libosl.a(heap_4.o)
  .rodata.prvTaskExitError.str1.1
-                0x0807c35b       0x1d ./out/user/objects/target/lib/libosl.a(port_m4.o)
+                0x0807c6f3       0x1d ./out/user/objects/target/lib/libosl.a(port_m4.o)
  .rodata.prvTaskIsTaskSuspended.str1.1
-                0x0807c35b       0x1b ./out/user/objects/target/lib/libosl.a(tasks.o)
+                0x0807c6f3       0x1b ./out/user/objects/target/lib/libosl.a(tasks.o)
  .rodata.vTaskStartScheduler.str1.1
-                0x0807c35b        0x5 ./out/user/objects/target/lib/libosl.a(tasks.o)
- *fill*         0x0807c35b        0x1 
+                0x0807c6f3        0x5 ./out/user/objects/target/lib/libosl.a(tasks.o)
+ *fill*         0x0807c6f3        0x1 
  .rodata.uxTopUsedPriority
-                0x0807c35c        0x4 ./out/user/objects/target/lib/libosl.a(tasks.o)
+                0x0807c6f4        0x4 ./out/user/objects/target/lib/libosl.a(tasks.o)
  .rodata.APBPrescTable
-                0x0807c360        0x8 ./out/user/objects/target/lib/libhal.a(system_stm32f4xx.o)
-                0x0807c360                APBPrescTable
+                0x0807c6f8        0x8 ./out/user/objects/target/lib/libhal.a(system_stm32f4xx.o)
+                0x0807c6f8                APBPrescTable
  .rodata.AHBPrescTable
-                0x0807c368       0x10 ./out/user/objects/target/lib/libhal.a(system_stm32f4xx.o)
-                0x0807c368                AHBPrescTable
+                0x0807c700       0x10 ./out/user/objects/target/lib/libhal.a(system_stm32f4xx.o)
+                0x0807c700                AHBPrescTable
  .rodata.HAL_NVIC_SetPriorityGrouping.str1.1
-                0x0807c378       0x28 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_cortex.o)
+                0x0807c710       0x28 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_cortex.o)
  .rodata.HAL_GPIO_Init.str1.1
-                0x0807c378       0x26 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_gpio.o)
+                0x0807c710       0x26 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_gpio.o)
  .rodata.HAL_RCC_OscConfig.str1.1
-                0x0807c378       0x25 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_rcc.o)
+                0x0807c710       0x25 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_rcc.o)
  .rodata.HAL_SPI_Init.str1.1
-                0x0807c378       0x25 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_spi.o)
+                0x0807c710       0x25 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_spi.o)
  .rodata.UART_SetConfig.str1.1
-                0x0807c378       0x26 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_uart.o)
-                0x0807c3a0                        . = ALIGN (0x4)
+                0x0807c710       0x26 ./out/user/objects/target/lib/libhal.a(stm32f4xx_hal_uart.o)
+                0x0807c738                        . = ALIGN (0x4)
 
-.ARM.extab      0x0807c378        0x0
-                0x0807c378                        . = ALIGN (0x4)
+.ARM.extab      0x0807c710        0x0
+                0x0807c710                        . = ALIGN (0x4)
  *(.ARM.extab* .gnu.linkonce.armextab.*)
-                0x0807c378                        . = ALIGN (0x4)
+                0x0807c710                        . = ALIGN (0x4)
 
-.ARM            0x0807c378        0x8
-                0x0807c378                        . = ALIGN (0x4)
-                0x0807c378                        __exidx_start = .
+.ARM            0x0807c710        0x8
+                0x0807c710                        . = ALIGN (0x4)
+                0x0807c710                        __exidx_start = .
  *(.ARM.exidx*)
- .ARM.exidx     0x0807c378        0x8 ./tool/win_x86_64/bin/../lib/gcc/arm-none-eabi/13.3.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strcmp.o)
- .ARM.exidx     0x0807c380        0x0 ./tool/win_x86_64/bin/../lib/gcc/arm-none-eabi/13.3.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strlen.o)
+ .ARM.exidx     0x0807c710        0x8 ./tool/win_x86_64/bin/../lib/gcc/arm-none-eabi/13.3.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strcmp.o)
+ .ARM.exidx     0x0807c718        0x0 ./tool/win_x86_64/bin/../lib/gcc/arm-none-eabi/13.3.1/thumb/v7e-m+fp/hard\libc_nano.a(libc_a-strlen.o)
                                   0x8 (size before relaxing)
  .ARM.exidx.text.__udivmoddi4
-                0x0807c380        0x0 ./tool/win_x86_64/bin/../lib/gcc/arm-none-eabi/13.3.1/thumb/v7e-m+fp/hard\libgcc.a(_udivmoddi4.o)
+                0x0807c718        0x0 ./tool/win_x86_64/bin/../lib/gcc/arm-none-eabi/13.3.1/thumb/v7e-m+fp/hard\libgcc.a(_udivmoddi4.o)
                                   0x8 (size before relaxing)
-                0x0807c380                        __exidx_end = .
-                0x0807c380                        . = ALIGN (0x4)
+                0x0807c718                        __exidx_end = .
+                0x0807c718                        . = ALIGN (0x4)
 
-.preinit_array  0x0807c380        0x0
-                0x0807c380                        . = ALIGN (0x4)
-                0x0807c380                        PROVIDE (__preinit_array_start = .)
+.preinit_array  0x0807c718        0x0
+                0x0807c718                        . = ALIGN (0x4)
+                0x0807c718                        PROVIDE (__preinit_array_start = .)
  *(.preinit_array*)
-                0x0807c380                        PROVIDE (__preinit_array_end = .)
-                0x0807c380                        . = ALIGN (0x4)
+                0x0807c718                        PROVIDE (__preinit_array_end = .)
+                0x0807c718                        . = ALIGN (0x4)
 
-.init_array     0x0807c380        0x0
-                0x0807c380                        . = ALIGN (0x4)
-                0x0807c380                        PROVIDE (__init_array_start = .)
+.init_array     0x0807c718        0x0
+                0x0807c718                        . = ALIGN (0x4)
+                0x0807c718                        PROVIDE (__init_array_start = .)
  *(SORT_BY_NAME(.init_array.*))
  *(.init_array*)
-                0x0807c380                        PROVIDE (__init_array_end = .)
-                0x0807c380                        . = ALIGN (0x4)
+                0x0807c718                        PROVIDE (__init_array_end = .)
+                0x0807c718                        . = ALIGN (0x4)
 
-.fini_array     0x0807c380        0x0
-                0x0807c380                        . = ALIGN (0x4)
+.fini_array     0x0807c718        0x0
+                0x0807c718                        . = ALIGN (0x4)
                 [!provide]                        PROVIDE (__fini_array_start = .)
  *(SORT_BY_NAME(.fini_array.*))
  *(.fini_array*)
                 [!provide]                        PROVIDE (__fini_array_end = .)
-                0x0807c380                        . = ALIGN (0x4)
-                0x0807c380                        _sidata = LOADADDR (.data)
+                0x0807c718                        . = ALIGN (0x4)
+                0x0807c718                        _sidata = LOADADDR (.data)
 
-.data           0x20000000       0x34 load address 0x0807c380
+.data           0x20000000       0x34 load address 0x0807c718
                 0x20000000                        . = ALIGN (0x4)
                 0x20000000                        _sdata = .
  *(.data)
@@ -2773,11 +2792,11 @@ END GROUP
                 0x20000034                        . = ALIGN (0x4)
                 0x20000034                        _edata = .
 
-.igot.plt       0x20000034        0x0 load address 0x0807c3b4
+.igot.plt       0x20000034        0x0 load address 0x0807c74c
  .igot.plt      0x20000034        0x0 ./out/user/objects/hal/chip/startup/src/startup_stm32f429xx.o
                 0x20000034                        . = ALIGN (0x4)
 
-.bss            0x20000034     0xa768 load address 0x0807c3b4
+.bss            0x20000034     0xa798 load address 0x0807c74c
                 0x20000034                        _sbss = .
                 0x20000034                        __bss_start__ = _sbss
  *(.bss)
@@ -2884,9 +2903,11 @@ END GROUP
  .bss.LfnBuf    0x20003978       0x42 ./out/user/objects/target/lib/libfml.a(ff.o)
  .bss.Fsid      0x200039ba        0x2 ./out/user/objects/target/lib/libfml.a(ff.o)
  .bss.FatFs     0x200039bc        0x4 ./out/user/objects/target/lib/libfml.a(ff.o)
- .bss.s_i2c_fail_logged
+ .bss.s_on_blocked_logged
                 0x200039c0        0x1 ./out/user/objects/target/lib/libbsl.a(board_beep.o)
- *fill*         0x200039c1        0x3 
+ .bss.s_i2c_fail_logged
+                0x200039c1        0x1 ./out/user/objects/target/lib/libbsl.a(board_beep.o)
+ *fill*         0x200039c2        0x2 
  .bss.s_active_high
                 0x200039c4        0x4 ./out/user/objects/target/lib/libbsl.a(board_beep.o)
  .bss.s_addr7   0x200039c8        0x1 ./out/user/objects/target/lib/libbsl.a(board_beep.o)
@@ -2957,188 +2978,190 @@ END GROUP
  .bss.s_size    0x20004030        0x4 ./out/user/objects/target/lib/libbsl.a(board_sdram.o)
  .bss.s_base    0x20004034        0x4 ./out/user/objects/target/lib/libbsl.a(board_sdram.o)
  .bss.s_ready   0x20004038        0x4 ./out/user/objects/target/lib/libbsl.a(board_sdram.o)
- .bss.s_ready   0x2000403c        0x4 ./out/user/objects/target/lib/libbsl.a(board_touch.o)
- .bss.s_pid     0x20004040        0x5 ./out/user/objects/target/lib/libbsl.a(board_touch.o)
- *fill*         0x20004045        0x3 
- .bss.s_y_max   0x20004048        0x4 ./out/user/objects/target/lib/libbsl.a(board_touch.o)
- .bss.s_x_max   0x2000404c        0x4 ./out/user/objects/target/lib/libbsl.a(board_touch.o)
- .bss.s_cfg     0x20004050       0x2c ./out/user/objects/target/lib/libbsl.a(board_touch.o)
- .bss.s_bus     0x2000407c       0x10 ./out/user/objects/target/lib/libbsl.a(board_touch.o)
- .bss.s_inited  0x2000408c        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_adc.o)
- .bss.s_state   0x20004090        0xb ./out/user/objects/target/lib/libbsl.a(bsl_device.o)
- *fill*         0x2000409b        0x1 
- .bss.s_ready   0x2000409c        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
+ .bss.s_pid_line
+                0x2000403c       0x30 ./out/user/objects/target/lib/libbsl.a(board_touch.o)
+ .bss.s_ready   0x2000406c        0x4 ./out/user/objects/target/lib/libbsl.a(board_touch.o)
+ .bss.s_pid     0x20004070        0x5 ./out/user/objects/target/lib/libbsl.a(board_touch.o)
+ *fill*         0x20004075        0x3 
+ .bss.s_y_max   0x20004078        0x4 ./out/user/objects/target/lib/libbsl.a(board_touch.o)
+ .bss.s_x_max   0x2000407c        0x4 ./out/user/objects/target/lib/libbsl.a(board_touch.o)
+ .bss.s_cfg     0x20004080       0x2c ./out/user/objects/target/lib/libbsl.a(board_touch.o)
+ .bss.s_bus     0x200040ac       0x10 ./out/user/objects/target/lib/libbsl.a(board_touch.o)
+ .bss.s_inited  0x200040bc        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_adc.o)
+ .bss.s_state   0x200040c0        0xb ./out/user/objects/target/lib/libbsl.a(bsl_device.o)
+ *fill*         0x200040cb        0x1 
+ .bss.s_ready   0x200040cc        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
  .bss.s_size_strings
-                0x200040a0        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
+                0x200040d0        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
  .bss.s_size_struct
-                0x200040a4        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
+                0x200040d4        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
  .bss.s_strings
-                0x200040a8        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
- .bss.s_struct  0x200040ac        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
+                0x200040d8        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
+ .bss.s_struct  0x200040dc        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_fdt.o)
  .bss.s_board_i2c_ready
-                0x200040b0        0x1 ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
- *fill*         0x200040b1        0x3 
+                0x200040e0        0x1 ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
+ *fill*         0x200040e1        0x3 
  .bss.s_board_i2c_bus
-                0x200040b4       0x10 ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
+                0x200040e4       0x10 ./out/user/objects/target/lib/libbsl.a(bsl_i2c_gpio.o)
  .bss.s_uart_drops
-                0x200040c4        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
+                0x200040f4        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
  .bss.s_uart_busy_tick
-                0x200040c8        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
+                0x200040f8        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
  .bss.s_uart_busy
-                0x200040cc        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
+                0x200040fc        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
  .bss.s_line_len
-                0x200040d0        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
- .bss.s_head    0x200040d4        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
- .bss.s_line    0x200040d8       0x28 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
- .bss.s_ring    0x20004100      0x140 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
+                0x20004100        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
+ .bss.s_head    0x20004104        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
+ .bss.s_line    0x20004108       0x28 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
+ .bss.s_ring    0x20004130      0x140 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
  .bss.s_banner_done
-                0x20004240        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
- .bss.s_inited  0x20004244        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_rng.o)
- .bss.s_ready   0x20004248        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_rtc.o)
- .bss.s_src     0x2000424c        0x1 ./out/user/objects/target/lib/libbsl.a(bsl_rtc.o)
- *fill*         0x2000424d        0x3 
- .bss.s_ready   0x20004250        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_spi.o)
- .bss.s_cur     0x20004254        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_spi.o)
- .bss.s_h       0x20004258       0x58 ./out/user/objects/target/lib/libbsl.a(bsl_spi.o)
+                0x20004270        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_log.o)
+ .bss.s_inited  0x20004274        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_rng.o)
+ .bss.s_ready   0x20004278        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_rtc.o)
+ .bss.s_src     0x2000427c        0x1 ./out/user/objects/target/lib/libbsl.a(bsl_rtc.o)
+ *fill*         0x2000427d        0x3 
+ .bss.s_ready   0x20004280        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_spi.o)
+ .bss.s_cur     0x20004284        0x4 ./out/user/objects/target/lib/libbsl.a(bsl_spi.o)
+ .bss.s_h       0x20004288       0x58 ./out/user/objects/target/lib/libbsl.a(bsl_spi.o)
  .bss.watchdog_started.0
-                0x200042b0        0x1 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
+                0x200042e0        0x1 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
  .bss.captured.1
-                0x200042b1        0x1 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
- *fill*         0x200042b2        0x2 
+                0x200042e1        0x1 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
+ *fill*         0x200042e2        0x2 
  .bss.s_malloc_lock_depth
-                0x200042b4        0x4 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
+                0x200042e4        0x4 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
  .bss.g_newlib_brk
-                0x200042b8        0x4 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
+                0x200042e8        0x4 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
  .bss.s_tick_aligned
-                0x200042bc        0x1 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
- *fill*         0x200042bd        0x3 
+                0x200042ec        0x1 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
+ *fill*         0x200042ed        0x3 
  .bss.g_tick_ms
-                0x200042c0        0x4 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
-                0x200042c0                g_tick_ms
+                0x200042f0        0x4 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
+                0x200042f0                g_tick_ms
  .bss.g_iwdg_sync_fail
-                0x200042c4        0x4 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
-                0x200042c4                g_iwdg_sync_fail
+                0x200042f4        0x4 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
+                0x200042f4                g_iwdg_sync_fail
  .bss.g_reset_csr
-                0x200042c8        0x4 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
-                0x200042c8                g_reset_csr
+                0x200042f8        0x4 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
+                0x200042f8                g_reset_csr
  .bss.g_reset_cause
-                0x200042cc        0x1 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
-                0x200042cc                g_reset_cause
- *fill*         0x200042cd        0x3 
+                0x200042fc        0x1 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
+                0x200042fc                g_reset_cause
+ *fill*         0x200042fd        0x3 
  .bss.g_stack_slot_err
-                0x200042d0        0x4 ./out/user/objects/target/lib/libosl.a(osl_health.o)
-                0x200042d0                g_stack_slot_err
+                0x20004300        0x4 ./out/user/objects/target/lib/libosl.a(osl_health.o)
+                0x20004300                g_stack_slot_err
  .bss.g_stack_free_min
-                0x200042d4        0x8 ./out/user/objects/target/lib/libosl.a(osl_health.o)
-                0x200042d4                g_stack_free_min
+                0x20004304        0x8 ./out/user/objects/target/lib/libosl.a(osl_health.o)
+                0x20004304                g_stack_free_min
  .bss.g_heap_free_min
-                0x200042dc        0x4 ./out/user/objects/target/lib/libosl.a(osl_health.o)
-                0x200042dc                g_heap_free_min
+                0x2000430c        0x4 ./out/user/objects/target/lib/libosl.a(osl_health.o)
+                0x2000430c                g_heap_free_min
  .bss.g_panic_reporting
-                0x200042e0        0x4 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
+                0x20004310        0x4 ./out/user/objects/target/lib/libosl.a(osl_panic.o)
  .bss.s_idle_stack
-                0x200042e4      0x200 ./out/user/objects/target/lib/libosl.a(osl_thread.o)
+                0x20004314      0x200 ./out/user/objects/target/lib/libosl.a(osl_thread.o)
  .bss.s_idle_tcb
-                0x200044e4       0x54 ./out/user/objects/target/lib/libosl.a(osl_thread.o)
+                0x20004514       0x54 ./out/user/objects/target/lib/libosl.a(osl_thread.o)
  .bss.s_task_used
-                0x20004538        0x4 ./out/user/objects/target/lib/libosl.a(osl_thread.o)
+                0x20004568        0x4 ./out/user/objects/target/lib/libosl.a(osl_thread.o)
  .bss.s_task_stack
-                0x2000453c     0x2000 ./out/user/objects/target/lib/libosl.a(osl_thread.o)
+                0x2000456c     0x2000 ./out/user/objects/target/lib/libosl.a(osl_thread.o)
  .bss.s_task_tcb
-                0x2000653c      0x150 ./out/user/objects/target/lib/libosl.a(osl_thread.o)
+                0x2000656c      0x150 ./out/user/objects/target/lib/libosl.a(osl_thread.o)
  .bss.xNumberOfSuccessfulFrees
-                0x2000668c        0x4 ./out/user/objects/target/lib/libosl.a(heap_4.o)
+                0x200066bc        0x4 ./out/user/objects/target/lib/libosl.a(heap_4.o)
  .bss.xMinimumEverFreeBytesRemaining
-                0x20006690        0x4 ./out/user/objects/target/lib/libosl.a(heap_4.o)
+                0x200066c0        0x4 ./out/user/objects/target/lib/libosl.a(heap_4.o)
  .bss.xFreeBytesRemaining
-                0x20006694        0x4 ./out/user/objects/target/lib/libosl.a(heap_4.o)
- .bss.pxEnd     0x20006698        0x4 ./out/user/objects/target/lib/libosl.a(heap_4.o)
- .bss.xStart    0x2000669c        0x8 ./out/user/objects/target/lib/libosl.a(heap_4.o)
- .bss.ucHeap    0x200066a4     0x4000 ./out/user/objects/target/lib/libosl.a(heap_4.o)
+                0x200066c4        0x4 ./out/user/objects/target/lib/libosl.a(heap_4.o)
+ .bss.pxEnd     0x200066c8        0x4 ./out/user/objects/target/lib/libosl.a(heap_4.o)
+ .bss.xStart    0x200066cc        0x8 ./out/user/objects/target/lib/libosl.a(heap_4.o)
+ .bss.ucHeap    0x200066d4     0x4000 ./out/user/objects/target/lib/libosl.a(heap_4.o)
  .bss.ulMaxPRIGROUPValue
-                0x2000a6a4        0x4 ./out/user/objects/target/lib/libosl.a(port_m4.o)
+                0x2000a6d4        0x4 ./out/user/objects/target/lib/libosl.a(port_m4.o)
  .bss.ucMaxSysCallPriority
-                0x2000a6a8        0x1 ./out/user/objects/target/lib/libosl.a(port_m4.o)
- *fill*         0x2000a6a9        0x3 
+                0x2000a6d8        0x1 ./out/user/objects/target/lib/libosl.a(port_m4.o)
+ *fill*         0x2000a6d9        0x3 
  .bss.uxSchedulerSuspended
-                0x2000a6ac        0x4 ./out/user/objects/target/lib/libosl.a(tasks.o)
+                0x2000a6dc        0x4 ./out/user/objects/target/lib/libosl.a(tasks.o)
  .bss.xIdleTaskHandles
-                0x2000a6b0        0x4 ./out/user/objects/target/lib/libosl.a(tasks.o)
+                0x2000a6e0        0x4 ./out/user/objects/target/lib/libosl.a(tasks.o)
  .bss.xNextTaskUnblockTime
-                0x2000a6b4        0x4 ./out/user/objects/target/lib/libosl.a(tasks.o)
+                0x2000a6e4        0x4 ./out/user/objects/target/lib/libosl.a(tasks.o)
  .bss.uxTaskNumber
-                0x2000a6b8        0x4 ./out/user/objects/target/lib/libosl.a(tasks.o)
+                0x2000a6e8        0x4 ./out/user/objects/target/lib/libosl.a(tasks.o)
  .bss.xNumOfOverflows
-                0x2000a6bc        0x4 ./out/user/objects/target/lib/libosl.a(tasks.o)
- .bss.xYieldPendings
-                0x2000a6c0        0x4 ./out/user/objects/target/lib/libosl.a(tasks.o)
- .bss.xPendedTicks
-                0x2000a6c4        0x4 ./out/user/objects/target/lib/libosl.a(tasks.o)
- .bss.xSchedulerRunning
-                0x2000a6c8        0x4 ./out/user/objects/target/lib/libosl.a(tasks.o)
- .bss.uxTopReadyPriority
-                0x2000a6cc        0x4 ./out/user/objects/target/lib/libosl.a(tasks.o)
- .bss.xTickCount
-                0x2000a6d0        0x4 ./out/user/objects/target/lib/libosl.a(tasks.o)
- .bss.uxCurrentNumberOfTasks
-                0x2000a6d4        0x4 ./out/user/objects/target/lib/libosl.a(tasks.o)
- .bss.xSuspendedTaskList
-                0x2000a6d8       0x14 ./out/user/objects/target/lib/libosl.a(tasks.o)
- .bss.uxDeletedTasksWaitingCleanUp
                 0x2000a6ec        0x4 ./out/user/objects/target/lib/libosl.a(tasks.o)
- .bss.xTasksWaitingTermination
-                0x2000a6f0       0x14 ./out/user/objects/target/lib/libosl.a(tasks.o)
- .bss.xPendingReadyList
-                0x2000a704       0x14 ./out/user/objects/target/lib/libosl.a(tasks.o)
- .bss.pxOverflowDelayedTaskList
-                0x2000a718        0x4 ./out/user/objects/target/lib/libosl.a(tasks.o)
- .bss.pxDelayedTaskList
+ .bss.xYieldPendings
+                0x2000a6f0        0x4 ./out/user/objects/target/lib/libosl.a(tasks.o)
+ .bss.xPendedTicks
+                0x2000a6f4        0x4 ./out/user/objects/target/lib/libosl.a(tasks.o)
+ .bss.xSchedulerRunning
+                0x2000a6f8        0x4 ./out/user/objects/target/lib/libosl.a(tasks.o)
+ .bss.uxTopReadyPriority
+                0x2000a6fc        0x4 ./out/user/objects/target/lib/libosl.a(tasks.o)
+ .bss.xTickCount
+                0x2000a700        0x4 ./out/user/objects/target/lib/libosl.a(tasks.o)
+ .bss.uxCurrentNumberOfTasks
+                0x2000a704        0x4 ./out/user/objects/target/lib/libosl.a(tasks.o)
+ .bss.xSuspendedTaskList
+                0x2000a708       0x14 ./out/user/objects/target/lib/libosl.a(tasks.o)
+ .bss.uxDeletedTasksWaitingCleanUp
                 0x2000a71c        0x4 ./out/user/objects/target/lib/libosl.a(tasks.o)
- .bss.xDelayedTaskList2
+ .bss.xTasksWaitingTermination
                 0x2000a720       0x14 ./out/user/objects/target/lib/libosl.a(tasks.o)
- .bss.xDelayedTaskList1
+ .bss.xPendingReadyList
                 0x2000a734       0x14 ./out/user/objects/target/lib/libosl.a(tasks.o)
+ .bss.pxOverflowDelayedTaskList
+                0x2000a748        0x4 ./out/user/objects/target/lib/libosl.a(tasks.o)
+ .bss.pxDelayedTaskList
+                0x2000a74c        0x4 ./out/user/objects/target/lib/libosl.a(tasks.o)
+ .bss.xDelayedTaskList2
+                0x2000a750       0x14 ./out/user/objects/target/lib/libosl.a(tasks.o)
+ .bss.xDelayedTaskList1
+                0x2000a764       0x14 ./out/user/objects/target/lib/libosl.a(tasks.o)
  .bss.pxReadyTasksLists
-                0x2000a748       0x50 ./out/user/objects/target/lib/libosl.a(tasks.o)
+                0x2000a778       0x50 ./out/user/objects/target/lib/libosl.a(tasks.o)
  .bss.pxCurrentTCB
-                0x2000a798        0x4 ./out/user/objects/target/lib/libosl.a(tasks.o)
-                0x2000a798                pxCurrentTCB
+                0x2000a7c8        0x4 ./out/user/objects/target/lib/libosl.a(tasks.o)
+                0x2000a7c8                pxCurrentTCB
  *(COMMON)
-                0x2000a79c                        . = ALIGN (0x4)
-                0x2000a79c                        _ebss = .
-                0x2000a79c                        __bss_end__ = _ebss
+                0x2000a7cc                        . = ALIGN (0x4)
+                0x2000a7cc                        _ebss = .
+                0x2000a7cc                        __bss_end__ = _ebss
 
-.noinit         0x2000a79c       0xe0 load address 0x0807c3b4
-                0x2000a79c                        . = ALIGN (0x4)
-                0x2000a79c                        _snoinit = .
-                0x2000a7a4                        . = (. + 0x8)
- *fill*         0x2000a79c        0x8 
+.noinit         0x2000a7cc       0xe0 load address 0x0807c74c
+                0x2000a7cc                        . = ALIGN (0x4)
+                0x2000a7cc                        _snoinit = .
+                0x2000a7d4                        . = (. + 0x8)
+ *fill*         0x2000a7cc        0x8 
  *(.noinit)
- .noinit        0x2000a7a4        0x4 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
-                0x2000a7a4                g_boot_stage
- .noinit        0x2000a7a8       0xcc ./out/user/objects/target/lib/libosl.a(osl_panic.o)
-                0x2000a7a8                g_last_write
-                0x2000a7e8                g_panic_record
- .noinit        0x2000a874        0x8 ./out/user/objects/target/lib/libhal.a(system_stm32f4xx.o)
-                0x2000a874                g_clock_fail_rcc_cr
-                0x2000a878                g_clock_fail_sub
+ .noinit        0x2000a7d4        0x4 ./out/user/objects/target/lib/libosl.a(osl_boot.o)
+                0x2000a7d4                g_boot_stage
+ .noinit        0x2000a7d8       0xcc ./out/user/objects/target/lib/libosl.a(osl_panic.o)
+                0x2000a7d8                g_last_write
+                0x2000a818                g_panic_record
+ .noinit        0x2000a8a4        0x8 ./out/user/objects/target/lib/libhal.a(system_stm32f4xx.o)
+                0x2000a8a4                g_clock_fail_rcc_cr
+                0x2000a8a8                g_clock_fail_sub
  *(.noinit*)
-                0x2000a87c                        . = ALIGN (0x4)
-                0x2000a87c                        _enoinit = .
+                0x2000a8ac                        . = ALIGN (0x4)
+                0x2000a8ac                        _enoinit = .
 
 ._user_heap_stack
-                0x2000a87c      0x604 load address 0x0807c3b4
-                0x2000a880                        . = ALIGN (0x8)
- *fill*         0x2000a87c        0x4 
+                0x2000a8ac      0x604 load address 0x0807c74c
+                0x2000a8b0                        . = ALIGN (0x8)
+ *fill*         0x2000a8ac        0x4 
                 [!provide]                        PROVIDE (end = .)
                 [!provide]                        PROVIDE (_end = .)
-                0x2000a880                        __heap_start__ = .
-                0x2000aa80                        . = (. + _Min_Heap_Size)
- *fill*         0x2000a880      0x200 
-                0x2000aa80                        __heap_end__ = .
-                0x2000ae80                        . = (. + _Min_Stack_Size)
- *fill*         0x2000aa80      0x400 
-                0x2000ae80                        . = ALIGN (0x8)
+                0x2000a8b0                        __heap_start__ = .
+                0x2000aab0                        . = (. + _Min_Heap_Size)
+ *fill*         0x2000a8b0      0x200 
+                0x2000aab0                        __heap_end__ = .
+                0x2000aeb0                        . = (. + _Min_Stack_Size)
+ *fill*         0x2000aab0      0x400 
+                0x2000aeb0                        . = ALIGN (0x8)
 
 /DISCARD/
  *(.ccmram)
@@ -3304,20 +3327,20 @@ END GROUP
  .ARM.attributes
                 0x00000f28       0x22 ./tool/win_x86_64/bin/../lib/gcc/arm-none-eabi/13.3.1/thumb/v7e-m+fp/hard\libgcc.a(_dvmd_tls.o)
 
-.dtb            0x0807c3c0     0xff20
-                0x0807c3c0                        . = ALIGN (0x4)
-                0x0807c3c0                        _sdtb = .
+.dtb            0x0807c750     0xff20
+                0x0807c750                        . = ALIGN (0x4)
+                0x0807c750                        _sdtb = .
  *(.dtb)
- .dtb           0x0807c3c0     0xff20 ./out/user/objects/target/lib/libbsl.a(board_dtb.o)
-                0x0807c3c0                bsl_dtb_start
-                0x0808c2d7                bsl_dtb_end
-                0x0808c2e0                        . = ALIGN (0x4)
-                0x0808c2e0                        _edtb = .
+ .dtb           0x0807c750     0xff20 ./out/user/objects/target/lib/libbsl.a(board_dtb.o)
+                0x0807c750                bsl_dtb_start
+                0x0808c667                bsl_dtb_end
+                0x0808c670                        . = ALIGN (0x4)
+                0x0808c670                        _edtb = .
 OUTPUT(./out/user/objects/target/stm32-freertos.elf elf32-littlearm)
 LOAD linker stubs
 
-.rel.dyn        0x0808c2e0        0x0
- .rel.iplt      0x0808c2e0        0x0 ./out/user/objects/hal/chip/startup/src/startup_stm32f429xx.o
+.rel.dyn        0x0808c670        0x0
+ .rel.iplt      0x0808c670        0x0 ./out/user/objects/hal/chip/startup/src/startup_stm32f429xx.o
 
 .comment        0x00000000       0x45
  .comment       0x00000000       0x45 ./out/user/objects/target/lib/libapl.a(main.o)

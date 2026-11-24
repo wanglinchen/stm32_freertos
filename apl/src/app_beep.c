@@ -11,6 +11,11 @@
 /*
  * BEEP 应用（P5a）：点一下响一声，手松开就停。
  *
+ * **2026-11-25 起蜂鸣器被策略永久禁用**（`bsl/board_beep.c` 的 `BEEP_ALLOW_ON = 0`，
+ * 规则见 `.skills/SKILL.md`）。这个应用保留但不再发声：它仍然是按压 → 状态的
+ * 演示（`[app_beep] req on (muted)` 证明请求真的到了执行器），而屏上的标题直接
+ * 写明"disabled"，不装成"能响但坏了"。
+ *
  * 为什么不用"点一下响 100 ms 再自己关"：app_menu 任务只有 10 ms 周期，没有一个
  * 独立的定时者；用阻塞 delay 会把整个输入泵卡住（其余应用也会一起失去响应）。
  * 所以响的时长交给手指：按下响、抬起停 —— 与 app_sample 的按键提示音同一套语义。
@@ -45,7 +50,9 @@ static void beep_set(int on)
     beep->set(on);
     if (on != s_sounding) {
         s_sounding = on;
-        BSL_LOG_MOD_INF(BEEP_LOG_MOD, on ? "on\r\n" : "off\r\n");
+        /* 打"req on (muted)"而不是"on"：写 "on" 会让人以为真的响了 —— 现场的
+         * 事实是这一声被 bsl 的断路器吞掉了，日志必须说同一件事。 */
+        BSL_LOG_MOD_INF(BEEP_LOG_MOD, (on != 0) ? "req on (muted)\r\n" : "off\r\n");
     }
 }
 
@@ -55,7 +62,7 @@ static void beep_enter(void)
         const uint32_t wx = (board_lcd_width() - BEEP_WIN_W) / 2U;
         const uint32_t wy = (board_lcd_height() - BEEP_WIN_H) / 2U;
 
-        fml_ui_win_init(&s_win, wx, wy, BEEP_WIN_W, BEEP_WIN_H, "BEEP - hold to sound");
+        fml_ui_win_init(&s_win, wx, wy, BEEP_WIN_W, BEEP_WIN_H, "BEEP - disabled");
         (void)fml_ui_btn_add(&s_win, 1U, "BEEP", (BEEP_WIN_W - 160U) / 2U, 90U, 160U, 72U);
         (void)fml_ui_btn_add(&s_win, APP_ID_BACK, "BACK", 16U, BEEP_WIN_H - 64U, 96U, 40U);
         s_built = 1;

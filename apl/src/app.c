@@ -286,8 +286,10 @@ static void menu_task(void *argument)
     if (bsl_device_is_ready(BSL_DEV_TOUCH) != 0) {
         touch = bsl_devapi_touch();
     } else if (bsl_device_is_ready(BSL_DEV_DEBUG_UART) != 0) {
+        /* 必须 ASCII：bsl_log_puts 走 UART 直出，非 ASCII 在这条链上是 '?'，
+         * 一条"看得见但读不懂"的日志等于没有日志。 */
         BSL_LOG_MOD_ERR(MENU_LOG_MOD,
-                        "TOUCH 未就绪（init 失败），桌面只显示、不接受点击\r\n");
+                        "TOUCH not ready (init failed): desktop shows only, taps ignored\r\n");
     }
 
     last_wake = osl_tick_now();

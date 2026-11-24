@@ -5,6 +5,7 @@
 #include "board_debug_uart.h"
 #include "board_device_registry.h"
 #include "bsl_adc.h"
+#include "bsl_i2c_gpio.h"
 #include "bsl_log.h"
 #include "bsl_rtc.h"
 #include "osl_thread.h"
@@ -67,6 +68,65 @@ static void sh_put_x10(sh_out_t *o, int32_t v)
     sh_dec(o, (int)(v % 10));
 }
 
+/* 两位小写十六进制。地址与寄存器一律按 hex 输出：`0x10` 与十进制 `16` 混着看
+ * 是排查时最容易读错的一处（数据手册整本都是 hex）。 */
+static void sh_put_hex2(sh_out_t *o, int v)
+{
+    static const char s_digits[] = "0123456789abcdef";
+    char two[3];
+
+    if (v < 0) {
+        v = 0;
+    }
+    if (v > 0xFF) {
+        v = 0xFF;
+    }
+    two[0] = s_digits[(v >> 4) & 0x0F];
+    two[1] = s_digits[v & 0x0F];
+    two[2] = '\0';
+    sh_puts(o, two);
+}
+
+/* 解析 1~2 位十六进制，允许 `0x` / `0X` 前缀。范围校验由调用方做：
+ * 0x7F 与 0xFF 在同一个解析器里都能过，谁是地址谁是数据由用途决定。 */
+static int sh_hex(const char *s, int *out)
+{
+    unsigned v = 0U;
+    unsigned digits = 0U;
+
+    if (s == NULL) {
+        return 1;
+    }
+    if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) {
+        s += 2;
+    }
+    if (*s == '\0') {
+        return 1;
+    }
+    while (*s != '\0') {
+        int d;
+        char c = *s;
+
+        if (c >= '0' && c <= '9') {
+            d = c - '0';
+        } else if (c >= 'a' && c <= 'f') {
+            d = c - 'a' + 10;
+        } else if (c >= 'A' && c <= 'F') {
+            d = c - 'A' + 10;
+        } else {
+            return 1;
+        }
+        if (digits >= 2U) {
+            return 1;
+        }
+        v = (v << 4) | (unsigned)d;
+        digits++;
+        s++;
+    }
+    *out = (int)v;
+    return 0;
+}
+
 static int sh_atoi(const char *s, int *out)
 {
     int v = 0;
@@ -103,7 +163,7 @@ static int cmd_uptime(int argc, char **argv, sh_out_t *o);
 static int cmd_rtc(int argc, char **argv, sh_out_t *o);
 static int cmd_temp(int argc, char **argv, sh_out_t *o);
 static int cmd_led(int argc, char **argv, sh_out_t *o);
-static int cmd_beep(int argc, char **argv, sh_out_t *o);
+static int cmd_i2c(int argc, char **argv, sh_out_t *o);
 
 static const sh_cmd_t s_cmds[] = {
     {"help", "help", cmd_help},
@@ -111,8 +171,11 @@ static const sh_cmd_t s_cmds[] = {
     {"rtc", "rtc", cmd_rtc},
     {"temp", "temp", cmd_temp},
     {"led", "led <0..2> <0|1>", cmd_led},
-    {"beep", "beep <ms, 1..500>", cmd_beep},
+    {"i2c", "i2c scan | i2c rd <a7> <r8>", cmd_i2c},
 };
+
+/* `beep` 命令已删除：蜂鸣器由策略永久禁用（bsl/board_beep.c 的 BEEP_ALLOW_ON），
+ * 留一条"能执行但什么都不响"的命令只会让人以为驱动坏了。 */
 
 #define SH_CMD_COUNT (sizeof(s_cmds) / sizeof(s_cmds[0]))
 
@@ -220,23 +283,64 @@ static int cmd_led(int argc, char **argv, sh_out_t *o)
     return 1;
 }
 
-static int cmd_beep(int argc, char **argv, sh_out_t *o)
+/* 主 I2C 总线的诊断入口（只读）。
+ *
+ * 存在的理由：P6c 的音频 codec 型号在两张纸上对不上 —— pinmap 写 ES8388 在
+ * PH4/PH5，而早期扫描的应答清单里有 0x1A（WM8978 的地址）却没有 0x10。
+ * 这种矛盾只能靠"谁应答"来结，不能靠再读一遍文档。
+ *
+ * 只读不写：`i2c rd` 只发 1 字节寄存器地址（8 位寻址）再读 1 字节；没有写寄存器
+ * 的子命令 —— 排查阶段写 codec 寄存器拿不到任何信息，写错还会把功放拉成静音。 */
+static int cmd_i2c(int argc, char **argv, sh_out_t *o)
 {
-    int ms = 0;
+    const bsl_i2c_gpio_bus_t *bus;
+    int a = 0;
+    int r = 0;
+    uint8_t v = 0U;
 
-    if (argc < 2 || sh_atoi(argv[1], &ms) != 0 || ms < 1 || ms > 500) {
-        sh_puts(o, "usage: beep <ms, 1..500>");
+    if (bsl_board_i2c_gpio_ready() == 0U) {
+        sh_puts(o, "i2c=not-ready");
         return 0;
     }
-    /* 上限 500 ms：这条执行器在 shell 任务里阻塞，写 5000 会把命令行卡死 5 s，
-     * 现场只会觉得"串口死了" */
-    bsl_devapi_beep()->on();
-    osl_thread_delay_ms((uint32_t)ms);
-    bsl_devapi_beep()->off();
-    sh_puts(o, "beep ");
-    sh_dec(o, ms);
-    sh_puts(o, "ms");
-    return 1;
+    bus = bsl_board_i2c_gpio_bus();
+    if ((argc >= 2) && (strcmp(argv[1], "scan") == 0)) {
+        unsigned n = 0U;
+
+        /* 0x08 以下与 0x78 以上是 I2C 保留地址段（广播、10 位地址前缀等），
+         * 扫进去只会出假应答 */
+        sh_puts(o, "i2c scan:");
+        for (a = 0x08; a <= 0x77; a++) {
+            if (bsl_i2c_gpio_probe(bus, (uint8_t)a) == BSL_OK) {
+                sh_puts(o, " ");
+                sh_put_hex2(o, a);
+                n++;
+            }
+        }
+        sh_puts(o, " n=");
+        sh_dec(o, (int)n);
+        return 1;
+    }
+    if ((argc >= 4) && (strcmp(argv[1], "rd") == 0)) {
+        if ((sh_hex(argv[2], &a) != 0) || (sh_hex(argv[3], &r) != 0)
+            || (a < 0x08) || (a > 0x77) || (r < 0) || (r > 0xFF)) {
+            sh_puts(o, "usage: i2c rd <a7 08..77> <r8 00..ff>");
+            return 0;
+        }
+        sh_puts(o, "i2c ");
+        sh_put_hex2(o, a);
+        sh_puts(o, " r");
+        sh_put_hex2(o, r);
+        if (bsl_i2c_gpio_read_reg8(bus, (uint8_t)a, (uint8_t)r, &v, 1U) != BSL_OK) {
+            /* NACK 与总线错合并成一句：调用方要的是"这个地址读不出来" */
+            sh_puts(o, "=nack");
+            return 0;
+        }
+        sh_puts(o, "=");
+        sh_put_hex2(o, (int)v);
+        return 1;
+    }
+    sh_puts(o, "usage: i2c scan | i2c rd <a7> <r8>");
+    return 0;
 }
 
 /* ---- 执行与轮询 --------------------------------------------------------- */

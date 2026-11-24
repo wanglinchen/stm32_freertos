@@ -4,6 +4,7 @@
 #include "bsl_device.h"
 #include "bsl_gpio.h"
 #include "bsl_i2c_gpio.h"
+#include "bsl_log.h"
 
 /*
  * 寄存器地址与命令都来自参考工程 gt9xxx.c / gt9xxx.h（[参考工程]）：
@@ -55,12 +56,41 @@ static int pid_matches(const uint8_t *pid)
     return 0;
 }
 
+/* 一条老实的诊断行：`[touch] pid raw=00 00 00 00`。
+ * 一次 bsl_log_puts 写完（多调用之间会被别的任务的行插进去）。 */
+static char s_pid_line[48];
+
+static const char *pid_raw_line(const uint8_t *pid)
+{
+    static const char s_hex[] = "0123456789abcdef";
+    const char *pfx = "[touch] pid raw=";
+    unsigned k = 0U;
+    unsigned i;
+
+    while (pfx[k] != '\0') {
+        s_pid_line[k] = pfx[k];
+        k++;
+    }
+    for (i = 0U; i < 4U; i++) {
+        if (i != 0U) {
+            s_pid_line[k++] = ' ';
+        }
+        s_pid_line[k++] = s_hex[(pid[i] >> 4) & 0x0FU];
+        s_pid_line[k++] = s_hex[pid[i] & 0x0FU];
+    }
+    s_pid_line[k++] = '\r';
+    s_pid_line[k++] = '\n';
+    s_pid_line[k] = '\0';
+    return s_pid_line;
+}
+
 bsl_err_t board_touch_init(void)
 {
     uint8_t pid[4];
     uint8_t cmd;
     uint16_t rst_mask;
     unsigned attempt;
+    int got = 0;
     GPIO_PinState rst_assert;
     GPIO_PinState rst_release;
 
@@ -95,34 +125,61 @@ bsl_err_t board_touch_init(void)
                                GPIO_SPEED_FREQ_LOW) == 0) {
         return BSL_ERR_IO;
     }
+    /* INT 必须在**复位释放那一刻**处于高电平：GT9xxx 用它锁存自己的 I2C 地址
+     * （INT 高 → 0x14，INT 低 → 0x5D）。原先的顺序是"先释放复位、再把 INT 配成
+     * 浮空输入"，于是释放瞬间 INT 还停在复位默认态，锁到的地址不确定 ——
+     * 实测表现就是"有时读到 9147，有时 pid raw=0b 00 00 00"，POST 的 touch 项
+     * 随机 FAIL。参考工程也是先把 INT 配成上拉、再动 RST。
+     *
+     * 做法：先把 INT 当推挽输出拉高并保持到释放之后，再切成浮空输入（只用来读，
+     * 不用它的中断）。 */
+    if (s_cfg.irq_port != NULL) {
+        const uint16_t irq_mask = (uint16_t)(1U << s_cfg.irq_pin);
+
+        if (bsl_gpio_init_output_pp(s_cfg.irq_port, irq_mask, GPIO_NOPULL,
+                                    GPIO_SPEED_FREQ_LOW) == 0) {
+            return BSL_ERR_IO;
+        }
+        bsl_gpio_write(s_cfg.irq_port, irq_mask, GPIO_PIN_SET);
+    } else {
+        return BSL_ERR_INVAL;
+    }
+
     bsl_gpio_write(s_cfg.rst_port, rst_mask, rst_assert);
     HAL_Delay(10U);
     bsl_gpio_write(s_cfg.rst_port, rst_mask, rst_release);
     HAL_Delay(10U);
 
-    /* INT 浮空输入：不接中断也能轮询，但脚不能悬着当输出用。 */
-    if (s_cfg.irq_port != NULL) {
-        (void)bsl_gpio_init_input(s_cfg.irq_port,
-                                  (uint16_t)(1U << s_cfg.irq_pin),
-                                  GPIO_NOPULL, GPIO_SPEED_FREQ_LOW);
+    /* 释放之后地址已锁存，INT 才可以放开（浮空输入：脚不能一直当输出用）。 */
+    if (bsl_gpio_init_input(s_cfg.irq_port,
+                            (uint16_t)(1U << s_cfg.irq_pin),
+                            GPIO_NOPULL, GPIO_SPEED_FREQ_LOW) == 0) {
+        return BSL_ERR_IO;
     }
     HAL_Delay(100U);
 
     /* PID 读失败重试 3 次、间隔 50 ms。理由：GT9147 在"MCU 热复位、触摸 IC 没断电"
      * 的场合会偶发不应答（实测 4 次连续复位里 1 次 PID 读超时 rc=-2，POST 的 touch
      * 项跟着 FAIL）。单次读失败就判整个触摸失败，等于把 POST 做成 flaky 的——
-     * "有时过有时不过"比"一直不过"更难查，而松一口气又没代价：成功的第一次立即返回。 */
+     * "有时过有时不过"比"一直不过"更难查，而松一口气又没代价：成功的第一次立即返回。
+     *
+     * 重试的判据是**读到了且认得**，不是"总线没报错"：IC 上电还没初始化完时，
+     * 读到 4 个 0x00 / 0xFF 也是 BSL_OK —— 只看 rc 会把这种"读成功但内容是垃圾"
+     * 直接判成型号不匹配，和"总线上没有这颗 IC"挤在同一行日志里。 */
     for (attempt = 0U; attempt < 3U; attempt++) {
         if (bsl_i2c_gpio_read_reg16(&s_bus, s_cfg.addr7, GT_PID_REG, pid, 4U) == BSL_OK) {
-            break;
+            got = 1;
+            if (pid_matches(pid) != 0) {
+                break;
+            }
         }
         HAL_Delay(50U);
     }
     if (attempt >= 3U) {
-        return BSL_ERR_TIMEOUT;
-    }
-    if (pid_matches(pid) == 0) {
-        return BSL_ERR_INVAL;
+        /* 把读到的 4 个原始字节打出来：全是 0x00（IC 没启动）、全是 0xff（SDA 悬空）
+         * 与"读到一个不认识的型号"是三件不同的坏事，混成一句 rc=-2 就查不下去了。 */
+        BSL_LOG_INF(pid_raw_line(pid));
+        return (got != 0) ? BSL_ERR_INVAL : BSL_ERR_TIMEOUT;
     }
     s_pid[0] = (char)pid[0];
     s_pid[1] = (char)pid[1];

@@ -1,0 +1,175 @@
+串口自检 P6c-0：I2C 应答排查 + 触摸偶发失败根因 + 蜂鸣器禁用
+日期：2026-11-25
+分支：feature/full-demo
+证据来源：
+  out/boot_p6c5.log      —— 最终固件启动（13/13，5 次复位中最后一条）
+  out/boot_p6c3.log / _r2.log / _r3.log —— 前 3 次复位（13/13）
+  out/hil_i2c_p6c0.log   —— 人手敲 i2c 命令（逐字，30 ms/字符）
+  out/boot_p6c0.log / p6c1 / p6c2 —— 中间版本（含一次 touch FAIL 与 pid raw 诊断）
+产物：out/userdebug/.../stm32-freertos.elf（text 585772 / bss 44668）
+      out/user/.../stm32-freertos.elf（text 575028 / data 52 / bss 44668）
+
+
+== 一、启动自检（最终固件，一轮） ==
+
+[post] sdram size=32M bad=0 PASS
+[post] lcd w=800 h=480 bad=0 PASS
+[post] touch id=9147 points=0 PASS
+[post] nor id=0xef4019 size=32M PASS
+[post] rtc src=lse 2026-11-25 00:19:36 walk=2s PASS
+[post] adc raw=974 cal=935/1205 t=41.5C PASS
+[post] crc 0x4c40e0d7 expect=0x4c40e0d7 PASS
+[post] rng n=16 distinct=16 degen=0 PASS
+[post] font c0=48 c1=45 c2=70 c3=46 w=8 h=16 ink=22 blank=0 cjk_min=45 PASS
+[post] fatfs total=25568KB ents=2 [SYSTEM 0B DIR] [??????~1 0B DIR] SYSTEM:n=3 [APP 0B DIR] [SPB 0B DIR] [LWIP 0B DIR] ??????~1:n=16 [ALIENT~1.TXT 2486B] [??????~1.AVI 2534868B] [??????~1.SMS 262144B] [????28~1.BIN 44804B] PASS
+[post] ui win=1 btn=8 hit=8/8 ink=520 ovf=0 PASS
+[post] menu apps=8 enter=1 back=1 leave=8 enter2=2 calc=3 set=2 pic=240x320b24 note=2:d6d0/2:18 cal=20261124 depth=0 PASS
+[post] shell cmd=6 help=1 uptime=0ms PASS
+[post] result 13 pass 13 fail 0
+
+stm32-freertos: USART1 115200 debug ready
+[beep] on request ignored: buzzer disabled by policy
+[shell] ready cmds=6, type help
+
+五次连续复位（3 次本固件 + 1 次去写原语前的同构固件 + 1 次复采）：全部
+`result 13 pass 13 fail 0`，`touch id=9147` 五次全 PASS。
+其中 boot_p6c4.log 第 2 行出现过 `[post] lcd800 h=480`（少 ` w=`）：
+同固件再采一次即恢复 `lcd w=800`，判定为**宿主采集端丢字节**（PC 侧串口缓冲），
+不是固件少打 —— 判据是"同一镜像连续两次采集只有一次缺字符，且缺的位置不在
+同一行类别"。
+
+
+== 二、I2C 应答（HIL，人手逐字敲） ==
+
+>> help
+[shell] > help
+cmds=6:help, uptime, rtc, temp, led <0..2> <0|1>, i2c scan | i2c rd <a7> <r8>
+>> i2c scan
+[shell] > i2c scan
+i2c scan: 1a 1e 20 50 68 n=5
+>> i2c rd 10 00
+[shell] > i2c rd 10 00
+i2c 10 r00=nack
+>> i2c rd 68 00
+[shell] > i2c rd 68 00
+i2c 68 r00=bd
+>> i2c rd 1a 00
+[shell] > i2c rd 1a 00
+i2c 1a r00=nack
+>> i2c rd 50 00
+[shell] > i2c rd 50 00
+i2c 50 r00=ff
+>> beep 100
+[shell] > beep 100
+unknown 'beep', type help
+>> i2c rd 7f 00
+[shell] > i2c rd 7f 00
+usage: i2c rd <a7 08..77> <r8 00..ff>
+
+补充两条同轮读数（判断器件身份用）：
+>> i2c rd 68 75
+[shell] > i2c rd 68 75
+i2c 68 r75=71
+>> i2c rd 1e 00
+[shell] > i2c rd 1e 00
+i2c 1e r00=03
+
+
+== 三、应答清单与前一张纸的矛盾（这次测量的目的） ==
+
+`i2c scan` 的结果与 P1 勘探记录**逐字相同**（`1a 1e 20 50 68`），说明两次扫描
+是同一条总线、同一套时序 —— P1 记录本身没错，错的是对它的解读。
+
+| 地址 | 应答 | 读寄存器 | 身份（实测 + 数据手册） | 表里原来写的 |
+|---|---|---|---|---|
+| `0x10` | **无** | — | ES8388 不响应（CE=0 时它应当在 0x10） | ES8388 `board_es8388` |
+| `0x1a` | 有 | **NACK** | **WM8978**：7 位地址 0x1A 是它的固定地址；WM8978 的 **I2C 只支持写**，没有读通路 —— 地址阶段 ACK、读方向 NACK 正是这个特性的指纹 | （未列出） |
+| `0x1e` | 有 | `0x03` | AP3216C（ALS/接近） | ST480MC `0x0C`（**无应答**） |
+| `0x20` | 有 | `0x00` | PCF8574（P0=BEEP / P1=AP_INT / … ） | 与表一致 |
+| `0x50` | 有 | `0xff` | 24C02 EEPROM | 与表一致 |
+| `0x68` | 有 | `r75=0x71` | **MPU9250**（`WHO_AM_I(0x75)=0x71`） | QMI8658A `0x6A/0x6B`（**无应答**） |
+
+结论（写给 P6c / P6d 的开工条件）：
+1. 板上**没有** ES8388。pinmap 里 "ES8388 的 MCLK/SDOUT/LRCK/SCLK/SDIN" 这组
+   注释与实际装配件不符（SAI1 的五个脚确实接 codec，但器件是 WM8978）。
+2. `0x1A` 的"地址 ACK + 读 NACK"不是坏总线，是 WM8978 只写 I2C 的正常表现。
+   所以 P6c 的 codec 驱动要按 **WM8978 的 16 位写事务**（7 位寄存器号 + 9 位数据）
+   实现，不能用 `read_reg8` 去"读回校验" —— 这也是为什么本批**只提供 `read_reg8`、
+   不提供 `write_reg8`**：写到 codec 上要靠 9 位数据格式，形状不同，P6c 再定。
+3. P6d 的 IMU 是 MPU9250（`0x68`），不是 QMI8658A；ALS 是 AP3216C（`0x1E`），
+   不是 ST480MC（`0x0C`，无应答）。
+4. **待最终确认**：WM8978 的型号是从"地址 + 只写特性 + SAI 引脚"三条推出的，
+   还没有让它发出过声音。P6c 第一步（MCLK + I2S 送一段正弦/静音序列）能一锤定音；
+   若那时发现不是 WM8978，先改 §1.1 第 14 行再改驱动。
+
+
+== 四、触摸偶发 FAIL 的根因（本批顺带修掉） ==
+
+现象：13 项里 `touch` 随机 FAIL（`[bsl] device init failed: touch rc=-2`），
+此前统计约 1/4 的复位。
+诊断：给 `board_touch_init` 的 PID 读加了"读到的 4 字节原样打印"，
+一次失败复位直接给出答案：
+
+  [touch] pid raw=0b 00 00 00
+  [bsl] device init failed: touch rc=-2
+
+根因：GT9xxx 用 **INT 脚在复位释放那一刻的电平锁存自己的 I2C 地址**
+（INT 高 → 0x14，INT 低 → 0x5D）。原代码的顺序是"先释放 RST，再把 INT 配成
+浮空输入"，于是释放瞬间 INT 停在复位默认态，锁到的地址不确定 —— 有时锁到 0x14
+（读到 9147），有时锁到别的（读到 `0b 00 00 00`）。参考工程是先把 INT 配成上拉、
+再动 RST，本工程原先漏了这一条。
+
+修法（`bsl/src/board_touch.c`）：RST 拉低之前先把 INT 当推挽输出拉高 → 10 ms →
+释放 RST → 保留 10 ms → **再把 INT 切成浮空输入**（只读电平，不用中断）→ 100 ms
+→ 读 PID。另把 PID 重试的判据从"总线没报错"改成"读到了且认得"（上电未就绪时
+读回 4 个 0 也是 `BSL_OK`，只看 rc 会把"垃圾内容"和"没有器件"混成一句）。
+
+复测：连续 5 次复位 `touch id=9147 points=0 PASS`，`result 13 pass 13 fail 0`。
+
+
+== 五、蜂鸣器永久禁用（用户 2026-11-25 指示） ==
+
+要求原文："关闭蜂鸣器，以后都不要打开，记在 skill 中"。
+
+落地方式（断在唯一执行器，不在调用方各自自觉）：
+- `bsl/src/board_beep.c` 加 `BEEP_ALLOW_ON 0`：`beep_set_pcf8574_logical(on=1)`
+  先被改成 0，再走原逻辑，并**只打一次**
+  `[beep] on request ignored: buzzer disabled by policy`。
+  PCF8574 的 P0 从此只会被写成"静音"值，任何新调用方都绕不过去。
+- `fml_shell` 的 `beep` 命令**删除**（命令表 6 条：help/uptime/rtc/temp/led/i2c），
+  敲 `beep 100` 得到 `unknown 'beep', type help`。
+- `app_beep` 保留（对照表里它是参考工程 24 个应用之一，删了等于不落地），
+  但窗口标题改为 `BEEP - disabled`，日志由 `on` 改成 `req on (muted)` ——
+  请求确实到了执行器、声音不发出，日志不说假话。
+- `app_sample` 的开机提示音与按键提示音调用保留（它们会撞到同一个断路器），
+  所以每次上电都能看到那一行 ignored，作为"断路器在位"的证据。
+- 规则写进 `.skills/SKILL.md`「硬规则」第一条：不许改 `BEEP_ALLOW_ON`、不许绕
+  执行器写 P0、不许新增会响的命令/应用；需要提示用屏幕或串口。
+
+实测：每次上电日志恰好一行
+`[beep] on request ignored: buzzer disabled by policy`，之后无任何响声请求记录。
+
+
+== 六、体积与门禁 ==
+
+userdebug：text 585772 / data 52 / bss 44668
+user：     text 575028 / data 52 / bss 44668
+（P6b 收尾时 584724 / 44620 → +1.0 KB text / +48 B bss：i2c 命令 + 两个原语 +
+ touch 的 INT 初始化与诊断行）
+update：零 dtc 诊断（DTB 65303 B，未改 DTS）
+build：双档 -Werror 零告警
+check：仍是那 8 条历史遗留（app_double_click_ms / bsl_fb_clear / ff.h 34 个未用
+       FatFs 函数 / ffconf.h 无配对守卫），无新增失败。
+       本轮**刻意不加** `write_reg8`：没有消费者就是假 API（G 组会抓），
+       等 P6c 的 WM8978 写事务落地时再加。
+
+
+== 七、未覆盖 / 限制 ==
+
+1. WM8978 型号尚未被声音证实（见第三节第 4 条），P6c 第一步用 MCLK+I2S 定音。
+2. `i2c scan` 只发地址、不发数据；能证明"器件在"，不能证明"器件能按预期工作"。
+3. 扫描范围 0x08..0x77，不含 10 位地址器件与 I2C 保留地址段。
+4. 本批未碰 codec/IMU 的寄存器写路径，也没有建立任何 codec/imu 的 DTB 节点。
+5. 触摸修复的验证是 5 次上电复位（都是 MCU 复位、触摸 IC 未断电）；**冷启动**
+   （整板断电）未做，缺少一次"整机上电"的样本。
+6. 蜂鸣器"不响"只能由人耳确认；串口只能证明"请求被拦下"。

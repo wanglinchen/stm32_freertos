@@ -263,6 +263,54 @@ bsl_err_t bsl_i2c_gpio_read_reg16(const bsl_i2c_gpio_bus_t *bus, uint8_t addr7,
     return BSL_OK;
 }
 
+bsl_err_t bsl_i2c_gpio_probe(const bsl_i2c_gpio_bus_t *bus, uint8_t addr7)
+{
+    bsl_err_t rc;
+
+    if (bus == NULL) {
+        return BSL_ERR_INVAL;
+    }
+    iic_start(bus);
+    rc = iic_send_byte(bus, (uint8_t)(addr7 << 1));
+    if (rc != BSL_OK) {
+        /* iic_wait_ack 的非应答出口已经补过 STOP，这里不再发第二次 */
+        return rc;
+    }
+    iic_stop(bus);
+    return BSL_OK;
+}
+
+bsl_err_t bsl_i2c_gpio_read_reg8(const bsl_i2c_gpio_bus_t *bus, uint8_t addr7,
+                                 uint8_t reg8, uint8_t *buf, uint8_t len)
+{
+    bsl_err_t rc;
+    uint8_t i;
+
+    if (bus == NULL || buf == NULL || len == 0U) {
+        return BSL_ERR_INVAL;
+    }
+    iic_start(bus);
+    rc = iic_send_byte(bus, (uint8_t)(addr7 << 1));
+    if (rc != BSL_OK) {
+        return rc;
+    }
+    rc = iic_send_byte(bus, reg8);
+    if (rc != BSL_OK) {
+        return rc;
+    }
+    /* 重复 START（不是 STOP+START）：codec 的寄存器指针只在同一次事务里保留 */
+    iic_start(bus);
+    rc = iic_send_byte(bus, (uint8_t)((addr7 << 1) | 1U));
+    if (rc != BSL_OK) {
+        return rc;
+    }
+    for (i = 0U; i < len; i++) {
+        buf[i] = iic_read_byte(bus, (i + 1U < len) ? 1 : 0);
+    }
+    iic_stop(bus);
+    return BSL_OK;
+}
+
 static bsl_i2c_gpio_bus_t s_board_i2c_bus;
 static uint8_t s_board_i2c_ready;
 const bsl_i2c_gpio_bus_t *bsl_board_i2c_gpio_bus(void)

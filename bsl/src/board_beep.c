@@ -22,6 +22,17 @@ static int s_active_high;
 static uint8_t s_pcf8574_shadow = 0xFFU;
 static uint8_t s_i2c_fail_logged;
 
+/* 蜂鸣器断路器（用户 2026-11-25 明确要求："关闭蜂鸣器，以后都不要打开"，
+ * 规则同时写进 `.skills/SKILL.md`「蜂鸣器禁用」）。
+ *
+ * 断在**唯一的执行器**上，而不是在应用层礼貌拒绝：`board_beep_set` 是 PCF8574
+ * P0 的唯一写入路径，任何新调用方（应用 / shell / panic 播报）都绕不过它。
+ * API 保留不删 —— 调用方照常编译、`nm` 里仍能查到符号，只是 on 请求被吞掉并
+ * 记一行"被策略拦下"，免得以后有人把它当成"驱动坏了"。 */
+#define BEEP_ALLOW_ON 0
+
+static uint8_t s_on_blocked_logged;
+
 #define BEEP_BIT_MASK ((uint8_t)(1U << s_beep_bit))
 
 static bsl_err_t pcf8574_write(uint8_t value)
@@ -50,6 +61,15 @@ static bsl_err_t beep_apply_shadow(void)
 
 static bsl_err_t beep_set_pcf8574_logical(int on)
 {
+#if !BEEP_ALLOW_ON
+    if (on != 0) {
+        on = 0;
+        if (s_on_blocked_logged == 0U) {
+            s_on_blocked_logged = 1U;
+            BSL_LOG_INF("[beep] on request ignored: buzzer disabled by policy\r\n");
+        }
+    }
+#endif
     if (on != 0) {
         if (s_active_high) {
             s_pcf8574_shadow |= BEEP_BIT_MASK;

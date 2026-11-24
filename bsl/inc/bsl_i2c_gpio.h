@@ -31,6 +31,26 @@ bsl_err_t bsl_i2c_gpio_write_reg16(const bsl_i2c_gpio_bus_t *bus, uint8_t addr7,
 bsl_err_t bsl_i2c_gpio_read_reg16(const bsl_i2c_gpio_bus_t *bus, uint8_t addr7,
                                   uint16_t reg16, uint8_t *buf, uint8_t len);
 
+/* 单地址探测：START + 地址字节（写方向）+ 取 ACK + STOP。
+ * BSL_OK = 该 7 位地址上确实有从机应答；非 0 = 无应答（NACK）或总线错。
+ *
+ * 只发地址、不发数据：I2C 的"地址应答"本身就是器件在场的证据，而多写一个
+ * 数据字节会顺手改掉一个寄存器 —— 探测必须是只读动作。 */
+bsl_err_t bsl_i2c_gpio_probe(const bsl_i2c_gpio_bus_t *bus, uint8_t addr7);
+
+/* 8 位寄存器地址的**读**（音频 codec 的口径：ES8388 / WM8978 都是
+ * "1 字节寄存器地址 + 数据"，寄存器宽度 8 位）。
+ *
+ * 与 reg16 是两种**不同的事务形状**，不能互相顶替：拿 reg16 读 reg 0x00
+ * 会发出 0x00 0x00，从机把第二个字节当成数据收下，寄存器 0 被改写、
+ * 而且读回来的是它后面的寄存器。
+ *
+ * 不提供 `write_reg8`：P6c-0 只做只读排查（写 codec 寄存器在排查阶段拿不到
+ * 信息、写错会把功放拉静音），而"头里声明、镜像里没符号"的面子接口会被
+ * `check` 的 G 组抓出来。等 P6c 的驱动真的需要写时再加，那时它才有消费者。 */
+bsl_err_t bsl_i2c_gpio_read_reg8(const bsl_i2c_gpio_bus_t *bus, uint8_t addr7,
+                                 uint8_t reg8, uint8_t *buf, uint8_t len);
+
 const bsl_i2c_gpio_bus_t *bsl_board_i2c_gpio_bus(void);
 uint8_t bsl_board_i2c_gpio_ready(void);
 /* bsl_driver_brd_i2c_gpio 的声明在 board_device_registry.h（唯一来源），
