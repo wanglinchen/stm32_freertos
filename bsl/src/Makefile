@@ -30,6 +30,8 @@ LOCAL_OBJS :=
 -include $(BUILD_DIR)/bsl/src/board_sdram.d
 -include $(BUILD_DIR)/bsl/src/board_system.d
 -include $(BUILD_DIR)/bsl/src/board_touch.d
+-include $(BUILD_DIR)/bsl/src/bsl_adc.d
+-include $(BUILD_DIR)/bsl/src/bsl_crc.d
 -include $(BUILD_DIR)/bsl/src/bsl_device.d
 -include $(BUILD_DIR)/bsl/src/bsl_fb.d
 -include $(BUILD_DIR)/bsl/src/bsl_fdt.d
@@ -38,6 +40,8 @@ LOCAL_OBJS :=
 -include $(BUILD_DIR)/bsl/src/bsl_init.d
 -include $(BUILD_DIR)/bsl/src/bsl_log.d
 -include $(BUILD_DIR)/bsl/src/bsl_pcf8574.d
+-include $(BUILD_DIR)/bsl/src/bsl_rng.d
+-include $(BUILD_DIR)/bsl/src/bsl_rtc.d
 -include $(BUILD_DIR)/bsl/src/bsl_spi.d
 
 ifeq ($(CONFIG_BSL),y)
@@ -198,6 +202,32 @@ endif
 
 ifeq ($(CONFIG_BSL),y)
 ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BSL_ADC),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/bsl_adc.o
+$(BUILD_DIR)/bsl/src/bsl_adc.o: $(PROJECT_ROOT)/bsl/src/bsl_adc.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/bsl_adc.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/bsl_adc.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BSL_CRC),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/bsl_crc.o
+$(BUILD_DIR)/bsl/src/bsl_crc.o: $(PROJECT_ROOT)/bsl/src/bsl_crc.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/bsl_crc.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/bsl_crc.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
 ifeq ($(CONFIG_BSL_SRC_BSL_DEVICE),y)
 LOCAL_OBJS += $(BUILD_DIR)/bsl/src/bsl_device.o
 $(BUILD_DIR)/bsl/src/bsl_device.o: $(PROJECT_ROOT)/bsl/src/bsl_device.c $(FLAG_DEPS)
@@ -296,6 +326,32 @@ $(BUILD_DIR)/bsl/src/bsl_pcf8574.o: $(PROJECT_ROOT)/bsl/src/bsl_pcf8574.c $(FLAG
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/bsl_pcf8574.d -c $< -o $@
 	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/bsl_pcf8574.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BSL_RNG),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/bsl_rng.o
+$(BUILD_DIR)/bsl/src/bsl_rng.o: $(PROJECT_ROOT)/bsl/src/bsl_rng.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/bsl_rng.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/bsl_rng.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BSL_RTC),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/bsl_rtc.o
+$(BUILD_DIR)/bsl/src/bsl_rtc.o: $(PROJECT_ROOT)/bsl/src/bsl_rtc.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/bsl_rtc.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/bsl_rtc.d
 endif
 endif
 endif

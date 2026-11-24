@@ -106,6 +106,25 @@ typedef struct {
 
 int board_rt_nor(board_rt_nor_t *out);
 
+/* RTC：走时源偏好与 LSE 晶振频率。两项都是板级事实（晶振焊没焊、焊的是多少 Hz）；
+ * 寄存器基址与日历编码是芯片事实，不在这里。
+ * 返回 1 = 节点在且 clock-source 是认识的形态（"lse" / "lsi"）。 */
+typedef struct {
+    int use_lsi;     /* 1 = DTS 明确要求走片内 LSI */
+    uint32_t lse_hz; /* LSE 频率（Hz）；0 = DTS 未声明 */
+} board_rt_rtc_t;
+
+int board_rt_rtc(board_rt_rtc_t *out);
+
+/* ADC 内部温度通道：只有 VREF+ 电压是板级事实。它是 TS_CAL 有效性的门限 ——
+ * 校准值只在 VDDA=VREF+=3.3 V±0.1 V 下成立，电压偏离时温度会整体偏移。
+ * 通道号 16 与采样时间是手册事实，写在 bsl_adc 里。 */
+typedef struct {
+    uint32_t vref_mv;
+} board_rt_adc_t;
+
+int board_rt_adc_temp(board_rt_adc_t *out);
+
 unsigned board_rt_led_count(void);
 GPIO_TypeDef *board_rt_led_port(void);
 uint16_t board_rt_led_pin(unsigned index);

@@ -1388,6 +1388,27 @@ _BOARD_NODES = """\
         rx-pin = <10>;
         label = "USART1_CH340";
     };
+
+    /* RTC：走时源与 LSE 频率是板级事实（晶振焊没焊、焊的是 32.768 k 还是
+     * 32.000 k，换板只改这里）。寄存器基址与 BCD 编码是芯片事实，写在
+     * bsl/rtc_source 里，不进 DTB。
+     * clock-source 只认 "lse" / "lsi"：写别的形态 board_rt 会整节点拒收，
+     * 而不是悄悄当 LSE —— 猜错要白等 3 s 起振、还会静默降级到分钟级精度。 */
+    rtc {
+        compatible = "brd,rtc";
+        status = "okay";
+        clock-source = "lse";
+        lse-frequency = <32768>;
+    };
+
+    /* ADC 内部温度通道：只有 VREF+ 是板级事实（它决定出厂两点校准
+     * TS_CAL1/TS_CAL2 是否还成立，手册口径是 3.3 V ±0.1 V）。
+     * 通道号 16 与采样时间是手册事实，写在 bsl/adc 里。 */
+    adc-temp {
+        compatible = "brd,adc-temp";
+        status = "okay";
+        vref-mv = <3300>;
+    };
 """
 
 

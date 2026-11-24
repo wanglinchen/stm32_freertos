@@ -7,6 +7,7 @@
 #include "board_debug_uart.h"
 #include "board_key.h"
 #include "board_led.h"
+#include "bsl_rtc.h"
 
 /* 各 compatible 在运行期的 ops。
  *
@@ -77,5 +78,14 @@ typedef struct {
     bsl_err_t (*erase_sector)(uint32_t addr);
     bsl_err_t (*write)(uint32_t addr, const void *buf, uint32_t len);
 } bsl_nor_api_t;
+
+/* RTC：只暴露"走时源是谁、好了没、现在几点"。
+ * 不在这里放 set/唤醒/闹钟 —— 那是应用的需求，不是设备契约；现在没有任何
+ * 消费者，放上去就是又一套零调用的面子接口（与上面删掉的两个同型）。 */
+typedef struct {
+    bsl_rtc_src_t (*clock_source)(void);
+    int (*ready)(void);
+    bsl_err_t (*get)(bsl_rtc_time_t *out);
+} bsl_rtc_api_t;
 
 #endif

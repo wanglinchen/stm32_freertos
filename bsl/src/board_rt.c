@@ -1,5 +1,7 @@
 #include "board_rt.h"
 
+#include <string.h>
+
 #include "bsl_fdt.h"
 
 #define RT_MAX_ITEMS 8U
@@ -15,6 +17,8 @@
 #define RT_COMPAT_I2C "brd,i2c-gpio"
 #define RT_COMPAT_BEEP "brd,pcf8574-beep"
 #define RT_COMPAT_UART "brd,usart-ch340"
+#define RT_COMPAT_RTC "brd,rtc"
+#define RT_COMPAT_ADC "brd,adc-temp"
 
 typedef struct {
     int parsed;
@@ -75,6 +79,12 @@ typedef struct {
 
     int nor_ok;
     board_rt_nor_t nor;
+
+    int rtc_ok;
+    board_rt_rtc_t rtc;
+
+    int adc_ok;
+    board_rt_adc_t adc;
 } board_rt_t;
 
 static board_rt_t s_rt;
@@ -701,12 +711,75 @@ static void parse_nor(void)
     s_rt.nor_ok = 1;
 }
 
+/*
+ * rtc：走时源与 LSE 频率是**板级事实**（晶振焊没焊、焊的是 32.768 k 还是 32.000 k）。
+ * 寄存器基址是芯片事实，不写 DTB。
+ *
+ * clock-source 只认 "lse" / "lsi" 两个串：写别的（拼错、写成 "external"）时整节点
+ * 拒绝，而不是当作默认 LSE —— 猜错的代价是 LSE 起振白等 3 s、且降级到 LSI 后
+ * 精度掉到分钟级，现场却看不出来。
+ */
+static void parse_rtc(void)
+{
+    bsl_fdt_node_t node = bsl_fdt_find(RT_COMPAT_RTC, 0U);
+    const char *src;
+    board_rt_rtc_t r;
+    uint32_t hz = 0U;
+
+    if (node == NULL) {
+        return;
+    }
+    src = bsl_fdt_prop_string(node, "clock-source");
+    if (src == NULL) {
+        return;
+    }
+    if (strcmp(src, "lsi") == 0) {
+        r.use_lsi = 1;
+    } else if (strcmp(src, "lse") == 0) {
+        r.use_lsi = 0;
+    } else {
+        return;
+    }
+    if (bsl_fdt_prop_u32(node, "lse-frequency", &hz) == 0) {
+        hz = 0U; /* 0 = 未声明，bsl_rtc 按 32768 兜底 */
+    }
+    r.lse_hz = hz;
+    s_rt.rtc = r;
+    s_rt.rtc_ok = 1;
+}
+
+/*
+ * adc-temp：只有 VREF+ 是板级事实。内部温度通道的通道号（16）与采样时间是
+ * 手册事实，写在驱动里；校准值 TS_CAL1/TS_CAL2 是芯片出厂值，从系统存储区读。
+ *
+ * vref-mv 是**校准有效性的门限**而不是一个摆设读数：数据手册的 TS_CAL 值只在
+ * VDDA=VREF+=3.3 V ±0.1 V 下成立，电压偏离时换算出的温度会整体偏移，而现场
+ * 只表现为"温度偏高几度"，没有任何读数指向电源。荒数（<1.5 V / >3.6 V）直接
+ * 拒收。
+ */
+static void parse_adc(void)
+{
+    bsl_fdt_node_t node = bsl_fdt_find(RT_COMPAT_ADC, 0U);
+    uint32_t mv = 0U;
+
+    if (node == NULL) {
+        return;
+    }
+    if (bsl_fdt_prop_u32(node, "vref-mv", &mv) == 0) {
+        return;
+    }
+    if (mv < 1500U || mv > 3600U) {
+        return;
+    }
+    s_rt.adc.vref_mv = mv;
+    s_rt.adc_ok = 1;
+}
+
 static void parse_all(void)
 {
     if (s_rt.parsed) {
         return;
-    }
-    s_rt.parsed = 1;
+    }    s_rt.parsed = 1;
     if (bsl_fdt_init() != 0) {
         return;
     }
@@ -720,6 +793,8 @@ static void parse_all(void)
     parse_i2c();
     parse_beep();
     parse_uart();
+    parse_rtc();
+    parse_adc();
 }
 
 uint32_t board_rt_hse_hz(void)
@@ -948,5 +1023,25 @@ int board_rt_nor(board_rt_nor_t *out)
         return 0;
     }
     *out = s_rt.nor;
+    return 1;
+}
+
+int board_rt_rtc(board_rt_rtc_t *out)
+{
+    parse_all();
+    if (!s_rt.rtc_ok || out == NULL) {
+        return 0;
+    }
+    *out = s_rt.rtc;
+    return 1;
+}
+
+int board_rt_adc_temp(board_rt_adc_t *out)
+{
+    parse_all();
+    if (!s_rt.adc_ok || out == NULL) {
+        return 0;
+    }
+    *out = s_rt.adc;
     return 1;
 }

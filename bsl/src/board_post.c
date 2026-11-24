@@ -3,8 +3,12 @@
 #include "board_lcd.h"
 #include "board_sdram.h"
 #include "board_touch.h"
+#include "bsl_adc.h"
+#include "bsl_crc.h"
 #include "bsl_device.h"
 #include "bsl_log.h"
+#include "bsl_rng.h"
+#include "bsl_rtc.h"
 
 #define POST_LOG_MOD "post"
 
@@ -169,6 +173,202 @@ static void post_nor(void)
     post_end(((jedec == 0xEF4019U) && (size == 0x02000000U)) ? 1 : 0);
 }
 
+/* ---- 定宽/定点打印小工具 --------------------------------------------------
+ *
+ * bsl_log 只有 put_dec（不留前导零），而 RTC/温度这些值的可读性全在定宽上：
+ * `2026-11-24 9:5:3` 读起来像坏数据，`09:05:03` 才是现场能直接对的东西。
+ * 三个小函数故意留在本文件：它们只服务 POST 行，进 bsl_log 会让"日志层"承担
+ * 数值格式化，而 fml 的 app_fmt_* 已经有另一套（两套并存的代价更大）。 */
+static void post_put_2(unsigned v)
+{
+    if (v < 10U) {
+        bsl_log_put_dec(0);
+    }
+    bsl_log_put_dec((int)v);
+}
+
+/* 定点 ×10：31.2 / -0.5。负数单独处理符号，避免 -3/10 = 0 的截断把 0.5 打成 0 */
+static void post_put_x10(int32_t v)
+{
+    if (v < 0) {
+        bsl_log_puts("-");
+        v = -v;
+    }
+    bsl_log_put_dec((int)(v / 10));
+    bsl_log_puts(".");
+    bsl_log_put_dec((int)(v % 10));
+}
+
+/*
+ * rtc：RTC 走时。
+ *
+ * 判据三条，缺一条都不算过：
+ *   1) init 成功（bsl_rtc_ready）—— LSE 与 LSI 都不起振时 init 才会失败；
+ *   2) 日历字段合法（bsl_rtc_get 自己就拒非法 BCD，这里不重复验证）；
+ *   3) 真的在走 —— 等约 1.1 s 再读一次，秒差必须落在 1..3。
+ * 第 3 条是把"寄存器能读"与"晶振在振"分开的唯一办法：RTC 停振时日历寄存器
+ * 照样保持上次的值，只读一次永远 PASS。
+ *
+ * 时间起点是**编译时刻**（本机没有墙钟来源，见 bsl_rtc.c 注释），所以这一行
+ * 里的日期是"固件被编译的那天"，不是"现在"。src=lsi 表示 LSE 没起振、已降级，
+ * 走时精度掉到分钟级 —— 这是已知代价，不是错误，但必须打印出来。
+ */
+static void post_rtc(void)
+{
+    const bsl_rtc_api_t *rtc = bsl_devapi_rtc();
+    bsl_rtc_time_t t;
+    int delta = 0;
+
+    post_begin("rtc ");
+    if (rtc->ready() == 0) {
+        BSL_LOG_INF("ready=0");
+        post_end(0);
+        return;
+    }
+    if (bsl_rtc_measure(1100U, &t, &delta) != BSL_OK) {
+        BSL_LOG_INF("read=err");
+        post_end(0);
+        return;
+    }
+
+    BSL_LOG_INF("src=");
+    bsl_log_puts((rtc->clock_source() == BSL_RTC_SRC_LSE) ? "lse" : "lsi");
+    BSL_LOG_INF(" ");
+    bsl_log_put_dec((int)t.year);
+    BSL_LOG_INF("-");
+    post_put_2(t.month);
+    BSL_LOG_INF("-");
+    post_put_2(t.day);
+    BSL_LOG_INF(" ");
+    post_put_2(t.hour);
+    BSL_LOG_INF(":");
+    post_put_2(t.minute);
+    BSL_LOG_INF(":");
+    post_put_2(t.second);
+    BSL_LOG_INF(" walk=");
+    bsl_log_put_dec(delta);
+    BSL_LOG_INF("s");
+    post_end(((delta >= 1) && (delta <= 3)) ? 1 : 0);
+}
+
+/*
+ * adc：内部温度通道。
+ *
+ * 判 PASS 的条件是**换算可信**（cal_valid = 标定点自洽且 VREF+ 在窗口内）
+ * 加一个物理区间 [-40, 125] °C。不判"温度等于室温"：板子刚上电、机箱里的
+ * 实际温度未知，用室温当判据只会得到一个假 FAIL。这里验的是"通道通、校准
+ * 值读得到、换算走得通"，趋势对不对由人手摸板子对一下即可。
+ */
+static void post_adc(void)
+{
+    bsl_adc_temp_t s;
+    bsl_err_t err;
+
+    post_begin("adc ");
+    err = bsl_adc_temp_init();
+    if (err != BSL_OK) {
+        BSL_LOG_INF("init=");
+        bsl_log_put_dec((int)err);
+        post_end(0);
+        return;
+    }
+    err = bsl_adc_temp_read(&s);
+
+    BSL_LOG_INF("raw=");
+    bsl_log_put_dec((int)s.raw);
+    BSL_LOG_INF(" cal=");
+    bsl_log_put_dec((int)s.cal30);
+    BSL_LOG_INF("/");
+    bsl_log_put_dec((int)s.cal110);
+    if (s.cal_valid) {
+        BSL_LOG_INF(" t=");
+        post_put_x10(s.celsius_x10);
+        BSL_LOG_INF("C");
+    } else {
+        BSL_LOG_INF(" t=inv");
+    }
+    post_end((err == BSL_OK) && s.cal_valid
+             && (s.celsius_x10 >= -400) && (s.celsius_x10 <= 1250));
+}
+
+/*
+ * crc：硬件 CRC32 与一条**独立**的期望值对拍。
+ *
+ * 期望值 0x4C40E0D7 不是 CRC 单元自己算出来的 —— 它由一份纯软件的位运算
+ * 实现（poly 0x04C11DB7 / init 0xFFFFFFFF / 不反射 / 不取反）算出后写死在这里。
+ * 拿硬件结果跟它比，才能发现"单元没使能、DR 读成常量 0xFFFFFFFF"这类故障；
+ * 若期望值也来自同一硬件，那这一项只是"我自己等于我自己"。
+ *
+ * 输入是 4 个整字，正好是单元的原生粒度：按字节喂要自己补尾字节，而补 0 会
+ * 改变结果 —— 那种"看起来是标准向量、其实不是"的坑见 bsl_crc.h 注释。
+ */
+static void post_crc(void)
+{
+    static const uint32_t k_words[4] = {
+        0x31323334U, 0x35363738U, 0x9ABCDEF0U, 0x13579BDFU
+    };
+    const uint32_t expect = 0x4C40E0D7U;
+    uint32_t got = bsl_crc32_words(k_words, 4U);
+
+    post_begin("crc 0x");
+    bsl_log_put_hex(got, 8U);
+    BSL_LOG_INF(" expect=0x");
+    bsl_log_put_hex(expect, 8U);
+    post_end((got == expect) ? 1 : 0);
+}
+
+/*
+ * rng：连读 16 个随机数，判"够散"。
+ *
+ * 判据不看单个值（32 位随机数对任何具体值都没有可比性），看三条统计特征：
+ *   - 16 次读都成功（DRDY 起来 → PLL48CK 在、种子没报错）；
+ *   - 去重后 >= 15 个（16 个 32 位随机数撞一次的期望值约 0，撞 2 次以上基本
+ *     只可能是单元返回了常量、计数器或只有低位在变）；
+ *   - 没有出现 0x00000000 / 0xFFFFFFFF —— 这两个值正是"单元没使能、DR 读成
+ *     复位值"的典型产物。
+ * 这不是随机性测试（那要 NIST 套件），只是"单元活着"的判据。
+ */
+static void post_rng(void)
+{
+    uint32_t v[16];
+    unsigned i;
+    unsigned j;
+    unsigned distinct = 0U;
+    unsigned degenerate = 0U;
+    int ok = 1;
+
+    if (bsl_rng_init() != BSL_OK) {
+        post_begin("rng init=err");
+        post_end(0);
+        return;
+    }
+    for (i = 0U; i < 16U; i++) {
+        if (bsl_rng_read(&v[i]) != BSL_OK) {
+            ok = 0;
+            break;
+        }
+        if (v[i] == 0U || v[i] == 0xFFFFFFFFU) {
+            degenerate++;
+        }
+    }
+    for (i = 0U; i < 16U; i++) {
+        for (j = 0U; j < i; j++) {
+            if (v[j] == v[i]) {
+                break;
+            }
+        }
+        if (j == i) {
+            distinct++;
+        }
+    }
+
+    post_begin("rng n=16 distinct=");
+    bsl_log_put_dec((int)distinct);
+    BSL_LOG_INF(" degen=");
+    bsl_log_put_dec((int)degenerate);
+    post_end((ok && distinct >= 15U && degenerate == 0U) ? 1 : 0);
+}
+
 /*
  * 外部项（apl 注册）：
  *
@@ -239,6 +439,10 @@ void board_post_run(void)
     post_lcd();
     post_touch();
     post_nor();
+    post_rtc();
+    post_adc();
+    post_crc();
+    post_rng();
     post_ext();
 
     BSL_LOG_MOD_INF(POST_LOG_MOD, "result ");

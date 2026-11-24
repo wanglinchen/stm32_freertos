@@ -105,6 +105,20 @@ endif
 endif
 ifeq ($(CONFIG_BSL),y)
 ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BSL_ADC),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/bsl_adc.o
+endif
+endif
+endif
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BSL_CRC),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/bsl_crc.o
+endif
+endif
+endif
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
 ifeq ($(CONFIG_BSL_SRC_BSL_DEVICE),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/bsl_device.o
 endif
@@ -156,6 +170,20 @@ ifeq ($(CONFIG_BSL),y)
 ifeq ($(CONFIG_BSL_SRC),y)
 ifeq ($(CONFIG_BSL_SRC_BSL_PCF8574),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/bsl_pcf8574.o
+endif
+endif
+endif
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BSL_RNG),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/bsl_rng.o
+endif
+endif
+endif
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BSL_RTC),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/bsl_rtc.o
 endif
 endif
 endif

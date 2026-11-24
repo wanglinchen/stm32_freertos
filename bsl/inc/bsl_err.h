@@ -12,6 +12,9 @@ typedef enum {
     BSL_ERR_TIMEOUT = -2,
     BSL_ERR_INVAL = -3,
     BSL_ERR_NOSUPPORT = -4,
+    /* 没初始化就用了。P6a 加的：RTC 的"源起不来"与"没跑过 init"是两件事 ——
+     * 都归 TIMEOUT 会让现场无法区分"晶振坏"与"驱动没被跑到"。 */
+    BSL_ERR_NOINIT = -5,
 } bsl_err_t;
 
 #endif
