@@ -9,6 +9,7 @@
 #include "fml_fatfs.h"
 #include "fml_gui.h"
 #include "fml_panic.h"
+#include "fml_ui.h"
 #include "osl_boot.h"
 #include "osl_health.h"
 #include "osl_thread.h"
@@ -229,6 +230,81 @@ static int app_fatfs_check(void)
     return 1;
 }
 
+/*
+ * UI 自检：POST 的 ui 项（§1.1 第 21 行，自研补充项 —— 参考工程没有这一项）。
+ *
+ * 判据三条，缺一条都会让"看起来能用"混过去：
+ *   hit —— 程序内注入 3 次点击（坐标取控件矩形中心），每次都要产出 id 与按钮
+ *          对得上的 CLICK。只验"有事件"不够：id 全错的事件也能让计数非零。
+ *   ink —— 每个按钮内部必须有多于背景色的像素（居中文字）。命中全对而屏上
+ *          空白，说明窗口根本没画，手指点的是看不见的靶子。统计时扣掉 1 像素
+ *          边框：边框本身就是非背景色，连着数会把"只有框、没有字"也算成画好了。
+ *   ovf —— 事件队列溢出必须为 0。溢出等于"点了没反应"，而串口上看不出区别。
+ *
+ * 注入前 fml_ui_reset()：清掉可能残留的按压状态与事件，免得把上一帧的残留
+ * 算进本次结果。
+ */
+static int app_ui_check(void)
+{
+    fml_ui_win_t *win = app_sample_ui_win();
+    unsigned i;
+    unsigned hit = 0U;
+    uint32_t ink = 0U;
+    unsigned ovf;
+
+    if ((win == NULL) || (win->n_btn == 0U)) {
+        BSL_LOG_INF(" win=0");
+        return 0;
+    }
+    fml_ui_reset();
+    fml_ui_draw(win);
+
+    for (i = 0U; i < win->n_btn; i++) {
+        const fml_ui_btn_t *b = &win->btn[i];
+
+        ink += bsl_fb_count_nonbg(win->x + b->x + 1U, win->y + b->y + 1U,
+                                  b->w - 2U, b->h - 2U, win->btn_bg);
+    }
+
+    for (i = 0U; i < win->n_btn; i++) {
+        const fml_ui_btn_t *b = &win->btn[i];
+        int32_t cx = (int32_t)(win->x + b->x + (b->w / 2U));
+        int32_t cy = (int32_t)(win->y + b->y + (b->h / 2U));
+        fml_ui_evt_t ev;
+        unsigned ok = 0U;
+
+        /* id 表往返：`fml_ui_btn_by_id` 返回第一个匹配的下标，两个按钮用了同一个
+         * id 时这里对不上 —— 那种情况下串口会打出"点按钮 2 却报 btn=1"，
+         * 只看 hit 计数是抓不住的。它同时也给这个 API 一个真实消费者，
+         * 否则 --gc-sections 会把它丢掉（头里声明、镜像里没有符号）。 */
+        if (fml_ui_btn_by_id(win, b->id) != (int)i) {
+            continue;
+        }
+
+        fml_ui_feed(win, cx, cy, 1);
+        fml_ui_feed(win, cx, cy, 0);
+        while (fml_ui_next(&ev) != 0) {
+            if ((ev.type == FML_UI_EVT_CLICK) && (ev.id == b->id)) {
+                ok = 1U;
+            }
+        }
+        hit += ok;
+    }
+
+    ovf = fml_ui_overflow();
+    BSL_LOG_INF(" win=1 btn=");
+    bsl_log_put_dec((int)win->n_btn);
+    BSL_LOG_INF(" hit=");
+    bsl_log_put_dec((int)hit);
+    BSL_LOG_INF("/");
+    bsl_log_put_dec((int)win->n_btn);
+    BSL_LOG_INF(" ink=");
+    bsl_log_put_dec((int)ink);
+    BSL_LOG_INF(" ovf=");
+    bsl_log_put_dec((int)ovf);
+    return ((hit == win->n_btn) && (ink > 0U) && (ovf == 0U)) ? 1 : 0;
+}
+
 int main(void)
 {
     int rc;
@@ -248,12 +324,19 @@ int main(void)
      * board_system_init 专用的（复用会把"哪一级失败"搅在一起）。 */
     (void)bsl_board_periph_init();
 
+    /* P4 的演示窗口先建好：POST 的 ui 项要拿它注入点击，应用任务还没起来。
+     * 幂等，app_sample_start() 会再调一次。 */
+    app_sample_ui_init();
+
     /* 注册失败要看得见：静默丢项会让 result 的 total 少 1，而没人知道为什么。 */
     if (board_post_register("font", app_display_check) == 0) {
         BSL_LOG_INF("[post] font register FAIL\r\n");
     }
     if (board_post_register("fatfs", app_fatfs_check) == 0) {
         BSL_LOG_INF("[post] fatfs register FAIL\r\n");
+    }
+    if (board_post_register("ui", app_ui_check) == 0) {
+        BSL_LOG_INF("[post] ui register FAIL\r\n");
     }
 
     /* 上电自检：设备初始化之后单独跑一轮，结果只走串口。

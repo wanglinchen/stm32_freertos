@@ -1,0 +1,59 @@
+# P4 串口取证：窗口 / 控件 / 事件（`fml_ui`）
+
+- 日期：2026-11-24
+- 分支/提交：`feature/full-demo`，父提交 P4 核对修订 `0f27f67`
+- 固件：userdebug `text 548788 / data 28 / bss 27980`；user 档 `text 542816 / data 28 / bss 27980`（1 MB flash 用 53%）
+- 采集：COM3 / 115200 / 8N1；先开串口后台采集 80 s，再 `flash/flash.py flash`（548 KB 镜像烧写约 45 s，窗口必须长于烧写，否则复位后的 POST 整段落在窗口外）
+
+## 通过那一版（`hit=3/3`）
+
+```text
+[post] sdram size=32M bad=0 PASS
+[post] lcd w=800 h=480 bad=0 PASS
+[post] touch id=9147 points=0 PASS
+[post] nor id=0xef4019 size=32M PASS
+[post] font c0=48 c1=45 c2=70 c3=46 w=8 h=16 ink=22 blank=0 cjk_min=45 PASS
+[post] fatfs total=25568KB ents=2 [SYSTEM 0B DIR] [??????~1 0B DIR] SYSTEM:n=3 [APP 0B DIR] [SPB 0B DIR] [LWIP 0B DIR] ??????~1:n=16 [ALIENT~1.TXT 2486B] [??????~1.AVI 2534868B] [??????~1.SMS 262144B] [????28~1.BIN 44804B] PASS
+[post] ui win=1 btn=3 hit=3/3 ink=231 ovf=0 PASS
+[post] result 7 pass 7 fail 0
+
+stm32-freertos: USART1 115200 debug ready
+```
+
+判据拆解：
+
+| 字段 | 值 | 说明 |
+|---|---|---|
+| `win=1` | 1 个窗口 | 单活动窗口（`fml_ui` 的事件状态是模块级 static，多窗口留给 P5） |
+| `btn=3` | 3 个按钮 | 窗口内横排 3×96 px，屏幕坐标 (440,330)+(18..322, 64..100) |
+| `hit=3/3` | 3 次注入点击全部产出 id 对得上的 CLICK | 注入 = 每按钮矩形中心按下 + 抬起 |
+| `ink=231` | 三个按钮内部（扣掉 1 px 边框）非背景像素总数 | 只数边框会把"只有框、没有字"也算成画好了 |
+| `ovf=0` | 事件队列零溢出 | 溢出 = 点了没反应，而串口上看不出区别 |
+
+## 第一版 FAIL 与修法（`hit=0/3`）
+
+```text
+[post] ui win=1 btn=3 hit=0/3 ink=231 ovf=0 FAIL
+[post] result 7 pass 6 fail 1
+```
+
+`ink=231` 说明窗口与按钮文字都画上屏了，`ovf=0` 说明队列没堵，只有 CLICK 一个都没产生。
+
+根因在 `fml_ui_feed` 的分支结构：函数开头按 `pressed ? fml_ui_hit(x,y) : -1` 算命中下标，
+而 CLICK 的判定写的是 `idx == s_press_btn` —— 抬起帧 `pressed=0`，`idx` 被强制成 -1，
+于是"抬起点与按下点是否同一按钮"永远不成立，CLICK 永远不产。
+
+修法不是"抬起时再算一次命中"，而是把判定建立到已有的状态上：按下期间每帧都在
+`feed(pressed=1)` 里更新 `s_press_btn`（手指在按钮间滑动会被实时记成 -1），抬手时
+直接看 `s_press_btn >= 0` 就产 CLICK。**抬起帧不重算命中** —— 那时总线上已经没有
+触点，坐标是上一帧残值甚至清零，拿它重算会把正常点击判成"滑出"。
+
+这也解释了为什么 `ink` 与 `ovf` 两个判据必须留着：只打 `hit=0/3` 无法区分
+"窗口没画"、"队列堵了"、"命中算错"三种完全不同的故障。
+
+## 尚未覆盖
+
+- **真手指**：屏上点一次按钮应打 `[ui] hit btn=<id> x=.. y=..`，并让该按钮在按下期间
+  反色（黄底）。这一笔同时决定"坐标有没有左右反"：命中用 `fml_ui` 自己的几何算，
+  驱动侧不动；若反了，只在 `fml_ui` 的坐标入口加一次映射。
+- 拖动语义（按下后滑到另一个按钮再抬起）没有任何用例，P5 需要时再定。
