@@ -65,4 +65,12 @@ typedef struct {
     const char *(*product_id)(void);
 } bsl_touch_api_t;
 
+/* SPI NOR：JEDEC、容量、按字节读。读失败必须返回非 BSL_OK —— FATFS 侧
+ * 把"读失败"当 0xFFFFFFFF 传回上层，静默返回 0 会让文件系统以为读到了全 0。 */
+typedef struct {
+    uint32_t (*jedec)(void);
+    uint32_t (*size)(void);
+    bsl_err_t (*read)(uint32_t addr, void *buf, uint32_t len);
+} bsl_nor_api_t;
+
 #endif

@@ -1,0 +1,62 @@
+# P2a 串口取证：SPI5 + W25Q256（JEDEC + 4 字节地址读）
+
+- 日期：2026-11-24
+- 分支/提交：`feature/full-demo`，父提交 P1b `50e3827`
+- 固件：userdebug，`text 101688 / data 20 / bss 22988`（user 档 `text 97288`）
+- 采集：COM3 / 115200 / 8N1；串口先开（后台读 22 s），再 `flash/flash.py flash`（`** Verified OK **` → `** Resetting Target **` 触发复位）
+
+```text
+[post] sdram size=32M bad=0 PASS
+[post] lcd w=800 h=480 bad=0 PASS
+[post] touch id=9147 points=0 PASS
+[post] nor id=0xef4019 size=32M PASS
+[post] font w=8 h=16 ink=22 blank=0 PASS
+[post] result 5 pass 5 fail 0
+
+stm32-freertos: USART1 115200 debug ready
+[led] R=1 G=0
+[led] R=0 G=1
+```
+
+## nor 这一行怎么判
+
+| 字段 | 实测 | 含义 |
+|---|---|---|
+| `id=0xef4019` | 0x9F 读回 3 字节 | **SPI5 整条链路通了**：PF7 SCK 出时钟、PF9 MOSI 出命令、PF8 MISO 回数据、PF6 片选动作正确；0xEF=Winbond，0x40=SPI NOR 容量族，0x19=2^25=32 MB |
+| `size=32M` | 来自 DTB `nor` 节点的 `size` | 与 ID 的容量码互相印证：ID 说 32 MB，节点也说 32 MB，两者不一致就是 DTB 写错了 |
+| `PASS` | 两个条件同时成立 | `jedec == 0xEF4019` 且 `size == 0x02000000` |
+
+ID 读成 `0x000000` / `0xFFFFFF` 是 MISO 悬空或 CS 不动，与"型号不对"是两件事；`board_nor_init` 对这两类分别返回 `BSL_ERR_TIMEOUT` / `BSL_ERR_INVAL`，在 `bsl_init` 的 FAILED 状态里可区分。
+
+## 为什么读用 0x13 而不是 0x03
+
+32 MB 器件用 3 字节地址只能覆盖前 16 MB。越过 16 MB 的读**不是失败**，而是静默回绕到 0 —— 现场表现是"文件系统挂上了，但后半段的文件内容全是文件头"。0x13（Read Data with 4-Byte Address）本身就是 4 字节地址命令，不需要先切 4 字节地址模式（0xB7），少一个"可能没生效"的状态。
+
+**未验证**：本次只验了 JEDEC ID，没验跨 16 MB 边界的实际读。POST 阶段不擦不写（会毁掉板上已有数据），也没有可靠的"内容判据"——空片全 0xFF 时，回绕与不回绕读出来一模一样。这条等 P2b 的 FATFS 往 16 MB 之后写文件时自然覆盖，届时 `f_mount` 能挂上、文件能读回来就是证据。
+
+## 这一批踩到的两个编译期事实
+
+1. **HAL SPI 在本工程是裁掉的**：`hal/periph/inc/stm32f4xx_hal_conf.h` 里 `HAL_SPI_MODULE_ENABLED` 是注释状态，`project/config/stm32f429_defconfig_common` 里 `CONFIG_HAL_PERIPH_SRC_STM32F4XX_HAL_SPI=n`。只开一处会在链接期报 `undefined reference to HAL_SPI_Init`（头文件里的宏定义被 `#ifdef HAL_SPI_MODULE_ENABLED` 包住，编译期就报 `SPI_BAUDRATEPRESCALER_8 undeclared`）。两处必须同步放开。
+2. **`-Werror` 下的注释也算诊断**：`board_touch.h` 里写了 `*x/*y` 这种"两个指针"的写法，`/*` 出现在注释正文里会触发 `-Werror=comment`，整档编译失败。
+
+## 代码落点与关键取舍
+
+| 位置 | 内容 |
+|---|---|
+| `bsl/inc/bsl_spi.h` `bsl/src/bsl_spi.c` | 参数化 SPI（三根线各自 port/pin + AF），mode 0、8 bit、APB2/8 = 10.5 MHz；`HAL_SPI_MspInit` 只开时钟，引脚由 `bsl_spi_init` 自己配 |
+| `bsl/inc/board_nor.h` `bsl/src/board_nor.c` | JEDEC、容量、0x13 分块读（256 B 一块） |
+| `bsl/inc/board_rt.h` `bsl/src/board_rt.c` | `board_rt_nor_t` + `parse_nor` |
+| `project/generate.py` | DTB `nor` 节点（`spi-inst` / `sck` / `miso` / `mosi` / `cs-gpios` / `size` / `page-size` / `sector-size`） |
+| `bsl/src/board_post.c` | `post_nor`（第 5 项） |
+
+四条取舍：
+
+1. **三根线分开给，不合成一个 mask**：一个 mask 无法表达"哪一位是 MISO"，驱动只能靠硬编码位索引，换一种接法就整体错位，现场只是"ID 读成 0"。
+2. **读数据阶段用独立哑元缓冲**：复用命令缓冲 `cmd[5]` 时，块一超过 5 字节就读到栈上别的内容，而 SPI 不会报错，数据只是错的。
+3. **rx 为 NULL 走 `HAL_SPI_Transmit`**：`HAL_SPI_TransmitReceive` 会往 NULL 写，命令字节阶段传 NULL 就是运行期崩溃而不是返回值。
+4. **片选先配成输出再立刻写空闲**：上电默认浮空输入、ODR=0，配成输出的瞬间对低有效 CS 就是"一上电就选中"，器件会把随后的时钟当成一条命令的前半截。
+
+## 未做
+
+- 扇区擦除（0x20/0xD8）与页写（0x02）尚未实现：P2b 做 FATFS 时才需要，且必须先在 `bsl_nor` 侧补齐并做"写-读-比对"自测，不在 POST 里跑（会破坏板上数据）。
+- 跨 16 MB 边界的读未验（见上）。

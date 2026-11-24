@@ -13,6 +13,11 @@
 
 void bsl_log_puts(const char *s);
 void bsl_log_put_dec(int value);
+
+/* 定宽十六进制（digits 1..8，越界夹住）。给 JEDEC ID / 寄存器读回这类
+ * 必须与手册逐字节对的值用；十进制在这种值上没有可比性。 */
+void bsl_log_put_hex(uint32_t value, unsigned digits);
+
 void bsl_log_mod_puts(const char *mod, const char *s);
 
 /* 把环形里保留的最后若干行日志倒到 UART（只给 panic 路径用）。

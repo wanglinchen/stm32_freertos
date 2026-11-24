@@ -82,6 +82,30 @@ typedef struct {
 
 int board_rt_touch(board_rt_touch_t *out);
 
+/* SPI NOR（W25Q256，32 MB）：SPI 实例号、三根信号线（各自 port/pin + AF）、
+ * 片选脚及其极性、容量/页/扇区。
+ *
+ * 三根线分开给而不是一个 mask：驱动要按 SCK/MISO/MOSI 各配一次 AF，一个 mask
+ * 无法表达"哪一位是 MISO"，只能靠代码里硬编码位索引。 */
+typedef struct {
+    SPI_TypeDef *inst;
+    GPIO_TypeDef *sck_port;
+    unsigned sck_pin;
+    GPIO_TypeDef *miso_port;
+    unsigned miso_pin;
+    GPIO_TypeDef *mosi_port;
+    unsigned mosi_pin;
+    unsigned af;
+    GPIO_TypeDef *cs_port;
+    unsigned cs_pin;
+    int cs_active_low; /* 1 = 低电平选中 */
+    uint32_t size;     /* 字节 */
+    uint32_t page_size;
+    uint32_t sector_size;
+} board_rt_nor_t;
+
+int board_rt_nor(board_rt_nor_t *out);
+
 unsigned board_rt_led_count(void);
 GPIO_TypeDef *board_rt_led_port(void);
 uint16_t board_rt_led_pin(unsigned index);

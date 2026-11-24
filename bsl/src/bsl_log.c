@@ -283,6 +283,30 @@ void bsl_log_put_dec(int value)
 }
 
 /*
+ * 定宽十六进制（digits 位，1..8）。给"必须能和手册逐字节对"的值用：
+ * JEDEC ID、寄存器读回、地址。十进制在这类值上没有可比性 —— 0xEF4019 打成
+ * 15679513 之后没人能一眼看出它是 Winbond。
+ * digits 越界按 1..8 夹住，不返回错误：日志函数不该在错误路径上再制造分支。
+ */
+void bsl_log_put_hex(uint32_t value, unsigned digits)
+{
+    static const char hex[] = "0123456789abcdef";
+    char ch[2] = {'\0', '\0'};
+    unsigned shift;
+
+    if (digits == 0U) {
+        digits = 1U;
+    }
+    if (digits > 8U) {
+        digits = 8U;
+    }
+    for (shift = digits; shift > 0U; shift--) {
+        ch[0] = hex[(value >> ((shift - 1U) * 4U)) & 0xFU];
+        bsl_log_puts(ch);
+    }
+}
+
+/*
  * 把环形里的行按"最老 → 最新"倒出来。只给 panic 路径用。
  *
  * 直接调 board_debug_uart_puts 而不经 bsl_log_puts：后者会把这些行再写进 ring，

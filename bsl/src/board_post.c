@@ -138,6 +138,38 @@ static void post_touch(void)
 }
 
 /*
+ * nor：读 3 字节 JEDEC ID。
+ *
+ * PASS 判据是"ID 等于 0xEF4019 且容量等于 32 MB"：0xEF = Winbond，
+ * 0x40 = SPI NOR 容量族，0x19 = 2^25 = 32 MB。ID 读成 0x000000 / 0xFFFFFF
+ * 是 MISO 悬空或 CS 没动，与"型号不对"是两件事 —— 这里只把两者都判 FAIL，
+ * 具体是哪一种由 board_nor_init 的返回值在 bsl_init 的 FAILED 状态里区分。
+ *
+ * 不做读写一致性：写要先擦扇区，POST 阶段擦掉板上已有的数据是不可接受的副作用。
+ */
+static void post_nor(void)
+{
+    uint32_t jedec;
+    uint32_t size;
+    const bsl_nor_api_t *nor;
+
+    if (bsl_device_is_ready(BSL_DEV_NOR) == 0) {
+        post_begin("nor ready=0");
+        post_end(0);
+        return;
+    }
+    nor = bsl_devapi_nor();
+    jedec = nor->jedec();
+    size = nor->size();
+    post_begin("nor id=0x");
+    bsl_log_put_hex(jedec, 6U);
+    BSL_LOG_INF(" size=");
+    bsl_log_put_dec((int)(size >> 20));
+    BSL_LOG_INF("M");
+    post_end(((jedec == 0xEF4019U) && (size == 0x02000000U)) ? 1 : 0);
+}
+
+/*
  * 外部项（apl 注册）：
  *
  * "屏上有没有文字"必须用 fml 的字库与画布才验得出来，而 bsl 不能反向依赖 fml
@@ -185,6 +217,7 @@ void board_post_run(void)
     post_sdram();
     post_lcd();
     post_touch();
+    post_nor();
     post_ext();
 
     BSL_LOG_MOD_INF(POST_LOG_MOD, "result ");

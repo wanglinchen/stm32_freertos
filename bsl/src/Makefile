@@ -24,6 +24,7 @@ LOCAL_OBJS :=
 -include $(BUILD_DIR)/bsl/src/board_key.d
 -include $(BUILD_DIR)/bsl/src/board_lcd.d
 -include $(BUILD_DIR)/bsl/src/board_led.d
+-include $(BUILD_DIR)/bsl/src/board_nor.d
 -include $(BUILD_DIR)/bsl/src/board_post.d
 -include $(BUILD_DIR)/bsl/src/board_rt.d
 -include $(BUILD_DIR)/bsl/src/board_sdram.d
@@ -37,6 +38,7 @@ LOCAL_OBJS :=
 -include $(BUILD_DIR)/bsl/src/bsl_init.d
 -include $(BUILD_DIR)/bsl/src/bsl_log.d
 -include $(BUILD_DIR)/bsl/src/bsl_pcf8574.d
+-include $(BUILD_DIR)/bsl/src/bsl_spi.d
 
 ifeq ($(CONFIG_BSL),y)
 ifeq ($(CONFIG_BSL_SRC),y)
@@ -112,6 +114,19 @@ $(BUILD_DIR)/bsl/src/board_led.o: $(PROJECT_ROOT)/bsl/src/board_led.c $(FLAG_DEP
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_led.d -c $< -o $@
 	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_led.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BOARD_NOR),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/board_nor.o
+$(BUILD_DIR)/bsl/src/board_nor.o: $(PROJECT_ROOT)/bsl/src/board_nor.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_nor.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_nor.d
 endif
 endif
 endif
@@ -281,6 +296,19 @@ $(BUILD_DIR)/bsl/src/bsl_pcf8574.o: $(PROJECT_ROOT)/bsl/src/bsl_pcf8574.c $(FLAG
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/bsl_pcf8574.d -c $< -o $@
 	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/bsl_pcf8574.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BSL_SPI),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/bsl_spi.o
+$(BUILD_DIR)/bsl/src/bsl_spi.o: $(PROJECT_ROOT)/bsl/src/bsl_spi.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/bsl_spi.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/bsl_spi.d
 endif
 endif
 endif

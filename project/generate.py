@@ -1260,6 +1260,23 @@ _BOARD_NODES = """\
         sda-gpios = <&gpioi 3 0>;
     };
 
+    /* W25Q256（32 MB）挂在 SPI5：SCK=PF7 / MISO=PF8 / MOSI=PF9（AF5），
+     * 片选 PF6（板上网络 F_CS，低有效）。三个引脚各写一条属性、值 (port, pin, af)：
+     * 一个 mask 无法表达"哪一位是 MISO"，驱动只能靠硬编码位索引，换接法就整体错位。
+     * 容量/页/扇区也在这里：擦写粒度错了的表现是"写进去再读变 0xFF"，
+     * 比读不到更难查。 */
+    nor: nor {
+        compatible = "winbond,w25q256";
+        spi-inst = <5>;
+        sck = <&gpiof 7 5>;
+        miso = <&gpiof 8 5>;
+        mosi = <&gpiof 9 5>;
+        cs-gpios = <&gpiof 6 1>;
+        size = <0x02000000>;
+        page-size = <256>;
+        sector-size = <4096>;
+    };
+
     leds {
         compatible = "brd,gpio-leds";
         active-low;

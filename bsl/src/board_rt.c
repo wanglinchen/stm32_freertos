@@ -9,6 +9,7 @@
 #define RT_COMPAT_SDRAM "brd,fmc-sdram"
 #define RT_COMPAT_PANEL "brd,rgb-panel"
 #define RT_COMPAT_TOUCH "goodix,gt9147"
+#define RT_COMPAT_NOR "winbond,w25q256"
 #define RT_COMPAT_LEDS "brd,gpio-leds"
 #define RT_COMPAT_KEYS "brd,gpio-keys"
 #define RT_COMPAT_I2C "brd,i2c-gpio"
@@ -71,6 +72,9 @@ typedef struct {
 
     int touch_ok;
     board_rt_touch_t touch;
+
+    int nor_ok;
+    board_rt_nor_t nor;
 } board_rt_t;
 
 static board_rt_t s_rt;
@@ -604,6 +608,99 @@ static void parse_touch(void)
     s_rt.touch_ok = 1;
 }
 
+/*
+ * nor：W25Q256 挂在 SPI5（SCK=PF7 / MISO=PF8 / MOSI=PF9，AF5），片选 PF6。
+ *
+ * 三根信号线各读一次、各自落定 —— 与 touch 同一口径：共用一份 cells 时
+ * 后读会顶掉先读，三根线互换的直接后果是"ID 读成 0xFF 或 0x00"，而没有任何
+ * 读数能指出是哪一根错了。
+ *
+ * 容量/页/扇区也来自 DTB 而不是代码常量：擦写粒度错了的后果是"读能读到、
+ * 写进去再读变成 0xFF"，比读不到更难查。
+ */
+static void parse_nor(void)
+{
+    bsl_fdt_node_t node = bsl_fdt_find(RT_COMPAT_NOR, 0U);
+    board_rt_nor_t n;
+    uint32_t inst_no = 0U;
+    uint32_t size = 0U;
+    uint32_t page = 0U;
+    uint32_t sector = 0U;
+    uint32_t cells[3];
+    GPIO_TypeDef *port;
+
+    if (node == NULL) {
+        return;
+    }
+    if (bsl_fdt_prop_u32(node, "spi-inst", &inst_no) == 0
+        || bsl_fdt_prop_u32(node, "size", &size) == 0
+        || bsl_fdt_prop_u32(node, "page-size", &page) == 0
+        || bsl_fdt_prop_u32(node, "sector-size", &sector) == 0) {
+        return;
+    }
+    switch (inst_no) {
+    case 1U: n.inst = SPI1; break;
+    case 2U: n.inst = SPI2; break;
+    case 3U: n.inst = SPI3; break;
+    case 4U: n.inst = SPI4; break;
+    case 5U: n.inst = SPI5; break;
+    case 6U: n.inst = SPI6; break;
+    default: return;
+    }
+    if (size == 0U || page == 0U || sector == 0U || (size % sector) != 0U
+        || (sector % page) != 0U) {
+        return;
+    }
+
+    if (bsl_fdt_prop_cells(node, "sck", cells, 3U) != 3U) {
+        return;
+    }
+    port = board_rt_port_of_phandle(cells[0]);
+    if (port == NULL || cells[1] > 15U || cells[2] > 15U) {
+        return;
+    }
+    n.sck_port = port;
+    n.sck_pin = (unsigned)cells[1];
+    n.af = (unsigned)cells[2];
+
+    if (bsl_fdt_prop_cells(node, "miso", cells, 3U) != 3U) {
+        return;
+    }
+    port = board_rt_port_of_phandle(cells[0]);
+    if (port == NULL || cells[1] > 15U || cells[2] != n.af) {
+        return;
+    }
+    n.miso_port = port;
+    n.miso_pin = (unsigned)cells[1];
+
+    if (bsl_fdt_prop_cells(node, "mosi", cells, 3U) != 3U) {
+        return;
+    }
+    port = board_rt_port_of_phandle(cells[0]);
+    if (port == NULL || cells[1] > 15U || cells[2] != n.af) {
+        return;
+    }
+    n.mosi_port = port;
+    n.mosi_pin = (unsigned)cells[1];
+
+    if (bsl_fdt_prop_cells(node, "cs-gpios", cells, 3U) != 3U) {
+        return;
+    }
+    port = board_rt_port_of_phandle(cells[0]);
+    if (port == NULL || cells[1] > 15U) {
+        return;
+    }
+    n.cs_port = port;
+    n.cs_pin = (unsigned)cells[1];
+    n.cs_active_low = (cells[2] != 0U) ? 1 : 0;
+
+    n.size = size;
+    n.page_size = page;
+    n.sector_size = sector;
+    s_rt.nor = n;
+    s_rt.nor_ok = 1;
+}
+
 static void parse_all(void)
 {
     if (s_rt.parsed) {
@@ -617,6 +714,7 @@ static void parse_all(void)
     parse_sdram();
     parse_panel();
     parse_touch();
+    parse_nor();
     parse_leds();
     parse_keys();
     parse_i2c();
@@ -840,5 +938,15 @@ int board_rt_touch(board_rt_touch_t *out)
         return 0;
     }
     *out = s_rt.touch;
+    return 1;
+}
+
+int board_rt_nor(board_rt_nor_t *out)
+{
+    parse_all();
+    if (!s_rt.nor_ok || out == NULL) {
+        return 0;
+    }
+    *out = s_rt.nor;
     return 1;
 }

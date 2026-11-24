@@ -25,6 +25,10 @@ config BSL_SRC_BOARD_LED
 	bool "board_led.c"
 	default y
 
+config BSL_SRC_BOARD_NOR
+	bool "board_nor.c"
+	default y
+
 config BSL_SRC_BOARD_POST
 	bool "board_post.c"
 	default y
@@ -75,6 +79,10 @@ config BSL_SRC_BSL_LOG
 
 config BSL_SRC_BSL_PCF8574
 	bool "bsl_pcf8574.c"
+	default y
+
+config BSL_SRC_BSL_SPI
+	bool "bsl_spi.c"
 	default y
 
 endmenu
