@@ -23,7 +23,21 @@ uint32_t board_nor_jedec(void);
 /* 器件容量（字节）；未初始化返回 0。 */
 uint32_t board_nor_size(void);
 
-/* 从 addr 起读 len 字节（逐页 4 字节地址读命令，实现在 bsl 侧）。 */
+/* 从 addr 起读 len 字节（0x13 四字节地址读，按页分块）。 */
 bsl_err_t board_nor_read(uint32_t addr, void *buf, uint32_t len);
+
+/* 擦一个扇区（4 KB，0x21 四字节地址扇区擦）。addr 必须扇区对齐 ——
+ * 未对齐直接返回 BSL_ERR_INVAL：芯片会把未对齐地址向下取整，擦掉的是
+ * 调用方没打算动的那一块。 */
+bsl_err_t board_nor_erase_sector(uint32_t addr);
+
+/* 从 addr 起写 len 字节（自动按页拆，写满一页不跨页回卷）。
+ * 只写，不擦：NOR 只能把 1 写成 0，目标区域必须是已擦除的。
+ * 由调用方（FatFs 的 disk_write）保证"先擦后写"。 */
+bsl_err_t board_nor_write(uint32_t addr, const void *buf, uint32_t len);
+
+/* 页/扇区大小（来自 DTB，未初始化返回 0）。 */
+uint32_t board_nor_page_size(void);
+uint32_t board_nor_sector_size(void);
 
 #endif /* BOARD_NOR_H */

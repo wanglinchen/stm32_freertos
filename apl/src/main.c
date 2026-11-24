@@ -6,6 +6,7 @@
 #include "bsl_init.h"
 #include "bsl_log.h"
 #include "fml_font.h"
+#include "fml_fatfs.h"
 #include "fml_gui.h"
 #include "fml_panic.h"
 #include "osl_boot.h"
@@ -59,6 +60,82 @@ static int app_display_check(void)
     return ((ink > 0U) && (blank == 0U)) ? 1 : 0;
 }
 
+/*
+ * 文件系统自检：POST 的 fatfs 项。
+ *
+ * 判据两条：`f_mount` 返回 FR_OK，且根目录能列出来。
+ * 只验挂载不够 —— f_mount(opt=1) 只读引导扇区、解析 BPB，FAT 表本身与根目录
+ * 一个字节都没碰；BPB 完好而 FAT 表被写坏时它能报"挂载成功"，第一次读目录
+ * 才暴雷。所以再走一遍 f_opendir("/") + f_readdir，把根目录项数和前几项名字
+ * 打出来。files=0 仍然算 PASS：空卷是合法卷，不能因为"没东西"判故障。
+ *
+ * 失败时打 `fr=`（FRESULT 原值），不翻译成文字：FRESULT 与 ff.h 一一对应，
+ * 多一张对照表反而容易和上游对不上。
+ *
+ * 不在 POST 里格式化：`f_mkfs` 会把板上 NOR 现有的内容（出厂写过的 GBK 字库）
+ * 整片擦掉。要格式化必须由人在串口命令行显式发起，不能藏在自检里。
+ */
+/* 打一条目录项：`[NAME 123B]`，目录再加 ` DIR`。 */
+static void app_fatfs_print_dirent(const fml_fatfs_dirent_t *de)
+{
+    BSL_LOG_INF(" [");
+    bsl_log_puts(de->name);
+    BSL_LOG_INF(" ");
+    bsl_log_put_dec((int)de->size);
+    BSL_LOG_INF("B");
+    if (de->is_dir != 0U) {
+        BSL_LOG_INF(" DIR");
+    }
+    BSL_LOG_INF("]");
+}
+
+static int app_fatfs_check(void)
+{
+    fml_fatfs_dirent_t de[4];
+    const unsigned show = (unsigned)(sizeof(de) / sizeof(de[0]));
+    unsigned total = 0U;
+    unsigned i;
+
+    if (fml_fatfs_mount() != BSL_OK) {
+        BSL_LOG_INF(" fr=");
+        bsl_log_put_dec(fml_fatfs_last_error());
+        return 0;
+    }
+
+    BSL_LOG_INF(" total=");
+    bsl_log_put_dec((int)fml_fatfs_total_kb());
+    BSL_LOG_INF("KB");
+
+    if (fml_fatfs_list_dir("/", de, show, &total) != BSL_OK) {
+        BSL_LOG_INF(" list fr=");
+        bsl_log_put_dec(fml_fatfs_last_error());
+        return 0;
+    }
+    /* 叫 ents 而不是 files：根目录里的条目混着目录（"SYSTEM" 这种），
+     * 打 files= 会让人以为里面有 2 个文件。 */
+    BSL_LOG_INF(" ents=");
+    bsl_log_put_dec((int)total);
+    for (i = 0U; (i < show) && (i < total); i++) {
+        app_fatfs_print_dirent(&de[i]);
+    }
+
+    /* 子目录：只是证据，不参与判据（判据是上面 mount + 根目录两步）。
+     * 列出来是因为板上根目录只有一个 SYSTEM 目录，字库文件在它里面 ——
+     * 这一行走的是 FAT 链（读数据簇），比只读根目录更能证明卷是真的能读。 */
+    BSL_LOG_INF(" /SYSTEM:");
+    if (fml_fatfs_list_dir("/SYSTEM", de, show, &total) != BSL_OK) {
+        BSL_LOG_INF("fr=");
+        bsl_log_put_dec(fml_fatfs_last_error());
+    } else {
+        BSL_LOG_INF("n=");
+        bsl_log_put_dec((int)total);
+        for (i = 0U; (i < show) && (i < total); i++) {
+            app_fatfs_print_dirent(&de[i]);
+        }
+    }
+    return 1;
+}
+
 int main(void)
 {
     int rc;
@@ -81,6 +158,9 @@ int main(void)
     /* 注册失败要看得见：静默丢项会让 result 的 total 少 1，而没人知道为什么。 */
     if (board_post_register("font", app_display_check) == 0) {
         BSL_LOG_INF("[post] font register FAIL\r\n");
+    }
+    if (board_post_register("fatfs", app_fatfs_check) == 0) {
+        BSL_LOG_INF("[post] fatfs register FAIL\r\n");
     }
 
     /* 上电自检：设备初始化之后单独跑一轮，结果只走串口。

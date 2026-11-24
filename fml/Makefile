@@ -16,6 +16,7 @@ INCLUDE_DIRS += $(PROJECT_ROOT)/hal/chip/register/inc
 INCLUDE_DIRS += $(PROJECT_ROOT)/hal/chip/startup/inc
 INCLUDE_DIRS += $(PROJECT_ROOT)/hal/periph/inc
 INCLUDE_DIRS += $(PROJECT_ROOT)/fml/inc
+INCLUDE_DIRS += $(PROJECT_ROOT)/fml/src/fatfs
 INCLUDE_DIRS += $(PROJECT_ROOT)/bsl/inc
 INCLUDES := $(addprefix -I,$(INCLUDE_DIRS))
 
@@ -25,29 +26,35 @@ LOCAL_OBJS :=
 ARCHIVE_OBJS :=
 ifeq ($(CONFIG_FML),y)
 ifeq ($(CONFIG_FML_SRC),y)
-ifeq ($(CONFIG_FML_SRC_FML_FONT),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/fml/src/fml_fatfs.o
+endif
+endif
+ifeq ($(CONFIG_FML),y)
+ifeq ($(CONFIG_FML_SRC),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/fml/src/fml_font.o
 endif
 endif
-endif
 ifeq ($(CONFIG_FML),y)
 ifeq ($(CONFIG_FML_SRC),y)
-ifeq ($(CONFIG_FML_SRC_FML_FONT_ASCII8X16),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/fml/src/fml_font_ascii8x16.o
 endif
 endif
-endif
 ifeq ($(CONFIG_FML),y)
 ifeq ($(CONFIG_FML_SRC),y)
-ifeq ($(CONFIG_FML_SRC_FML_GUI),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/fml/src/fml_gui.o
 endif
 endif
+ifeq ($(CONFIG_FML),y)
+ifeq ($(CONFIG_FML_SRC),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/fml/src/fml_panic.o
+endif
 endif
 ifeq ($(CONFIG_FML),y)
 ifeq ($(CONFIG_FML_SRC),y)
-ifeq ($(CONFIG_FML_SRC_FML_PANIC),y)
-ARCHIVE_OBJS += $(BUILD_DIR)/fml/src/fml_panic.o
+ifeq ($(CONFIG_FML_SRC_FATFS),y)
+ifeq ($(CONFIG_FML_SRC_FATFS_FF),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/fml/src/fatfs/ff.o
+endif
 endif
 endif
 endif

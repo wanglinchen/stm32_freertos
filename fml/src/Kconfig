@@ -1,20 +1,11 @@
 # 自动生成，勿手改。刷新：python3 build/build.py update
 menu "src"
 
-config FML_SRC_FML_FONT
-	bool "fml_font.c"
+config FML_SRC_FATFS
+	bool "fatfs"
 	default y
-
-config FML_SRC_FML_FONT_ASCII8X16
-	bool "fml_font_ascii8x16.c"
-	default y
-
-config FML_SRC_FML_GUI
-	bool "fml_gui.c"
-	default y
-
-config FML_SRC_FML_PANIC
-	bool "fml_panic.c"
-	default y
+if FML_SRC_FATFS
+source "fml/src/fatfs/Kconfig"
+endif
 
 endmenu

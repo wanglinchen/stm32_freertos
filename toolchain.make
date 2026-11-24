@@ -40,6 +40,8 @@ ALLOC_GUARD := -include $(PROJECT_ROOT)/osl/inc/osl_alloc_guard.h
 CPU_FLAGS := -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard
 CHIP_DEFS = $(foreach config,$(filter CONFIG_STM32%,$(.VARIABLES)),$(if $(filter y,$($(config))),-D$(subst XX,xx,$(patsubst CONFIG_%,%,$(config)))))
 CFLAGS = $(CPU_FLAGS) $(CHIP_DEFS) $(OPT) $(DEBUG) $(REPRO) $(ALLOC_GUARD) -std=c11 -ffunction-sections -fdata-sections -fno-common -Wall -Wextra -Werror -fstack-usage -Wmissing-prototypes -Wstrict-prototypes $(INCLUDES)
+# 第三方源码（fml/src/fatfs 等）用这一组：保留 -Wall 便于看问题，但去掉 -Werror 与 -Wmissing-prototypes —— 上游代码没有本工程那条「每个非 static 函数都要有原型」的约束， 而为了过 -Werror 去改第三方源码，下次换版本就把补丁丢了。
+CFLAGS_PLAIN = $(CPU_FLAGS) $(CHIP_DEFS) $(OPT) $(DEBUG) $(REPRO) $(ALLOC_GUARD) -std=c11 -ffunction-sections -fdata-sections -fno-common -Wall $(INCLUDES)
 CXXFLAGS = $(CPU_FLAGS) $(CHIP_DEFS) $(OPT) $(DEBUG) $(REPRO) $(ALLOC_GUARD) -std=c++17 -ffunction-sections -fdata-sections -fno-exceptions -fno-rtti -Wall -Wextra -Werror -fstack-usage $(INCLUDES)
 ASFLAGS = $(CPU_FLAGS) $(CHIP_DEFS) $(OPT) $(DEBUG) $(REPRO) $(INCLUDES)
 LDSCRIPT := $(PROJECT_ROOT)/hal/chip/linker/stm32f429igx_flash.ld

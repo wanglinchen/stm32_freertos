@@ -1,0 +1,90 @@
+# P2b 串口取证：FatFs 挂 NOR（卷 0）
+
+- 日期：2026-11-24
+- 分支/提交：`feature/full-demo`，父提交 P2a `f4e10e4`
+- 固件：userdebug，`text 107268 / data 20 / bss 27660`（user 档 `text 101784 / bss 27652`）
+- 采集：COM3 / 115200 / 8N1；串口先开（后台读 25 s），再 `flash/flash.py flash`（`** Verified OK **` → `** Resetting Target **` 触发复位）
+
+```text
+[post] sdram size=32M bad=0 PASS
+[post] lcd w=800 h=480 bad=0 PASS
+[post] touch id=9147 points=0 PASS
+[post] nor id=0xef4019 size=32M PASS
+[post] font w=8 h=16 ink=22 blank=0 PASS
+[post] fatfs total=25568KB ents=2 [SYSTEM 0B DIR] [??????~1 0B DIR] /SYSTEM:n=3 [APP 0B DIR] [SPB 0B DIR] [LWIP 0B DIR] PASS
+[post] result 6 pass 6 fail 0
+
+stm32-freertos: USART1 115200 debug ready
+[led] R=1 G=0
+[led] R=0 G=1
+```
+
+## fatfs 这一行怎么判
+
+| 字段 | 实测 | 含义 |
+|---|---|---|
+| `total=25568KB` | `(n_fatent-2) × csize × 512 >> 10` | 卷的有效数据区约 25 MB（32 MB 器件减去 FAT 表与保留扇区）。数字来自已挂载的 `FATFS` 结构，不再发 I/O |
+| `ents=2` | 根目录 2 项 | 读到了根目录，说明 **FAT 表与根目录簇都真读出来了**；只列 0 项才是"卷空"或"读失败" |
+| `[SYSTEM 0B DIR]` | `fattrib & AM_DIR` | 目录，不是文件 —— 所以字段叫 `ents` 不叫 `files` |
+| `[??????~1 0B DIR]` | 短名被 FatFs 填成 `?` | 那个目录是**长文件名**，`FF_USE_LFN=0` 时 FatFs 用 `?` 顶替非法字符。用它 `f_opendir` 打不开（`FR_INVALID_NAME`），P3 若要进去必须开 LFN |
+| `/SYSTEM:n=3` | 子目录列举（3 项） | `APP` / `SPB` / `LWIP` 三个目录。**这一行才是"卷真能读"的强证据**：读子目录要走 FAT 链、读数据簇，而 `f_mount` 只读 BPB |
+| `PASS` | 两条同时成立 | `f_mount(opt=1)` 返回 `FR_OK` **且** 根目录 `f_opendir`+`f_readdir` 成功。`ents=0`（空卷）也算 PASS —— 空卷是合法卷 |
+
+## 这一批最重要的发现：逻辑扇区是 512 B，不是 4 KB
+
+上一版把 `FF_MIN_SS`/`FF_MAX_SS` 都设成 4096，理由是"W25Q256 的擦除粒度是 4 KB"。上板第一次读出的结果是：
+
+```text
+[post] fatfs nor@00000000=ebfe904d53444f53352e300002080100 nor@01000000=fffffffffffffffffffffffffffffffffatfs fr=13 FAIL
+```
+
+`nor@0` 开头 16 字节是 `EB FE 90 "MSDOS5.0" 00 02 08 01 00` —— **板上早就有 FAT 引导扇区**，其中 `00 02` = `BPB_BytsPerSec = 512`。`fr=13` 是 `FR_NO_FILESYSTEM`：`mount_volume()` 会把 BPB 的扇区大小去比 `[FF_MIN_SS, FF_MAX_SS]` 区间，512 落在 4096..4096 之外，于是**板上现成的卷当场读不了**。
+
+`0x01000000`（16 MB 处）全 `0xFF`，卷没有用到后半段。
+
+正确口径：
+
+| 概念 | 值 | 谁负责 |
+|---|---|---|
+| 逻辑扇区 `FF_MIN_SS = FF_MAX_SS` | **512 B** | FatFs，按 BPB 发 LBA |
+| 物理擦除块 | **4 KB**（8 个逻辑扇区） | `disk_write` 的读改写 |
+
+读不需要对齐（NOR 支持任意地址读），写必须"读整块 4 KB → 替换 512 B 窗口 → 擦 → 写回"，否则擦完那一块，另外 3584 B 会变成 `0xFF`。`GET_BLOCK_SIZE` 回 8（不是 1）：回 1 会让 `f_mkfs` 以为每 512 B 可单独擦。
+
+## 卷里到底有什么（给 P3 的输入）
+
+- 根目录：`SYSTEM`（目录）、一个长名目录（短名 `??????~1`）
+- `/SYSTEM`：`APP`、`SPB`、`LWIP`（都是目录）
+- **字库文件没有出现在这两层**：它要么在 `??????~1` 目录里，要么更深。字库**不是 NOR 裸区数据**，是 FAT 卷里的文件 —— 对照表 P3 行的假设（"字库在 NOR 固定区"）据此修正。
+
+`FF_USE_LFN = 0` 的后果：短名被填成 `?` 的目录无法用路径打开。P3 的两种走法：① 开 `FF_USE_LFN = 1` + `ffunicode.c`（`FF_CODE_PAGE = 936` 带 GBK 双字节表，flash 涨几 KB）；② 绕过路径，按 FAT 目录项直接扫卷定位文件。
+
+## 这一批踩到的两个编译期事实
+
+1. **`ff.h` 必须先于 `diskio.h`**：`diskio.h` 用的是 `ff.h` 里的 `BYTE`/`UINT`/`LBA_t`，自己不带类型定义。顺序反了会得到一串 `unknown type name 'BYTE'`；更要紧的是 `disk_*` 的原型声明随之消失，`-Werror=missing-prototypes` 会把 5 个函数全判错。
+2. **R0.15 的 `ff.h` 没有 `AM_VOL`**：只定义了 `AM_RDO`/`HID`/`SYS`/`DIR`/`ARC`。卷标位（0x08）要用就得本地定义，否则编译期 `'AM_VOL' undeclared`。
+
+## 代码落点与关键取舍
+
+| 位置 | 内容 |
+|---|---|
+| `fml/src/fatfs/ff.c` `ff.h` `ffconf.h` `diskio.h` | FatFs R0.15 原样（`ffunicode.c` 未收录，`FF_USE_LFN=0` 不需要） |
+| `fml/src/fatfs/ffconf.h` | 三处改动：`FF_MIN_SS`/`FF_MAX_SS = 512`、`FF_FS_NORTC = 1`（无 RTC，否则链接缺 `get_fattime`）、`FF_CODE_PAGE = 936`（配 P3 字库） |
+| `fml/inc/fml_fatfs.h` `fml/src/fml_fatfs.c` | `disk_status/initialize/read/write/ioctl` + `fml_fatfs_mount` + `fml_fatfs_list_dir` |
+| `bsl/inc/board_nor.h` `bsl/src/board_nor.c` | 补 0x06 WREN、0x05 RDSR1 忙等、**0x21 扇区擦**、**0x12 页写**（都是 4 字节地址） |
+| `project/generate.py` | `CFLAGS_PLAIN`（保留 `-Wall`、去掉 `-Werror` 与 `-Wmissing-prototypes`）+ `is_third_party_source()`（路径含 `fatfs` 即用），不为过 `-Werror` 去改第三方源码 |
+| `apl/src/main.c` | `app_fatfs_check`（POST 第 6 项，`fatfs`） |
+
+四条取舍：
+
+1. **第三方源码不套 `-Werror`**：改它就是在维护一个私有 fork，换版本时丢补丁；不如把 `-Werror` 只留给本工程代码。
+2. **`f_mount(opt=1)` 而不是 `opt=0`**：`opt=0` 把 I/O 推迟到首次访问，POST 打出来的"挂载成功"其实什么都没验。
+3. **判据加根目录列举**：`f_mount` 只读 BPB，FAT 表被写坏时它能报成功；列目录才会真正走 FAT 链。
+4. **不在 POST 里 `f_mkfs`**：`FF_USE_MKFS = 0`，且格式化会擦掉板上现有卷（含字库）。自检只报状态，格式化必须由人显式发起。
+
+## 未做 / 敞口
+
+- **写路径一个字节都没实测**：`disk_write` 的读改写逻辑只有编译期保证，没有跑过任何一次真实扇区写。要验必须落一个文件再读回（会改动板上卷），属于"要做但没做"的明确缺口。
+- **`f_mkfs` 未开**（`FF_USE_MKFS = 0`），无可逆地重建卷的能力；对板上已有卷也不该随便重建。
+- 跨 16 MB 边界的读仍未验：卷只用到前段，P2a 留下的这条敞口继续挂着。
+- `FF_FS_REENTRANT = 0`（单线程约束）未与第二个消费者对齐；一旦有任务与 POST 并发读文件，要先开 REENTRANT 并提供 osl 互斥实现。

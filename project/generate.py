@@ -532,6 +532,10 @@ def write_toolchain(info: dict) -> None:
         f"CPU_FLAGS := {cpu_flags(info)}",
         "CHIP_DEFS = $(foreach config,$(filter CONFIG_STM32%,$(.VARIABLES)),$(if $(filter y,$($(config))),-D$(subst XX,xx,$(patsubst CONFIG_%,%,$(config)))))",
         "CFLAGS = $(CPU_FLAGS) $(CHIP_DEFS) $(OPT) $(DEBUG) $(REPRO) $(ALLOC_GUARD) -std=c11 -ffunction-sections -fdata-sections -fno-common -Wall -Wextra -Werror -fstack-usage -Wmissing-prototypes -Wstrict-prototypes $(INCLUDES)",
+        "# 第三方源码（fml/src/fatfs 等）用这一组：保留 -Wall 便于看问题，但去掉 -Werror 与"
+        " -Wmissing-prototypes —— 上游代码没有本工程那条「每个非 static 函数都要有原型」的约束，"
+        " 而为了过 -Werror 去改第三方源码，下次换版本就把补丁丢了。",
+        "CFLAGS_PLAIN = $(CPU_FLAGS) $(CHIP_DEFS) $(OPT) $(DEBUG) $(REPRO) $(ALLOC_GUARD) -std=c11 -ffunction-sections -fdata-sections -fno-common -Wall $(INCLUDES)",
         "CXXFLAGS = $(CPU_FLAGS) $(CHIP_DEFS) $(OPT) $(DEBUG) $(REPRO) $(ALLOC_GUARD) -std=c++17 -ffunction-sections -fdata-sections -fno-exceptions -fno-rtti -Wall -Wextra -Werror -fstack-usage $(INCLUDES)",
         "ASFLAGS = $(CPU_FLAGS) $(CHIP_DEFS) $(OPT) $(DEBUG) $(REPRO) $(INCLUDES)",
         f"LDSCRIPT := $(PROJECT_ROOT)/{rel}",
@@ -674,8 +678,19 @@ def layer_header_dirs(layer: str) -> list[Path]:
         if not directory.relative_to(ROOT).parts
         or directory.relative_to(ROOT).parts[0] in visible_layers
     ]
+def is_third_party_source(source: Path) -> bool:
+    """第三方源码目录：目前只有 fml/src/fatfs（FatFs R0.15）。
+
+    判据是目录名而不是文件名单：FatFs 只有 ff.c 一个编译单元，但以后
+    ffunicode.c 之类的可选单元一旦启用也要走同一套宽松标志。
+    """
+    return "fatfs" in source.parts
+
+
 def compile_tool(source: Path) -> tuple[str, str, str]:
     if source.suffix == ".c":
+        if is_third_party_source(source):
+            return "CC", "$(CC) $(CFLAGS_PLAIN)", dep_path(source)
         return "CC", "$(CC) $(CFLAGS)", dep_path(source)
     if source.suffix in {".cpp", ".cc", ".cxx"}:
         return "CXX", "$(CXX) $(CXXFLAGS)", dep_path(source)

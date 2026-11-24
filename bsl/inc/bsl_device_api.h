@@ -65,12 +65,17 @@ typedef struct {
     const char *(*product_id)(void);
 } bsl_touch_api_t;
 
-/* SPI NOR：JEDEC、容量、按字节读。读失败必须返回非 BSL_OK —— FATFS 侧
- * 把"读失败"当 0xFFFFFFFF 传回上层，静默返回 0 会让文件系统以为读到了全 0。 */
+/* SPI NOR：JEDEC、容量/页/扇区、按字节读、擦扇区、按页写。
+ * 读/写失败必须返回非 BSL_OK —— FatFs 侧靠这个返回值把 RES_ERROR 传回上层，
+ * 静默返回成功会让文件系统以为写进去了。 */
 typedef struct {
     uint32_t (*jedec)(void);
     uint32_t (*size)(void);
+    uint32_t (*page_size)(void);
+    uint32_t (*sector_size)(void);
     bsl_err_t (*read)(uint32_t addr, void *buf, uint32_t len);
+    bsl_err_t (*erase_sector)(uint32_t addr);
+    bsl_err_t (*write)(uint32_t addr, const void *buf, uint32_t len);
 } bsl_nor_api_t;
 
 #endif

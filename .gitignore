@@ -22,3 +22,5 @@ out/boot*.log
 out/*_test.log
 out/test_dump.log
 out/sdram_post.log
+# 第三方源码的原始压缩包（下载物，不进仓库；解出的源码在 fml/src/fatfs/）
+out/*.zip
