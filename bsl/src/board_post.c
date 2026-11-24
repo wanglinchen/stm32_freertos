@@ -100,6 +100,45 @@ static void post_lcd(void)
     post_end((w != 0U) && (h != 0U) && (bad == 0U));
 }
 
+/*
+ * 外部项（apl 注册）：
+ *
+ * "屏上有没有文字"必须用 fml 的字库与画布才验得出来，而 bsl 不能反向依赖 fml
+ * （bsl/src/Makefile 的 INCLUDE_DIRS 里没有 fml/inc）。所以项从上面注册进来，
+ * 汇总与格式留在本文件 —— 依赖方向不变，串口上仍是同一套 [post] 行。
+ *
+ * 外部项与内置项走同一对 post_begin/post_end：否则 result 里的 total 会把它们
+ * 漏掉，"2 pass" 与屏上实际验过的项数对不上。
+ */
+static const char *s_ext_item[BOARD_POST_EXT_MAX];
+static int (*s_ext_fn[BOARD_POST_EXT_MAX])(void);
+static unsigned s_ext_count;
+
+int board_post_register(const char *item, int (*fn)(void))
+{
+    if (item == NULL || fn == NULL) {
+        return 0;
+    }
+    /* 上限由头文件公开，注册方据此判断"没有位置"而不是静默丢项。 */
+    if (s_ext_count >= BOARD_POST_EXT_MAX) {
+        return 0;
+    }
+    s_ext_item[s_ext_count] = item;
+    s_ext_fn[s_ext_count] = fn;
+    s_ext_count++;
+    return 1;
+}
+
+static void post_ext(void)
+{
+    unsigned i;
+
+    for (i = 0U; i < s_ext_count; i++) {
+        post_begin(s_ext_item[i]);
+        post_end(s_ext_fn[i]());
+    }
+}
+
 void board_post_run(void)
 {
     s_total = 0U;
@@ -108,6 +147,7 @@ void board_post_run(void)
 
     post_sdram();
     post_lcd();
+    post_ext();
 
     BSL_LOG_MOD_INF(POST_LOG_MOD, "result ");
     bsl_log_put_dec((int)s_total);

@@ -29,6 +29,7 @@ LOCAL_OBJS :=
 -include $(BUILD_DIR)/bsl/src/board_sdram.d
 -include $(BUILD_DIR)/bsl/src/board_system.d
 -include $(BUILD_DIR)/bsl/src/bsl_device.d
+-include $(BUILD_DIR)/bsl/src/bsl_fb.d
 -include $(BUILD_DIR)/bsl/src/bsl_fdt.d
 -include $(BUILD_DIR)/bsl/src/bsl_gpio.d
 -include $(BUILD_DIR)/bsl/src/bsl_i2c_gpio.d
@@ -175,6 +176,19 @@ $(BUILD_DIR)/bsl/src/bsl_device.o: $(PROJECT_ROOT)/bsl/src/bsl_device.c $(FLAG_D
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/bsl_device.d -c $< -o $@
 	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/bsl_device.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BSL_FB),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/bsl_fb.o
+$(BUILD_DIR)/bsl/src/bsl_fb.o: $(PROJECT_ROOT)/bsl/src/bsl_fb.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/bsl_fb.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/bsl_fb.d
 endif
 endif
 endif

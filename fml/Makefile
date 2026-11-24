@@ -25,6 +25,27 @@ LOCAL_OBJS :=
 ARCHIVE_OBJS :=
 ifeq ($(CONFIG_FML),y)
 ifeq ($(CONFIG_FML_SRC),y)
+ifeq ($(CONFIG_FML_SRC_FML_FONT),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/fml/src/fml_font.o
+endif
+endif
+endif
+ifeq ($(CONFIG_FML),y)
+ifeq ($(CONFIG_FML_SRC),y)
+ifeq ($(CONFIG_FML_SRC_FML_FONT_ASCII8X16),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/fml/src/fml_font_ascii8x16.o
+endif
+endif
+endif
+ifeq ($(CONFIG_FML),y)
+ifeq ($(CONFIG_FML_SRC),y)
+ifeq ($(CONFIG_FML_SRC_FML_GUI),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/fml/src/fml_gui.o
+endif
+endif
+endif
+ifeq ($(CONFIG_FML),y)
+ifeq ($(CONFIG_FML_SRC),y)
 ifeq ($(CONFIG_FML_SRC_FML_PANIC),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/fml/src/fml_panic.o
 endif

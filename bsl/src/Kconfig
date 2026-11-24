@@ -45,6 +45,10 @@ config BSL_SRC_BSL_DEVICE
 	bool "bsl_device.c"
 	default y
 
+config BSL_SRC_BSL_FB
+	bool "bsl_fb.c"
+	default y
+
 config BSL_SRC_BSL_FDT
 	bool "bsl_fdt.c"
 	default y

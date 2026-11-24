@@ -1,0 +1,51 @@
+# P1 串口取证：帧缓冲原语 + 字库 + 屏上文字
+
+- 日期：2026-11-24
+- 分支/提交：`feature/full-demo`，P0b 提交 `cd00b87`
+- 固件：userdebug，`text 94392 / data 20 / bss 22340`
+- 采集：COM3 / 115200 / 8N1；串口先开，再 `flash/flash.py flash`（末尾 `** Verified OK **` 触发复位）
+
+```text
+[post] sdram size=32M bad=0 PASS
+[post] lcd w=800 h=480 bad=0 PASS
+[post] font w=8 h=16 ink=22 blank=0 PASS
+[post] result 3 pass 3 fail 0
+
+stm32-freertos: USART1 115200 debug ready
+[led] R=1 G=0
+[led] R=0 G=1
+```
+
+## font 这一行怎么判
+
+| 字段 | 实测 | 含义 |
+|---|---|---|
+| `w=8 h=16` | 字形 8×16 像素 | `fml_font_ascii8x16` 的 `width/height` |
+| `ink=22` | 画 `M` 后该 8×16 区域非背景像素 22 个 | 字确实写进帧缓冲了（`bsl_fb_count_nonbg` 直接读像素，不看返回值） |
+| `blank=0` | 画一个空格后同尺寸区域非背景像素 0 个 | 字形表没有脏行/没有整体错位 |
+
+两个方向都测，才算判据：只看 `ink>0` 时，一张"每个码位都取到相邻字形"的错位表同样能让 `ink>0`；`blank≠0` 说明表里有脏行，会把每个字都糊成一团。
+
+## 为什么这一项不在 bsl 里
+
+`board_post_run()` 在 bsl 层，而 `bsl/src/Makefile` 的 `INCLUDE_DIRS` 只有 hal 与 `bsl/inc` —— bsl 不能 include `fml/inc`。第一版把 `post_font` 直接写在 `board_post.c` 里，编译期就会因找不到 `fml_font.h` 失败。
+
+改成注册式：`board_post_register("font", fn)` 由 `apl/src/main.c` 在 `board_post_run()` 之前注册，`board_post.c` 只负责按序调用与汇总。依赖方向仍然是 apl → fml → bsl，串口上仍是同一套 `[post]` 格式，`result` 的 total 也把这一项算进去了（3 项）。
+
+注册上限 `BOARD_POST_EXT_MAX = 4`，超限 `board_post_register` 返回 0，main 里打 `[post] font register FAIL` —— 不静默丢项。
+
+## 字形表怎么来的
+
+`fml/tools/gen_ascii8x16.py` 用本机等宽字体（consola 12）渲染 0x20..0x7E 共 95 字，每字 16 B、共 1520 B，输出 `fml/src/fml_font_ascii8x16.c`（文件头写明"生成，勿手改"）。
+
+不搬参考工程 `lcd_ex.c` 的 `asc2_*`：那是另一份半角点阵，与 P3 要接的 GBK 全角字库重复（对照表 §7）。生成脚本带一条自检：空格字形必须全 0，否则脚本直接失败退出 —— 因为 `blank=0` 这条判据依赖它。
+
+## 屏上应看到的最终画面
+
+- 上方 2/3：红块 + 绿块（`post_lcd` 画的三色块，蓝块在下方）
+- 下方蓝区被一条黑条覆盖，黑条上三行白字：
+  `STM32-FREERTOS`
+  `full-demo P1 display`
+  第三行是判据字符（空格与 `M`，靠左，肉眼在 8×16 下是一个空格加一个 M）
+
+一次 POST 之后两份人眼证据同时留在屏上：色块 → 面板/数据线通；文字 → 字库/画布通。

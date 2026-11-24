@@ -22,7 +22,49 @@ INCLUDES := $(addprefix -I,$(INCLUDE_DIRS))
 FLAG_DEPS := $(wildcard $(PROJECT_ROOT)/toolchain.make) $(wildcard $(PROJECT_ROOT)/out/$(BUILD_VARIANT)/.config)
 
 LOCAL_OBJS :=
+-include $(BUILD_DIR)/fml/src/fml_font.d
+-include $(BUILD_DIR)/fml/src/fml_font_ascii8x16.d
+-include $(BUILD_DIR)/fml/src/fml_gui.d
 -include $(BUILD_DIR)/fml/src/fml_panic.d
+
+ifeq ($(CONFIG_FML),y)
+ifeq ($(CONFIG_FML_SRC),y)
+ifeq ($(CONFIG_FML_SRC_FML_FONT),y)
+LOCAL_OBJS += $(BUILD_DIR)/fml/src/fml_font.o
+$(BUILD_DIR)/fml/src/fml_font.o: $(PROJECT_ROOT)/fml/src/fml_font.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/fml/src/fml_font.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/fml/src/fml_font.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_FML),y)
+ifeq ($(CONFIG_FML_SRC),y)
+ifeq ($(CONFIG_FML_SRC_FML_FONT_ASCII8X16),y)
+LOCAL_OBJS += $(BUILD_DIR)/fml/src/fml_font_ascii8x16.o
+$(BUILD_DIR)/fml/src/fml_font_ascii8x16.o: $(PROJECT_ROOT)/fml/src/fml_font_ascii8x16.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/fml/src/fml_font_ascii8x16.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/fml/src/fml_font_ascii8x16.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_FML),y)
+ifeq ($(CONFIG_FML_SRC),y)
+ifeq ($(CONFIG_FML_SRC_FML_GUI),y)
+LOCAL_OBJS += $(BUILD_DIR)/fml/src/fml_gui.o
+$(BUILD_DIR)/fml/src/fml_gui.o: $(PROJECT_ROOT)/fml/src/fml_gui.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/fml/src/fml_gui.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/fml/src/fml_gui.d
+endif
+endif
+endif
 
 ifeq ($(CONFIG_FML),y)
 ifeq ($(CONFIG_FML_SRC),y)
