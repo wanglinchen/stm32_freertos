@@ -49,6 +49,10 @@ config BSL_SRC_BOARD_TOUCH
 	bool "board_touch.c"
 	default y
 
+config BSL_SRC_BOARD_WM8978
+	bool "board_wm8978.c"
+	default y
+
 config BSL_SRC_BSL_ADC
 	bool "bsl_adc.c"
 	default y
@@ -95,6 +99,10 @@ config BSL_SRC_BSL_RNG
 
 config BSL_SRC_BSL_RTC
 	bool "bsl_rtc.c"
+	default y
+
+config BSL_SRC_BSL_SAI
+	bool "bsl_sai.c"
 	default y
 
 config BSL_SRC_BSL_SPI

@@ -1,3 +1,4 @@
+#include "fml_audio.h"
 #include "fml_shell.h"
 
 #include <string.h>
@@ -164,6 +165,8 @@ static int cmd_rtc(int argc, char **argv, sh_out_t *o);
 static int cmd_temp(int argc, char **argv, sh_out_t *o);
 static int cmd_led(int argc, char **argv, sh_out_t *o);
 static int cmd_i2c(int argc, char **argv, sh_out_t *o);
+static int cmd_tone(int argc, char **argv, sh_out_t *o);
+static int cmd_vol(int argc, char **argv, sh_out_t *o);
 
 static const sh_cmd_t s_cmds[] = {
     {"help", "help", cmd_help},
@@ -172,6 +175,8 @@ static const sh_cmd_t s_cmds[] = {
     {"temp", "temp", cmd_temp},
     {"led", "led <0..2> <0|1>", cmd_led},
     {"i2c", "i2c scan | i2c rd <a7> <r8>", cmd_i2c},
+    {"tone", "tone <hz 20..20000> <ms 1..5000>", cmd_tone},
+    {"vol", "vol <0..63>", cmd_vol},
 };
 
 /* `beep` 命令已删除：蜂鸣器由策略永久禁用（bsl/board_beep.c 的 BEEP_ALLOW_ON），
@@ -341,6 +346,57 @@ static int cmd_i2c(int argc, char **argv, sh_out_t *o)
     }
     sh_puts(o, "usage: i2c scan | i2c rd <a7> <r8>");
     return 0;
+}
+
+/* tone：阻塞播放，响完才返回。所以这一行 `tone ok` 打出来的时候声音已经结束了
+ * —— 人耳听到的是**上一条命令**的回响，不是"正在响"。要边响边看串口做不到，
+ * 串口本身是独占的（bsl_log_puts 有 s_uart_busy）。 */
+static int cmd_tone(int argc, char **argv, sh_out_t *o)
+{
+    int hz = 0;
+    int ms = 0;
+
+    if ((argc < 3) || (sh_atoi(argv[1], &hz) != 0) || (sh_atoi(argv[2], &ms) != 0)
+        || (hz < 20) || (hz > 20000) || (ms < 1) || (ms > 5000)) {
+        sh_puts(o, "usage: tone <hz 20..20000> <ms 1..5000>");
+        return 0;
+    }
+    if (fml_audio_ready() == 0) {
+        sh_puts(o, "tone=not-ready");
+        return 0;
+    }
+    sh_puts(o, "tone ");
+    sh_dec(o, hz);
+    sh_puts(o, "Hz ");
+    sh_dec(o, ms);
+    sh_puts(o, "ms ... ");
+    if (fml_audio_tone((unsigned)hz, (unsigned)ms) != BSL_OK) {
+        sh_puts(o, "FAIL");
+        return 0;
+    }
+    sh_puts(o, "ok");
+    return 1;
+}
+
+static int cmd_vol(int argc, char **argv, sh_out_t *o)
+{
+    int v = 0;
+
+    if ((argc < 2) || (sh_atoi(argv[1], &v) != 0) || (v < 0) || (v > 63)) {
+        sh_puts(o, "usage: vol <0..63>");
+        return 0;
+    }
+    if (fml_audio_ready() == 0) {
+        sh_puts(o, "vol=not-ready");
+        return 0;
+    }
+    if (fml_audio_set_volume((unsigned)v) != BSL_OK) {
+        sh_puts(o, "vol FAIL");
+        return 0;
+    }
+    sh_puts(o, "vol=");
+    sh_dec(o, v);
+    return 1;
 }
 
 /* ---- 执行与轮询 --------------------------------------------------------- */

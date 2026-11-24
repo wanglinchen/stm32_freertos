@@ -9,6 +9,7 @@
 #include "bsl_log.h"
 #include "bsl_rng.h"
 #include "bsl_rtc.h"
+#include "bsl_sai.h"
 
 #define POST_LOG_MOD "post"
 
@@ -370,6 +371,93 @@ static void post_rng(void)
 }
 
 /*
+ * codec：WM8978 是**只写** I2C 器件（P6c-0 实测：0x1A 地址 ACK、读方向 NACK），
+ * 所以它没有"读回来对不对"这条判据。能做的硬判据只有一个：初始化那 14 条写事务
+ * 是不是全部被从机 ACK。少一条就说明总线/地址/时序里有一处不对 —— 那不是"声音
+ * 小一点"，是"根本没配上"。
+ */
+static void post_codec(void)
+{
+    const bsl_codec_api_t *api = bsl_devapi_codec();
+    unsigned ack;
+    unsigned want;
+
+    if (bsl_device_is_ready(BSL_DEV_CODEC) == 0) {
+        post_begin("codec dev=not-ready");
+        post_end(0);
+        return;
+    }
+    ack = api->ack_count();
+    want = api->reg_count();
+    post_begin("codec 1a regs=");
+    bsl_log_put_dec((int)want);
+    BSL_LOG_INF(" ack=");
+    bsl_log_put_dec((int)ack);
+    post_end((want != 0U && ack == want) ? 1 : 0);
+}
+
+/*
+ * sai：位时钟与数据流是否真的在跑。
+ *
+ * 判据不看"有没有配置成功"（那只是寄存器写进去了），看**样本被消耗的速度**：
+ * 一次性喂 2048 帧（32 位/帧），DMA 传完所用时间必须与 帧数/FS 对得上（±5%）。
+ * 这个时长只有位时钟真的在跑才可能成立 —— DMA 自己是不知道节拍的，它由 SAI 的
+ * 请求推动。同时报 SAI 状态里的 OVRUDR/WCKCFG：欠载说明 FIFO 供不上（听起来是
+ * 断续），时钟配置非法说明分频算错。
+ *
+ * 波形用 1 kHz 方波（左右同幅、幅度 ±0x1800 ≈ -12 dBFS）：这一项要真的出声，
+ * 人耳那一关只能人来判；串口这一行只证明"数据按时钟流走了"。**这不是蜂鸣器**：
+ * 出声的是 WM8978 → 喇叭/耳机，蜂鸣器那条路径已被 BEEP_ALLOW_ON=0 断路。
+ */
+static void post_sai(void)
+{
+    const bsl_sai_api_t *api = bsl_devapi_sai();
+    uint32_t *buf;
+    uint32_t frames = 2048U;
+    uint32_t fs;
+    uint32_t us = 0U;
+    uint32_t expect_us;
+    uint32_t tol_us;
+    bsl_err_t rc;
+    unsigned i;
+
+    if (bsl_device_is_ready(BSL_DEV_SAI) == 0) {
+        post_begin("sai dev=not-ready");
+        post_end(0);
+        return;
+    }
+    fs = api->sample_rate();
+    buf = api->buffer();
+    if (fs == 0U || buf == NULL || frames > BSL_SAI_BUF_FRAMES) {
+        post_begin("sai cfg=bad");
+        post_end(0);
+        return;
+    }
+    /* 半个周期的方波：48 个样本一个周期，前 24 个 +A、后 24 个 -A */
+    for (i = 0U; i < frames; i++) {
+        int16_t s = (((i % 48U) < 24U) ? 0x1800 : -0x1800);
+        buf[i] = ((uint32_t)(uint16_t)s << 16) | (uint32_t)(uint16_t)s;
+    }
+
+    rc = api->play_blocking(frames, &us);
+    expect_us = (frames * 1000000U) / fs;
+    /* 5% + 200 µs：CYCCNT 折算成 µs 后仍有 ±1 µs 量化，再给总线抖动一点余量。 */
+    tol_us = (expect_us / 20U) + 200U;
+    post_begin("sai fs=");
+    bsl_log_put_dec((int)fs);
+    BSL_LOG_INF(" frames=");
+    bsl_log_put_dec((int)frames);
+    BSL_LOG_INF(" us=");
+    bsl_log_put_dec((int)us);
+    BSL_LOG_INF(" expect=");
+    bsl_log_put_dec((int)expect_us);
+    BSL_LOG_INF(" err=");
+    bsl_log_put_dec((int)api->last_error());
+    post_end((rc == BSL_OK && api->last_error() == 0U
+              && us + tol_us >= expect_us && us <= expect_us + tol_us) ? 1 : 0);
+}
+
+/*
  * 外部项（apl 注册）：
  *
  * "屏上有没有文字"必须用 fml 的字库与画布才验得出来，而 bsl 不能反向依赖 fml
@@ -443,6 +531,8 @@ void board_post_run(void)
     post_adc();
     post_crc();
     post_rng();
+    post_codec();
+    post_sai();
     post_ext();
 
     BSL_LOG_MOD_INF(POST_LOG_MOD, "result ");

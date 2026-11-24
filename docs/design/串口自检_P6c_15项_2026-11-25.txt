@@ -1,0 +1,146 @@
+# 串口自检证据 —— P6c（音频链，15 项）
+
+日期：2026-11-25
+镜像：`feature/full-demo`，P6c 收工版本
+串口：USART1 / 115200 / 8N1，宿主采集 85 s 窗口覆盖烧写与复位
+
+## 一、上电自检（15 项，全 PASS）
+
+```
+[sai] init: fs=47973 hz mck-div=4 codec=1a cr1=00400240 frcr=00050f1f slotr=00030100
+[codec] wm8978 1a regs=14 ack=14
+[post] sdram size=32M bad=0 PASS
+[post] lcd w=800 h=480 bad=0 PASS
+[post] touch id=9147 points=0 PASS
+[post] nor id=0xef4019 size=32M PASS
+[post] rtc src=lse 2026-11-25 01:13:05 walk=1s PASS
+[post] adc raw=990 cal=935/1205 t=46.2C PASS
+[post] crc 0x4c40e0d7 expect=0x4c40e0d7 PASS
+[post] rng n=16 distinct=16 degen=0 PASS
+[post] codec 1a regs=14 ack=14 PASS
+[sai] play frames=2048 us=42656 us_start=2 ndtr0=2047 err=0
+[post] sai fs=47973 frames=2048 us=42656 expect=42690 err=0 PASS
+[post] font c0=48 c1=45 c2=70 c3=46 w=8 h=16 ink=22 blank=0 cjk_min=45 PASS
+[post] fatfs total=25568KB ents=2 [SYSTEM 0B DIR] [??????~1 0B DIR] SYSTEM:n=3 [APP 0B DIR] [SPB 0B DIR] [LWIP 0B DIR] ??????~1:n=16 [ALIENT~1.TXT 2486B] [??????~1.AVI 2534868B] [??????~1.SMS 262144B] [????28~1.BIN 44804B] PASS
+[post] ui win=1 btn=8 hit=8/8 ink=520 ovf=0 PASS
+[post] menu apps=8 enter=1 back=1 leave=8 enter2=2 calc=3 set=2 pic=240x320b24 note=2:d6d0/2:18 cal=20261125 depth=0 PASS
+[post] shell cmd=8 help=1 uptime=0ms PASS
+[post] result 15 pass 15 fail 0
+
+stm32-freertos: USART1 115200 debug ready
+[beep] on request ignored: buzzer disabled by policy
+[shell] ready cmds=8, type help
+```
+
+判据对照：
+
+| 项 | 判据 | 本条读数 |
+| --- | --- | --- |
+| `codec` | 14 次"7 位寄存器 + 9 位数据"写事务全部 ACK（只写器件没有回读通道） | `regs=14 ack=14` |
+| `sai` | 数据流段（FLVL 之后的 2047 帧）实测时长与 `frames/fs` 相差 ≤ 5%+200 µs，且 `err=0` | `us=42656` vs `expect=42690`，差 0.08%，`err=0` |
+
+`us_start` 是启动段（配参 + 起 DMA + 等 FIFO 非空）。它**不是常数**：同两份代码同一块板，先后两次上电分别读到 `4412` 与 `2`（差在 stop 时 EN 是否已经落下、FIFO 首字到得多快）。它**不计入判据**：
+它可能比整段 42.7 ms 的 5% 还大，算进去会把"帧率已经对了"误判成超差（见第六节）。
+
+## 二、DMA 通路（`[sai] start` 回读）
+
+> **这一行现在的形态变了**：收工前把它从"每次启动无条件打印"改成"只在读回与写入不一致时打印"
+> （`tone` 每敲一次都刷一行会把串口日志淹掉）。下面的读数取自改前的日志——它是当时的证据原件，
+> 判据本身（`NDTR/PAR` 是否站得住）没有变，只是失败时才可见。
+
+```
+改前（无条件打印，本板正常态）：
+[sai] start ndtr=2047 cr=00025441 par=40015820
+改后（只在异常时打印；正常播放静默，失败长这样）：
+[sai] start reg ignored: ndtr=0 cr=00000000 par=00000000
+```
+
+- `ndtr=2047`：写入 2048 后已搬走 1 帧（FIFO 里躺着），说明 PAR/M0AR/NDTR 都落了。
+- `cr=00025441`：`EN=1`(bit0)、`DIR=01`(bit6，内存→外设)、`MINC=1`(bit10)、
+  `PSIZE/MSIZE=10`(32 位)、`CHSEL=000`(bit27..25 → SAI1_A 的 Ch0)。
+- `par=40015820` = `SAI1_Block_A.DR`。
+
+**这一行是 P6c 最关键的一处纠正**：漏开 DMA2 时钟时同样的回读是
+`ndtr=0 cr=00000000 par=00000000`（写入被静默丢弃），而现象是"传输瞬间完成"。
+
+## 三、HIL：`tone` / `vol`（手敲逐字发送）
+
+```
+[shell] > help
+cmds=8:help, uptime, rtc, temp, led <0..2> <0|1>, i2c scan | i2c rd <a7> <r8>, tone <hz 20..20000> <ms 1..5000>, vol <0..63>
+
+[shell] > vol 40
+vol=40
+
+[shell] > tone 1000 300
+tone 1000Hz 300ms ... ok
+
+[shell] > tone 440 500
+tone 440Hz 500ms ... ok
+
+[shell] > vol 20
+vol=20
+```
+
+说明：`tone` 是阻塞的（响完才返回），所以 `... ok` 出现在声音结束之后 —— 人耳听到的
+是"上一条命令的回响"。（`tone` 的 DMA 走 CIRC=1 循环模式、POST 的 `sai` 走一次性普通模式，
+两者的 `cr` 差一位，见第二节。）
+
+## 四、双档构建与体积
+
+```
+text	   data	    bss	    dec	    hex	filename
+590820	     52	  52988	 643860	 9d314	out\userdebug\objects\target\stm32-freertos.elf
+579544	     52	  52980	 632576	 9a700	out\user\objects\target\stm32-freertos.elf
+```
+
+bss 比 P6c-0 的 44668 / 44668 多 **8320 B**：`BSL_SAI_BUF_FRAMES 2048 × 4 B` 的单帧
+缓冲（8192）+ 其余状态量。音频在本工程是独占资源，8 KB 只花一次。
+
+`nm` 复核（全部在镜像里，说明没有"头里声明、镜像无符号"的假 API）：
+
+```
+T board_rt_sai / board_rt_sai_pin_*        T board_wm8978_init/ready/ack_count/reg_count/set_volume
+T bsl_sai_init/buffer/start/play_blocking/stop/last_us/last_error/sample_rate
+R bsl_api_brd_sai / bsl_driver_brd_sai     R bsl_api_wolfson_wm8978 / bsl_driver_wolfson_wm8978
+T fml_audio_ready/set_volume/tone          t cmd_tone / cmd_vol    t post_codec / post_sai    t parse_sai
+```
+
+## 五、门禁
+
+- `python build\build.py update`：`out/dts/apollo.dtb` 65634 B，零 dtc 诊断。
+- 双档 `build`：`-Werror` 零告警。
+- `check`：不通过项回到历史遗留的 37 条（1 条 `ffconf.h` 守卫 + 2 条无消费者符号 +
+  34 条 FatFs 未用函数），**无新增**。过程中 `check` 抓到并修掉一处新增：`fml_audio`
+  引 `stm32f4xx_hal.h` 调 `HAL_Delay` → 层边组报"越级引用 fml→hal 1 处"，改用
+  `osl_thread_delay_ms`。
+
+## 六、三处"看起来都对、实际全错"的现场（判据与修法）
+
+1. **DMA2 时钟漏开**：`ndtr=0 cr=0 par=0` + `rc=-2`(TIMEOUT, 等 FIFO 非空 50 ms 超时)
+   + `[sai] play rc=-2` 之前一行都打不出来（原代码失败路径直接 return，`us=0` 读起来
+   像"太快了"，实际是"根本没开始"）。修法：`bsl_sai_init` 补 `__HAL_RCC_DMA2_CLK_ENABLE()`。
+   **教训**：外设寄存器"读回全 0"就是没上电的指纹，不要让"传输瞬间完成"这种二手现象
+   主导诊断。
+
+2. **帧率是 HAL 公式的 2 倍**：`MCKDIV=2` 时 2048 帧用了 25741 µs 总 / 21328 µs 数据流段
+   → 95.9 kHz，正好是 HAL 注释 `FS = SAI_CK/(512·MCKDIV)` 算出的 47.97 kHz 的 2 倍
+   ⇒ 实际帧周期是 **128 个 MCLK**（不是 256）。修法：DTB `mck-div` 2→4，
+   `bsl_sai.c` 按 `SAI_CK/(256·MCKDIV)` 折算，实测 47.99 kHz（与 DTB 声明 47973 差 0.08%）。
+
+3. **判据窗口选错**：`us_start`（配参 + 起 DMA + 等 FIFO 非空）当时读到 4412 µs，
+   **后来复测又读到 2 µs** —— 它不是常数，长度取决于 stop 时 EN 是否已落下、FIFO 首字多快到位。
+   FS 已对（数据流段 42657 µs / 2047 帧 = 47.99 kHz）时，用总时长 47069 µs 去比
+   42690 µs 仍判 FAIL。修法：计时起点挪到 FLVL 之后，只量数据流段；`us_start` 降级为
+   纯诊断量，不参与判据。
+
+## 七、没验到的部分（写清，不粉饰）
+
+- **"真的出声"**：串口只能证"数据按时钟流走 + 帧率对得上"。声音是否真出来、音量与
+  音色如何，只能人耳；POST 期间会播 2048 帧 1 kHz 方波（≈43 ms），`tone` 可手敲复验。
+- **WM8978 型号的最终定音**：仍是"地址 ACK + 只写 I2C + SAI 引脚 + 出声"这四条间接证据
+  合并结论，芯片丝印未拆机核对。
+- **右声道**：`tone` 与 POST 都是左右同幅（同一采样塞进高/低 16 位），因此"右声道是否
+  真的通"没有被单独验过；单声道故障会被掩盖。
+- **MCLK 比例**：本板 MCLK = 128×FS（不是 I2S 常规的 256×FS），WM8978 作为从机不依赖
+  MCLK 分频比，但若将来改成 codec 主模式，这条必须重算。

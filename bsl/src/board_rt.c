@@ -19,6 +19,7 @@
 #define RT_COMPAT_UART "brd,usart-ch340"
 #define RT_COMPAT_RTC "brd,rtc"
 #define RT_COMPAT_ADC "brd,adc-temp"
+#define RT_COMPAT_SAI "brd,sai"
 
 typedef struct {
     int parsed;
@@ -85,6 +86,13 @@ typedef struct {
 
     int adc_ok;
     board_rt_adc_t adc;
+
+    int sai_ok;
+    board_rt_sai_t sai;
+    unsigned sai_group_count;
+    GPIO_TypeDef *sai_group_port[RT_MAX_PIN_GROUPS];
+    uint16_t sai_group_mask[RT_MAX_PIN_GROUPS];
+    uint32_t sai_group_af[RT_MAX_PIN_GROUPS];
 } board_rt_t;
 
 static board_rt_t s_rt;
@@ -775,6 +783,93 @@ static void parse_adc(void)
     s_rt.adc_ok = 1;
 }
 
+/*
+ * sai：音频播放链（SAI1 block A + 挂在软件 I2C 上的 WM8978）。
+ *
+ * 与 panel 同一条纪律：全部解析到局部变量，全成功才提交。这里失败的现场是
+ * "一点声音都没有"，比面板偏色更难查 —— 没有任何读数指向"DTB 里 pll2-q 少写了"。
+ *
+ * codec 是 phandle：地址只写一次（wm8978 节点的 reg），sai 节点引用它。
+ * 没挂 codec 时 codec_addr7 留 0，board_wm8978 据此拒绝初始化，不去猜 0x1A。
+ */
+static void parse_sai(void)
+{
+    bsl_fdt_node_t node = bsl_fdt_find(RT_COMPAT_SAI, 0U);
+    bsl_fdt_node_t codec;
+    board_rt_sai_t t;
+    uint32_t cells[RT_MAX_PIN_GROUPS * 3U];
+    uint32_t ph[1];
+    uint32_t reg[2];
+    GPIO_TypeDef *port[RT_MAX_PIN_GROUPS];
+    uint16_t mask[RT_MAX_PIN_GROUPS];
+    uint32_t af[RT_MAX_PIN_GROUPS];
+    unsigned n;
+    unsigned groups;
+    unsigned i;
+
+    if (node == NULL) {
+        return;
+    }
+    if (bsl_fdt_prop_u32(node, "sample-rate", &t.sample_rate) == 0
+        || bsl_fdt_prop_u32(node, "mck-div", &t.mck_div) == 0
+        || bsl_fdt_prop_u32(node, "pll2-n", &t.pll2_n) == 0
+        || bsl_fdt_prop_u32(node, "pll2-q", &t.pll2_q) == 0
+        || bsl_fdt_prop_u32(node, "pll2-divq", &t.pll2_divq) == 0) {
+        return;
+    }
+    /* 范围按手册与本工程时钟卡住，不放过"看着像参数"的值：
+     *   FS 8k..96k（WM8978 的 MCLK=256fs 方案支持的范围）、
+     *   MCKDIV 1..15（CR1 字段 4 位，0 等于不分频、会超 SAI 时钟上限）、
+     *   PLLI2S N 50..432（1 MHz 输入下 VCO 必须落在 100..432 MHz，N=50 只到 50 MHz
+     *   会被下方 100 MHz 下限挡掉，这里先保住字段宽度）、Q 2..15、DIVQ 0..31。 */
+    if (t.sample_rate < 8000U || t.sample_rate > 96000U) {
+        return;
+    }
+    if (t.mck_div < 1U || t.mck_div > 15U) {
+        return;
+    }
+    if (t.pll2_n < 50U || t.pll2_n > 432U) {
+        return;
+    }
+    if (t.pll2_q < 2U || t.pll2_q > 15U) {
+        return;
+    }
+    if (t.pll2_divq > 31U) {
+        return;
+    }
+    n = bsl_fdt_prop_cells(node, "sai-pins", cells, RT_MAX_PIN_GROUPS * 3U);
+    if (n < 3U || (n % 3U) != 0U) {
+        return;
+    }
+    groups = n / 3U;
+    for (i = 0U; i < groups; i++) {
+        port[i] = board_rt_port_of_phandle(cells[i * 3U]);
+        mask[i] = (uint16_t)(cells[i * 3U + 1U] & 0xFFFFU);
+        af[i] = cells[i * 3U + 2U];
+        if (port[i] == NULL || mask[i] == 0U || af[i] > 15U) {
+            return;
+        }
+    }
+
+    t.codec_addr7 = 0U;
+    if (bsl_fdt_prop_cells(node, "codec", ph, 1U) == 1U) {
+        codec = bsl_fdt_by_phandle(ph[0]);
+        if (codec != NULL && bsl_fdt_prop_cells(codec, "reg", reg, 1U) == 1U
+            && reg[0] < 0x78U && reg[0] >= 0x08U) {
+            t.codec_addr7 = (uint8_t)reg[0];
+        }
+    }
+
+    s_rt.sai = t;
+    s_rt.sai_group_count = groups;
+    for (i = 0U; i < groups; i++) {
+        s_rt.sai_group_port[i] = port[i];
+        s_rt.sai_group_mask[i] = mask[i];
+        s_rt.sai_group_af[i] = af[i];
+    }
+    s_rt.sai_ok = 1;
+}
+
 static void parse_all(void)
 {
     if (s_rt.parsed) {
@@ -795,6 +890,7 @@ static void parse_all(void)
     parse_uart();
     parse_rtc();
     parse_adc();
+    parse_sai();
 }
 
 uint32_t board_rt_hse_hz(void)
@@ -1044,4 +1140,38 @@ int board_rt_adc_temp(board_rt_adc_t *out)
     }
     *out = s_rt.adc;
     return 1;
+}
+
+int board_rt_sai(board_rt_sai_t *out)
+{
+    parse_all();
+    if (!s_rt.sai_ok || out == NULL) {
+        return 0;
+    }
+    *out = s_rt.sai;
+    return 1;
+}
+
+unsigned board_rt_sai_pin_groups(void)
+{
+    parse_all();
+    return s_rt.sai_group_count;
+}
+
+GPIO_TypeDef *board_rt_sai_pin_port(unsigned index)
+{
+    parse_all();
+    return (index < s_rt.sai_group_count) ? s_rt.sai_group_port[index] : NULL;
+}
+
+uint16_t board_rt_sai_pin_mask(unsigned index)
+{
+    parse_all();
+    return (index < s_rt.sai_group_count) ? s_rt.sai_group_mask[index] : 0U;
+}
+
+uint32_t board_rt_sai_pin_af(unsigned index)
+{
+    parse_all();
+    return (index < s_rt.sai_group_count) ? s_rt.sai_group_af[index] : 0U;
 }

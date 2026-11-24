@@ -88,4 +88,28 @@ typedef struct {
     bsl_err_t (*get)(bsl_rtc_time_t *out);
 } bsl_rtc_api_t;
 
+/* SAI1（音频播放）：采样率、帧缓冲、播放与停止，以及上一次播放的实测结果。
+ *
+ * buffer 暴露成函数而不是让 fml_audio 自己申请：音频是独占资源，8 KB 只花一次；
+ * 两份缓冲等于两份相位不同的数据流，谁也不知道哪份在响。
+ * last_error 单独给：`play` 返回 OK 但 OVRUDR 亮着也是坏消息（欠载 = 声音断续）。 */
+typedef struct {
+    uint32_t (*sample_rate)(void);
+    uint32_t *(*buffer)(void);
+    bsl_err_t (*start)(uint32_t n_frames);
+    bsl_err_t (*play_blocking)(uint32_t n_frames, uint32_t *elapsed_us);
+    bsl_err_t (*stop)(void);
+    uint32_t (*last_us)(void);
+    uint32_t (*last_error)(void);
+} bsl_sai_api_t;
+
+/* WM8978：只写器件，所以"起来了"只能靠 ACK 计数证明（ack_count == reg_count）。
+ * set_volume 是初始化之后的独立动作，不进 POST 的事务计数。 */
+typedef struct {
+    int (*ready)(void);
+    unsigned (*ack_count)(void);
+    unsigned (*reg_count)(void);
+    bsl_err_t (*set_volume)(uint8_t vol);
+} bsl_codec_api_t;
+
 #endif

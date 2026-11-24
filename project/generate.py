@@ -1359,6 +1359,18 @@ _BOARD_NODES = """\
             gpio-controller;
             #gpio-cells = <2>;
         };
+
+        /* 音频 codec：WM8978，7 位地址 0x1A（=26）。
+         * 2026-11-25 实测（P6c-0，`i2c scan` / `i2c rd`）：这条总线上应答的是
+         * 1a/1e/20/50/68，**没有 0x10**；而 0x1A 地址 ACK、读方向 NACK —— 正是
+         * WM8978 的"只写 I2C"指纹。pinmap（手册 V1.1 表 1.5.1）把它写成 ES8388
+         * 是错的，那三处注释待更正。
+         * 只写器件：驱动不能用读回验证，只能说"14 次写事务全 ACK"。 */
+        wm8978: wm8978@1a {
+            compatible = "wolfson,wm8978";
+            reg = <26>;
+            status = "okay";
+        };
     };
 
     beep {
@@ -1408,6 +1420,32 @@ _BOARD_NODES = """\
         compatible = "brd,adc-temp";
         status = "okay";
         vref-mv = <3300>;
+    };
+
+    /* SAI1 (block A) 音频输出。引脚取自 pinmap（手册 V1.1 表 1.5.1，AF6）：
+     *   PE2 = SAI1_MCLK_A、PE4 = SAI1_FS_A、PE5 = SAI1_SCK_A、
+     *   PE6 = SAI1_SD_A（MCU → codec）、PE3 = SAI1_SD_B（录音，P6c 不用）。
+     *   掩码 0x007C = bit2..bit6。
+     * 时钟（[代码推算]）：主 PLL 输入 = HSE/PLLM = 25/25 = 1 MHz。PLLSAI 已被 LTDC
+     *   占用（VCO 396 MHz、R=3），借它要先关 PLLSAI = 停掉屏的像素时钟，所以走
+     *   空闲的 PLLI2S：N=393 → VCO 393 MHz，Q=8 → PLLI2SQ = 49.125 MHz；
+     *   PLLI2SDIVQ=0（÷1）→ SAI_CK = 49.125 MHz；CR1.MCKDIV=4 → MCLK =
+     *   SAI_CK/(MCKDIV*2) = 6.140625 MHz，FS = MCLK/128 = 47973 Hz。
+     *   **注意 128 不是 256**：HAL 注释写 MCLK=256*FS，但 2026-11-25 实测（FIFO 消耗
+     *   速率探针，MCKDIV=2 时 2048 帧用 21328 µs = 95.9 kHz）是 HAL 公式的 2 倍，
+     *   即帧周期 = 128 个 MCLK。所以 DTB 这里给 MCKDIV=4 才落到 47973 Hz。
+     *   1 MHz 的输入下 48.000 kHz 不可整除，这是能做到的最好，偏差 0.056%
+     *   （人耳不可辨），不是抄来的 48k。 */
+    sai: sai {
+        compatible = "brd,sai";
+        status = "okay";
+        sai-pins = <&gpioe 0x007c 6>;
+        sample-rate = <47973>;
+        mck-div = <4>;
+        pll2-n = <393>;
+        pll2-q = <8>;
+        pll2-divq = <0>;
+        codec = <&wm8978>;
     };
 """
 

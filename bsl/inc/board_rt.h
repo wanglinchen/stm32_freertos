@@ -125,6 +125,31 @@ typedef struct {
 
 int board_rt_adc_temp(board_rt_adc_t *out);
 
+/* SAI1（音频播放走 block A）：采样率、MCLK 分频、PLLI2S 的三个数、codec 的 7 位地址。
+ *
+ * 成套返回的理由与 panel 相同：少一项就配不出位时钟，而现场只表现为"没有声音"，
+ * 没有任何读数指向 DTB。codec_addr7 = 0 表示 DTB 没挂 codec 节点（地址 0 不是
+ * 合法的 7 位地址），消费方据此直接失败，不去猜 0x1A。
+ *
+ * sample-rate 是 DTS 声明的目标值；实际 FS 由 bsl_sai 按 PLL 寄存器算出 ——
+ * 两个数是"想要的"与"配出来的"，POST 行两个都报。 */
+typedef struct {
+    uint32_t sample_rate;
+    uint32_t mck_div;      /* CR1.MCKDIV；MCLK = SAI_CK/(mck_div*2)（HAL 口径） */
+    uint32_t pll2_n;
+    uint32_t pll2_q;
+    uint32_t pll2_divq;    /* DCKCFGR.PLLI2SDIVQ：0 表示 ÷1 */
+    uint8_t codec_addr7;
+} board_rt_sai_t;
+
+int board_rt_sai(board_rt_sai_t *out);
+
+/* SAI 引脚按端口聚合（一个端口一项，掩码 + AF）。 */
+unsigned board_rt_sai_pin_groups(void);
+GPIO_TypeDef *board_rt_sai_pin_port(unsigned index);
+uint16_t board_rt_sai_pin_mask(unsigned index);
+uint32_t board_rt_sai_pin_af(unsigned index);
+
 unsigned board_rt_led_count(void);
 GPIO_TypeDef *board_rt_led_port(void);
 uint16_t board_rt_led_pin(unsigned index);

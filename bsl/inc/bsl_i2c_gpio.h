@@ -51,6 +51,17 @@ bsl_err_t bsl_i2c_gpio_probe(const bsl_i2c_gpio_bus_t *bus, uint8_t addr7);
 bsl_err_t bsl_i2c_gpio_read_reg8(const bsl_i2c_gpio_bus_t *bus, uint8_t addr7,
                                  uint8_t reg8, uint8_t *buf, uint8_t len);
 
+/* 「7 位寄存器 + 9 位数据」的两字节写事务（WM8978 的口径）：一次 16 位控制字，
+ * 传输顺序：
+ *   字节 1 = reg7[6:0] << 1 | data9[8]
+ *   字节 2 = data9[7:0]
+ * 这就是 P6c-0 里没加的那个 `write_reg8` 的**真实形态**：codec 的寄存器地址只有
+ * 7 位、数据 9 位，硬套"8 位地址 + 8 位数据"会写错寄存器（与拿 reg16 读 reg8 同型）。
+ * 现在有消费者（`board_wm8978`），所以它在这里；没有消费者的 API 一律不加。
+ * 越界（reg7 > 0x7F 或 data9 > 0x1FF）返回 BSL_ERR_INVAL，且什么都不发。 */
+bsl_err_t bsl_i2c_gpio_write_reg7_word9(const bsl_i2c_gpio_bus_t *bus, uint8_t addr7,
+                                        uint8_t reg7, uint16_t data9);
+
 const bsl_i2c_gpio_bus_t *bsl_board_i2c_gpio_bus(void);
 uint8_t bsl_board_i2c_gpio_ready(void);
 /* bsl_driver_brd_i2c_gpio 的声明在 board_device_registry.h（唯一来源），

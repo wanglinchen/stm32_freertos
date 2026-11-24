@@ -311,6 +311,33 @@ bsl_err_t bsl_i2c_gpio_read_reg8(const bsl_i2c_gpio_bus_t *bus, uint8_t addr7,
     return BSL_OK;
 }
 
+bsl_err_t bsl_i2c_gpio_write_reg7_word9(const bsl_i2c_gpio_bus_t *bus, uint8_t addr7,
+                                        uint8_t reg7, uint16_t data9)
+{
+    bsl_err_t rc;
+
+    if (bus == NULL || reg7 > 0x7FU || data9 > 0x1FFU) {
+        return BSL_ERR_INVAL;
+    }
+    iic_start(bus);
+    rc = iic_send_byte(bus, (uint8_t)(addr7 << 1));
+    if (rc != BSL_OK) {
+        return rc;
+    }
+    /* 控制字的第一个字节里同时装着寄存器号（高 7 位）与数据的最高位 ——
+     * 这正是"9 位数据"的形态，拆成两半写会写进两个不同的寄存器。 */
+    rc = iic_send_byte(bus, (uint8_t)((reg7 << 1) | (uint8_t)((data9 >> 8) & 0x01U)));
+    if (rc != BSL_OK) {
+        return rc;
+    }
+    rc = iic_send_byte(bus, (uint8_t)(data9 & 0x00FFU));
+    if (rc != BSL_OK) {
+        return rc;
+    }
+    iic_stop(bus);
+    return BSL_OK;
+}
+
 static bsl_i2c_gpio_bus_t s_board_i2c_bus;
 static uint8_t s_board_i2c_ready;
 const bsl_i2c_gpio_bus_t *bsl_board_i2c_gpio_bus(void)

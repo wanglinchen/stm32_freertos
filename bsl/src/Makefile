@@ -30,6 +30,7 @@ LOCAL_OBJS :=
 -include $(BUILD_DIR)/bsl/src/board_sdram.d
 -include $(BUILD_DIR)/bsl/src/board_system.d
 -include $(BUILD_DIR)/bsl/src/board_touch.d
+-include $(BUILD_DIR)/bsl/src/board_wm8978.d
 -include $(BUILD_DIR)/bsl/src/bsl_adc.d
 -include $(BUILD_DIR)/bsl/src/bsl_crc.d
 -include $(BUILD_DIR)/bsl/src/bsl_device.d
@@ -42,6 +43,7 @@ LOCAL_OBJS :=
 -include $(BUILD_DIR)/bsl/src/bsl_pcf8574.d
 -include $(BUILD_DIR)/bsl/src/bsl_rng.d
 -include $(BUILD_DIR)/bsl/src/bsl_rtc.d
+-include $(BUILD_DIR)/bsl/src/bsl_sai.d
 -include $(BUILD_DIR)/bsl/src/bsl_spi.d
 
 ifeq ($(CONFIG_BSL),y)
@@ -202,6 +204,19 @@ endif
 
 ifeq ($(CONFIG_BSL),y)
 ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BOARD_WM8978),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/board_wm8978.o
+$(BUILD_DIR)/bsl/src/board_wm8978.o: $(PROJECT_ROOT)/bsl/src/board_wm8978.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_wm8978.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_wm8978.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
 ifeq ($(CONFIG_BSL_SRC_BSL_ADC),y)
 LOCAL_OBJS += $(BUILD_DIR)/bsl/src/bsl_adc.o
 $(BUILD_DIR)/bsl/src/bsl_adc.o: $(PROJECT_ROOT)/bsl/src/bsl_adc.c $(FLAG_DEPS)
@@ -352,6 +367,19 @@ $(BUILD_DIR)/bsl/src/bsl_rtc.o: $(PROJECT_ROOT)/bsl/src/bsl_rtc.c $(FLAG_DEPS)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/bsl_rtc.d -c $< -o $@
 	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/bsl_rtc.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BSL_SAI),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/bsl_sai.o
+$(BUILD_DIR)/bsl/src/bsl_sai.o: $(PROJECT_ROOT)/bsl/src/bsl_sai.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/bsl_sai.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/bsl_sai.d
 endif
 endif
 endif
