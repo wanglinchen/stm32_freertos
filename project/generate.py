@@ -1244,6 +1244,22 @@ _BOARD_NODES = """\
                     <&gpioh 0xfe00 14>;
     };
 
+    /* GT9147 电容触摸，走 PH6/PI3 的**软件 I2C**（与主 I2C 那条不是同一总线）。
+     * 引脚/地址取自参考工程 ctiic.h + gt9xxx.h（[参考工程]）：
+     *   SCL=PH6、SDA=PI3、RST=PI8、INT=PH7；7 位地址 0x14（写 0x28 / 读 0x29）。
+     * 坐标范围不写在这里：它等于面板像素，唯一来源是 panel 节点的
+     * width/height —— 写第二份 800/480，一旦与面板漂移，触点会被整片裁掉。
+     * reset-gpios 第三 cell 是极性：1 = 低有效（GT9xxx 的 RST 低电平复位）。 */
+    touch: touch {
+        compatible = "goodix,gt9147";
+        addr7 = <0x14>;
+        max-points = <5>;
+        reset-gpios = <&gpioi 8 1>;
+        irq-gpios = <&gpioh 7 0>;
+        scl-gpios = <&gpioh 6 0>;
+        sda-gpios = <&gpioi 3 0>;
+    };
+
     leds {
         compatible = "brd,gpio-leds";
         active-low;

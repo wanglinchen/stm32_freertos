@@ -41,6 +41,10 @@ config BSL_SRC_BOARD_SYSTEM
 	bool "board_system.c"
 	default y
 
+config BSL_SRC_BOARD_TOUCH
+	bool "board_touch.c"
+	default y
+
 config BSL_SRC_BSL_DEVICE
 	bool "bsl_device.c"
 	default y

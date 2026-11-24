@@ -58,4 +58,11 @@ typedef struct {
     uint32_t (*height)(void);
 } bsl_panel_api_t;
 
+/* 触摸：读一帧触点。返回点数，0xFFFFFFFF 表示总线错（见 board_touch.h 的
+ * BOARD_TOUCH_BUS_ERROR）。product_id 只用于日志与 POST 行，不参与控制。 */
+typedef struct {
+    unsigned (*read)(int32_t *x, int32_t *y);
+    const char *(*product_id)(void);
+} bsl_touch_api_t;
+
 #endif

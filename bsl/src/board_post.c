@@ -2,6 +2,7 @@
 
 #include "board_lcd.h"
 #include "board_sdram.h"
+#include "board_touch.h"
 #include "bsl_device.h"
 #include "bsl_log.h"
 
@@ -101,6 +102,42 @@ static void post_lcd(void)
 }
 
 /*
+ * touch：静止态读一帧。
+ *
+ * PASS 的判据只有一条 —— 不返回 BOARD_TOUCH_BUS_ERROR，即"控件在总线上、
+ * 状态寄存器 0x814E 可读"。0 点说明此刻没人按，是正常态，不能判失败：
+ * POST 与手指是并发的。PID 在 init 里已比过前缀，这里打出来只为现场对 ID，
+ * 不参与判据。所以这一项不假装验手指 —— 手指按下时的坐标由 sample 任务的
+ * `[btn] touch down x=.. y=..` 行给出。
+ */
+static void post_touch(void)
+{
+    int32_t x = 0;
+    int32_t y = 0;
+    unsigned n;
+    const char *pid;
+
+    if (bsl_device_is_ready(BSL_DEV_TOUCH) == 0) {
+        post_begin("touch ready=0");
+        post_end(0);
+        return;
+    }
+    pid = bsl_devapi_touch()->product_id();
+    n = bsl_devapi_touch()->read(&x, &y);
+    post_begin("touch id=");
+    BSL_LOG_INF((pid != NULL) ? pid : "?");
+    BSL_LOG_INF(" points=");
+    bsl_log_put_dec((n == BOARD_TOUCH_BUS_ERROR) ? -1 : (int)n);
+    if ((n != BOARD_TOUCH_BUS_ERROR) && (n > 0U)) {
+        BSL_LOG_INF(" x=");
+        bsl_log_put_dec((int)x);
+        BSL_LOG_INF(" y=");
+        bsl_log_put_dec((int)y);
+    }
+    post_end((n != BOARD_TOUCH_BUS_ERROR) ? 1 : 0);
+}
+
+/*
  * 外部项（apl 注册）：
  *
  * "屏上有没有文字"必须用 fml 的字库与画布才验得出来，而 bsl 不能反向依赖 fml
@@ -147,6 +184,7 @@ void board_post_run(void)
 
     post_sdram();
     post_lcd();
+    post_touch();
     post_ext();
 
     BSL_LOG_MOD_INF(POST_LOG_MOD, "result ");

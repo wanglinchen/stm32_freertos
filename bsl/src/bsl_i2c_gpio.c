@@ -137,6 +137,42 @@ static bsl_err_t iic_send_byte(const bsl_i2c_gpio_bus_t *bus, uint8_t byte)
     return iic_wait_ack(bus);
 }
 
+/* 读一个字节：SDA 切输入，取 8 位，再给第 9 个时钟的 ACK/NACK。
+ * SCK 的相位与 iic_send_byte 对称：拉低 → 高电平期间采样 → 拉低。 */
+static uint8_t iic_read_byte(const bsl_i2c_gpio_bus_t *bus, int ack)
+{
+    uint8_t i;
+    uint8_t byte = 0U;
+
+    (void)bsl_gpio_init_input(bus->sda_port, bus->sda_pin, GPIO_PULLUP,
+                              GPIO_SPEED_FREQ_HIGH);
+    for (i = 0U; i < 8U; i++) {
+        scl_low(bus);
+        iic_delay();
+        scl_high(bus);
+        iic_delay();
+        byte = (uint8_t)(byte << 1);
+        if (sda_read(bus) == GPIO_PIN_SET) {
+            byte |= 1U;
+        }
+        scl_low(bus);
+    }
+    /* ACK=0 拉低，NACK=1 释放；主控读最后一个字节必须 NACK，否则从机会继续
+     * 驱动 SDA，紧接着的 STOP 会被它当成数据位。 */
+    (void)sda_out(bus);
+    if (ack != 0) {
+        sda_low(bus);
+    } else {
+        sda_high(bus);
+    }
+    iic_delay();
+    scl_high(bus);
+    iic_delay();
+    scl_low(bus);
+    (void)sda_out(bus);
+    return byte;
+}
+
 bsl_err_t bsl_i2c_gpio_write_byte(const bsl_i2c_gpio_bus_t *bus, uint8_t addr7, uint8_t data)
 {
     bsl_err_t rc;
@@ -159,9 +195,76 @@ bsl_err_t bsl_i2c_gpio_write_byte(const bsl_i2c_gpio_bus_t *bus, uint8_t addr7, 
     return BSL_OK;
 }
 
+bsl_err_t bsl_i2c_gpio_write_reg16(const bsl_i2c_gpio_bus_t *bus, uint8_t addr7,
+                                   uint16_t reg16, const uint8_t *data, uint8_t len)
+{
+    bsl_err_t rc;
+    uint8_t i;
+
+    if (bus == NULL || (len > 0U && data == NULL)) {
+        return BSL_ERR_INVAL;
+    }
+    iic_start(bus);
+    rc = iic_send_byte(bus, (uint8_t)(addr7 << 1));
+    if (rc != BSL_OK) {
+        return rc;
+    }
+    rc = iic_send_byte(bus, (uint8_t)(reg16 >> 8));
+    if (rc != BSL_OK) {
+        return rc;
+    }
+    rc = iic_send_byte(bus, (uint8_t)(reg16 & 0xFFU));
+    if (rc != BSL_OK) {
+        return rc;
+    }
+    for (i = 0U; i < len; i++) {
+        rc = iic_send_byte(bus, data[i]);
+        if (rc != BSL_OK) {
+            return rc;
+        }
+    }
+    iic_stop(bus);
+    return BSL_OK;
+}
+
+bsl_err_t bsl_i2c_gpio_read_reg16(const bsl_i2c_gpio_bus_t *bus, uint8_t addr7,
+                                  uint16_t reg16, uint8_t *buf, uint8_t len)
+{
+    bsl_err_t rc;
+    uint8_t i;
+
+    if (bus == NULL || buf == NULL || len == 0U) {
+        return BSL_ERR_INVAL;
+    }
+    iic_start(bus);
+    rc = iic_send_byte(bus, (uint8_t)(addr7 << 1));
+    if (rc != BSL_OK) {
+        return rc;
+    }
+    rc = iic_send_byte(bus, (uint8_t)(reg16 >> 8));
+    if (rc != BSL_OK) {
+        return rc;
+    }
+    rc = iic_send_byte(bus, (uint8_t)(reg16 & 0xFFU));
+    if (rc != BSL_OK) {
+        return rc;
+    }
+    /* 重复 START 切到读方向。这里不能发 STOP 再 START：GT9xxx 只在同一次
+     * 事务里认"先写地址再读"，STOP 会清掉它内部待读的地址指针。 */
+    iic_start(bus);
+    rc = iic_send_byte(bus, (uint8_t)((addr7 << 1) | 1U));
+    if (rc != BSL_OK) {
+        return rc;
+    }
+    for (i = 0U; i < len; i++) {
+        buf[i] = iic_read_byte(bus, (i + 1U < len) ? 1 : 0);
+    }
+    iic_stop(bus);
+    return BSL_OK;
+}
+
 static bsl_i2c_gpio_bus_t s_board_i2c_bus;
 static uint8_t s_board_i2c_ready;
-
 const bsl_i2c_gpio_bus_t *bsl_board_i2c_gpio_bus(void)
 {
     return &s_board_i2c_bus;

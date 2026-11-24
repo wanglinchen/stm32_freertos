@@ -17,3 +17,8 @@ flash_log.txt
 stab_log.txt
 out/tmp_*.log
 out/tmp_commit_msg.txt
+# 串口抓取与一次性探针的日志：每次覆盖写，证据要留就贴进 docs/design/
+out/boot*.log
+out/*_test.log
+out/test_dump.log
+out/sdram_post.log

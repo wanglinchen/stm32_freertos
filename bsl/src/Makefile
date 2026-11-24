@@ -28,6 +28,7 @@ LOCAL_OBJS :=
 -include $(BUILD_DIR)/bsl/src/board_rt.d
 -include $(BUILD_DIR)/bsl/src/board_sdram.d
 -include $(BUILD_DIR)/bsl/src/board_system.d
+-include $(BUILD_DIR)/bsl/src/board_touch.d
 -include $(BUILD_DIR)/bsl/src/bsl_device.d
 -include $(BUILD_DIR)/bsl/src/bsl_fb.d
 -include $(BUILD_DIR)/bsl/src/bsl_fdt.d
@@ -163,6 +164,19 @@ $(BUILD_DIR)/bsl/src/board_system.o: $(PROJECT_ROOT)/bsl/src/board_system.c $(FL
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_system.d -c $< -o $@
 	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_system.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BOARD_TOUCH),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/board_touch.o
+$(BUILD_DIR)/bsl/src/board_touch.o: $(PROJECT_ROOT)/bsl/src/board_touch.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_touch.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_touch.d
 endif
 endif
 endif

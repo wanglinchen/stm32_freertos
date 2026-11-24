@@ -8,6 +8,7 @@
 #define RT_COMPAT_CLOCKS "brd,board-clocks"
 #define RT_COMPAT_SDRAM "brd,fmc-sdram"
 #define RT_COMPAT_PANEL "brd,rgb-panel"
+#define RT_COMPAT_TOUCH "goodix,gt9147"
 #define RT_COMPAT_LEDS "brd,gpio-leds"
 #define RT_COMPAT_KEYS "brd,gpio-keys"
 #define RT_COMPAT_I2C "brd,i2c-gpio"
@@ -67,6 +68,9 @@ typedef struct {
     GPIO_TypeDef *panel_bl_port;
     unsigned panel_bl_pin;
     int panel_bl_active_high;
+
+    int touch_ok;
+    board_rt_touch_t touch;
 } board_rt_t;
 
 static board_rt_t s_rt;
@@ -514,6 +518,92 @@ static void parse_panel(void)
     s_rt.panel_ok = 1;
 }
 
+/*
+ * touch：GT9xxx 的地址、复位/中断脚与它那条软件 I2C 的两脚。
+ *
+ * 为什么触摸总线要单独一组引脚：它挂在 PH6/PI3 上，与主 I2C（pcf8574/蜂鸣器）
+ * 不是同一条。早前把"触摸没反应"归到主 I2C 扫描结果上，那条总线上本来就没有
+ * 它 —— 结论对不上现场。
+ */
+static void parse_touch(void)
+{
+    bsl_fdt_node_t node = bsl_fdt_find(RT_COMPAT_TOUCH, 0U);
+    board_rt_touch_t t;
+    uint32_t addr7 = 0U;
+    uint32_t max_points = 0U;
+    uint32_t cells[3];
+    GPIO_TypeDef *rst_port = NULL;
+    GPIO_TypeDef *scl_port = NULL;
+    GPIO_TypeDef *sda_port = NULL;
+    GPIO_TypeDef *irq_port = NULL;
+
+    if (node == NULL) {
+        return;
+    }
+    if (bsl_fdt_prop_u32(node, "addr7", &addr7) == 0
+        || bsl_fdt_prop_u32(node, "max-points", &max_points) == 0) {
+        return;
+    }
+    /* 坐标范围不在这里读：它等于面板像素，唯一来源是 panel 节点的
+     * width/height。第二份 800/480 一旦与面板漂移，触点会被整体裁掉或
+     * 判成非法，而现场只看到"点右边没反应"。 */
+    if (addr7 > 0x7FU || max_points == 0U || max_points > 10U) {
+        return;
+    }
+
+    /* 三个 gpios 属性各读一次，读完立刻落定到 t 的字段。不复用中间结果 ——
+     * 一份 cells 被三组属性轮流覆盖时，第一组的值会被第三组顶掉，而没有任何
+     * 读数能指出这件事（触摸"读不到 PID"会被当成硬件问题）。 */
+    if (bsl_fdt_prop_cells(node, "reset-gpios", cells, 3U) != 3U) {
+        return;
+    }
+    rst_port = board_rt_port_of_phandle(cells[0]);
+    if (rst_port == NULL || cells[1] > 15U) {
+        return;
+    }
+    t.rst_pin = (unsigned)cells[1];
+    /* gpios 第三 cell 与 led/panel 同一套语义：1 = 低有效。GT9xxx 的 RST 是
+     * 低电平复位，DTB 写 1。 */
+    t.rst_active_low = (cells[2] != 0U) ? 1 : 0;
+
+    if (bsl_fdt_prop_cells(node, "scl-gpios", cells, 3U) != 3U) {
+        return;
+    }
+    scl_port = board_rt_port_of_phandle(cells[0]);
+    if (scl_port == NULL || cells[1] > 15U) {
+        return;
+    }
+    t.scl_pin = (unsigned)cells[1];
+
+    if (bsl_fdt_prop_cells(node, "sda-gpios", cells, 3U) != 3U) {
+        return;
+    }
+    sda_port = board_rt_port_of_phandle(cells[0]);
+    if (sda_port == NULL || cells[1] > 15U) {
+        return;
+    }
+    t.sda_pin = (unsigned)cells[1];
+
+    /* irq 脚可选：不接中断也能轮询。 */
+    t.irq_port = NULL;
+    t.irq_pin = 0U;
+    if (bsl_fdt_prop_cells(node, "irq-gpios", cells, 3U) == 3U) {
+        irq_port = board_rt_port_of_phandle(cells[0]);
+        if (irq_port != NULL && cells[1] <= 15U) {
+            t.irq_port = irq_port;
+            t.irq_pin = (unsigned)cells[1];
+        }
+    }
+
+    t.addr7 = (uint8_t)addr7;
+    t.max_points = (unsigned)max_points;
+    t.rst_port = rst_port;
+    t.scl_port = scl_port;
+    t.sda_port = sda_port;
+    s_rt.touch = t;
+    s_rt.touch_ok = 1;
+}
+
 static void parse_all(void)
 {
     if (s_rt.parsed) {
@@ -526,6 +616,7 @@ static void parse_all(void)
     parse_clocks();
     parse_sdram();
     parse_panel();
+    parse_touch();
     parse_leds();
     parse_keys();
     parse_i2c();
@@ -739,5 +830,15 @@ int board_rt_panel_backlight(GPIO_TypeDef **port, unsigned *pin, int *active_hig
     if (port != NULL) { *port = s_rt.panel_bl_port; }
     if (pin != NULL) { *pin = s_rt.panel_bl_pin; }
     if (active_high != NULL) { *active_high = s_rt.panel_bl_active_high; }
+    return 1;
+}
+
+int board_rt_touch(board_rt_touch_t *out)
+{
+    parse_all();
+    if (!s_rt.touch_ok || out == NULL) {
+        return 0;
+    }
+    *out = s_rt.touch;
     return 1;
 }

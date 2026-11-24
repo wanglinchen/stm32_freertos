@@ -3,6 +3,7 @@
 #include "board_device_registry.h"
 #include "board_key.h"
 #include "board_led.h"
+#include "board_touch.h"
 #include "bsl_device.h"
 #include "bsl_device_api.h"
 #include "bsl_log.h"
@@ -41,6 +42,14 @@ static const bsl_beep_api_t *sample_beep_ops(void)
         return NULL;
     }
     return bsl_devapi_beep();
+}
+
+static const bsl_touch_api_t *sample_touch_ops(void)
+{
+    if (bsl_device_is_ready(BSL_DEV_TOUCH) == 0) {
+        return NULL;
+    }
+    return bsl_devapi_touch();
 }
 
 #if BSL_LOG_LEVEL >= BSL_LOG_LEVEL_INF
@@ -132,6 +141,53 @@ static void sample_led_task(void *argument)
     }
 }
 
+#if BSL_LOG_LEVEL >= BSL_LOG_LEVEL_INF
+/* 触点边沿打印：P1b 的人工验收通道。
+ * 与按键共用这个 10 ms 周期 —— 两者都是"输入设备轮询"。不另开线程，是因为
+ * osl 的健康表槽位与线程数一一对应，为一行日志多一条线程就得同步加槽位。
+ * 只在"按下/抬起"边沿打：连点几次就是几组 down/up，坐标是否单调一眼可读；
+ * 按住不放不刷屏，也不把 10 ms 周期拖成 I2C 空转。 */
+static void sample_log_touch(void)
+{
+    static int last_state; /* 0 = 未读过，-1 = 总线错，1 = 按下，2 = 抬起 */
+    const bsl_touch_api_t *touch = sample_touch_ops();
+    int32_t x = 0;
+    int32_t y = 0;
+    unsigned n;
+
+    if (touch == NULL) {
+        return;
+    }
+    n = touch->read(&x, &y);
+    if (n == BOARD_TOUCH_BUS_ERROR) {
+        if (last_state != -1) {
+            last_state = -1;
+            BSL_LOG_MOD_ERR(SAMPLE_LOG_MOD_BTN, "touch bus error\r\n");
+        }
+        return;
+    }
+    if (n > 0U) {
+        if (last_state != 1) {
+            last_state = 1;
+            BSL_LOG_MOD_INF(SAMPLE_LOG_MOD_BTN, "touch down x=");
+            bsl_log_put_dec((int)x);
+            BSL_LOG_INF(" y=");
+            bsl_log_put_dec((int)y);
+            BSL_LOG_INF(" pts=");
+            bsl_log_put_dec((int)n);
+            BSL_LOG_INF("\r\n");
+        }
+    } else if (last_state == 1) {
+        last_state = 2;
+        BSL_LOG_MOD_INF(SAMPLE_LOG_MOD_BTN, "touch up\r\n");
+    }
+}
+#else
+static void sample_log_touch(void)
+{
+}
+#endif
+
 static void sample_button_task(void *argument)
 {
     const bsl_gpio_keys_api_t *keys = sample_keys_ops();
@@ -186,6 +242,7 @@ static void sample_button_task(void *argument)
             health_div = 0U;
             osl_health_stack_mark(OSL_HEALTH_SLOT_BUTTON);
         }
+        sample_log_touch();
         osl_thread_delay_until(&last_wake, SAMPLE_POLL_PERIOD_MS);
     }
 }

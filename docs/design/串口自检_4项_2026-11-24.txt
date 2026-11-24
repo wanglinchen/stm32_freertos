@@ -1,0 +1,65 @@
+# P1b 串口取证：GT9147 触摸（软件 I2C）
+
+- 日期：2026-11-24
+- 分支/提交：`feature/full-demo`，父提交 P1a `7f97cc9`
+- 固件：userdebug，`text 96740 / data 20 / bss 22476`
+- 采集：COM3 / 115200 / 8N1；串口先开（后台读 22 s），再 `flash/flash.py flash`（末尾 `** Verified OK **` → `** Resetting Target **` 触发复位）
+
+```text
+[post] sdram size=32M bad=0 PASS
+[post] lcd w=800 h=480 bad=0 PASS
+[post] touch id=9147 points=0 PASS
+[post] font w=8 h=16 ink=22 blank=0 PASS
+[post] result 4 pass 4 fail 0
+
+stm32-freertos: USART1 115200 debug ready
+[led] R=1 G=0
+[led] R=0 G=1
+```
+
+## touch 这一行怎么判
+
+| 字段 | 实测 | 含义 |
+|---|---|---|
+| `id=9147` | 从 0x8140 读回 4 字节 ASCII | **软件 I2C 整条链路通了**：PH6 位翻转出 SCL、PI3 读 SDA、7 位地址 0x14（写 0x28 / 读 0x29）有 ACK、16 位寄存器寻址正确 |
+| `points=0` | 0x814E 低 4 位为 0（无人按） | 状态寄存器可读；**0 点不判失败** —— POST 与手指是并发的，"没人按"是正常态 |
+| `PASS` | `read()` 未返回 `BOARD_TOUCH_BUS_ERROR` | 判据只有这一条：控件在总线上、状态寄存器可读 |
+
+这一项**不假装验手指**。手指按下时的坐标由 sample 任务的 `[btn] touch down x=.. y=.. pts=N` 行给出（边沿打印，见下）。
+
+## 之前为什么"主 I2C 上找不到触摸"
+
+主 I2C（pcf8574 / 蜂鸣器，`brd,i2c-gpio`，只应答 0x1A/0x1E/0x20/0x50/0x68）与触摸不是同一条总线。GT9147 挂在 **PH6 / PI3** 上，由 `ct_iic_*` 那种位翻转时序驱动（参考工程延时 2 µs ≈ 250 kHz）。
+
+此前把"主 I2C 扫描无触摸器件"当成"触摸不在板上"，结论本身就找错了总线 —— 这解释了为什么当时现场是"屏好的、触摸没反应"，而扫描结果看起来"没有这个器件"。
+
+## 代码落点与关键取舍
+
+| 位置 | 内容 |
+|---|---|
+| `bsl/inc/bsl_i2c_gpio.h` `bsl/src/bsl_i2c_gpio.c` | 新增 `bsl_i2c_gpio_write_reg16` / `bsl_i2c_gpio_read_reg16`（总线原语，任何 16 位寄存器地址的软件 I2C 器件都走这里） |
+| `bsl/inc/board_touch.h` `bsl/src/board_touch.c` | GT9xxx 驱动：PID 前缀匹配、软复位、读状态、读触点 |
+| `bsl/inc/board_rt.h` `bsl/src/board_rt.c` | `board_rt_touch_t` + `parse_touch`：addr7 / max-points / rst / irq / scl / sda |
+| `bsl/inc/bsl_device_api.h` | `bsl_touch_api_t { read, product_id }` |
+| `bsl/inc/board_device_registry.h` | `BSL_DEV_TOUCH` + `bsl_driver_goodix_gt9147` / `bsl_devapi_touch()` |
+| `bsl/src/board_post.c` | `post_touch`（第 4 项） |
+| `project/generate.py` | DTB `touch` 节点 |
+| `apl/src/app_sample.c` | `sample_log_touch`：与按键共用 10 ms 周期，只在按下/抬起边沿打一行 |
+
+四条与"照着参考工程抄"不同的决定，都是踩过的坑：
+
+1. **不复用 `cells` 数组**：`reset-gpios` / `irq-gpios` / `scl-gpios` / `sda-gpios` 四个属性若共用一份中间数组，后读的会顶掉先读的，scl 与 sda 会互换 —— 现场表现只是"PID 读成 0"或"读成畸形字符串"，没有任何读数能指出这件事。现在每个属性读完立刻落定到结构体字段。
+2. **坐标范围只有一个来源**：不写第二份 `x-max=800` / `y-max=480`，`board_touch_init` 从 `board_rt_panel()` 取 `width/height`。第二份一旦与面板漂移，触点会被整片裁掉，而现场只看到"点右边没反应"。
+3. **越界坐标丢弃，不夹边**：复位后头几帧给的是未定标值，夹边会让它们看起来像"点在左上角"，而实际上一次有效触摸都没有。
+4. **读完 0x814E 必须写 0**：不清标志，IC 认为这一帧没被取走，下一帧不再更新 —— 表现为"第一次能读、之后永远是同一个坐标"。
+
+## 触摸的人工验收通道（未做，待手指）
+
+`sample_log_touch` 只在**边沿**打印，按住不放不刷屏：
+
+```
+[btn] touch down x=... y=... pts=1
+[btn] touch up
+```
+
+连点几次屏，串口应出现成对的 `down` / `up`，且每组 `x/y` 随落点单调变化（右移则 `x` 增、下移则 `y` 增）。这条需要真手指，固件侧无法自证；坐标是否与面板方向一致也靠这一步确认（若左右反了，说明面板与 IC 的报告方向不同，需在 P4 的窗口层做一次取反）。

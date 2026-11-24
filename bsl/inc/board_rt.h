@@ -60,6 +60,28 @@ uint32_t board_rt_panel_pin_af(unsigned index);
 /* 背光脚：active_high 表示"高电平点亮"。返回 1 表示三项都拿到。 */
 int board_rt_panel_backlight(GPIO_TypeDef **port, unsigned *pin, int *active_high);
 
+/* 电容触摸（GT9xxx）：I2C 7 位地址、复位/中断脚、这条 I2C 的两脚、坐标范围。
+ * 与 panel 一样成套返回：缺一项就既读不到 PID、也清不了状态寄存器，而失败现场
+ * 只表现为"触点永远是 0"，看起来像"屏没问题、只是没按"。
+ *
+ * 注意：触摸走的是**软件 I2C**（PH6/PI3），与主 I2C（pcf8574/蜂鸣器那条）不是
+ * 同一条总线 —— 两条总线各自一套引脚，都在这里给。 */
+typedef struct {
+    uint8_t addr7;
+    unsigned max_points;
+    GPIO_TypeDef *rst_port;
+    unsigned rst_pin;
+    int rst_active_low;
+    GPIO_TypeDef *irq_port;  /* DTB 没写时为 NULL */
+    unsigned irq_pin;
+    GPIO_TypeDef *scl_port;
+    unsigned scl_pin;
+    GPIO_TypeDef *sda_port;
+    unsigned sda_pin;
+} board_rt_touch_t;
+
+int board_rt_touch(board_rt_touch_t *out);
+
 unsigned board_rt_led_count(void);
 GPIO_TypeDef *board_rt_led_port(void);
 uint16_t board_rt_led_pin(unsigned index);

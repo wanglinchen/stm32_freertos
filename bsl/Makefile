@@ -91,6 +91,13 @@ endif
 endif
 ifeq ($(CONFIG_BSL),y)
 ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BOARD_TOUCH),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/board_touch.o
+endif
+endif
+endif
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
 ifeq ($(CONFIG_BSL_SRC_BSL_DEVICE),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/bsl_device.o
 endif
