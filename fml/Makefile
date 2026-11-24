@@ -41,6 +41,11 @@ endif
 endif
 ifeq ($(CONFIG_FML),y)
 ifeq ($(CONFIG_FML_SRC),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/fml/src/fml_font_gbk16.o
+endif
+endif
+ifeq ($(CONFIG_FML),y)
+ifeq ($(CONFIG_FML_SRC),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/fml/src/fml_gui.o
 endif
 endif

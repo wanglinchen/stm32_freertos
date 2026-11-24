@@ -26,6 +26,7 @@ LOCAL_OBJS :=
 -include $(BUILD_DIR)/fml/src/fml_fatfs.d
 -include $(BUILD_DIR)/fml/src/fml_font.d
 -include $(BUILD_DIR)/fml/src/fml_font_ascii8x16.d
+-include $(BUILD_DIR)/fml/src/fml_font_gbk16.d
 -include $(BUILD_DIR)/fml/src/fml_gui.d
 -include $(BUILD_DIR)/fml/src/fml_panic.d
 
@@ -59,6 +60,17 @@ $(BUILD_DIR)/fml/src/fml_font_ascii8x16.o: $(PROJECT_ROOT)/fml/src/fml_font_asci
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/fml/src/fml_font_ascii8x16.d -c $< -o $@
 	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/fml/src/fml_font_ascii8x16.d
+endif
+endif
+
+ifeq ($(CONFIG_FML),y)
+ifeq ($(CONFIG_FML_SRC),y)
+LOCAL_OBJS += $(BUILD_DIR)/fml/src/fml_font_gbk16.o
+$(BUILD_DIR)/fml/src/fml_font_gbk16.o: $(PROJECT_ROOT)/fml/src/fml_font_gbk16.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/fml/src/fml_font_gbk16.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/fml/src/fml_font_gbk16.d
 endif
 endif
 

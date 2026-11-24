@@ -1,0 +1,74 @@
+# P3 串口取证：GB2312 16×16 点阵接入（屏上中文）
+
+- 日期：2026-11-24
+- 分支/提交：`feature/full-demo`，父提交 P3 勘探 `5c88513`
+- 固件：userdebug `text 546312 / data 20 / bss 27724`（user 档 `text 540572 / bss 27724`，1 MB flash 用 53%）
+- 采集：COM3 / 115200 / 8N1；串口先开（后台读 100 s），再 `flash/flash.py flash`（546 KB 镜像烧写约 40 s，窗口必须长于烧写）
+
+```text
+[post] sdram size=32M bad=0 PASS
+[post] lcd w=800 h=480 bad=0 PASS
+[post] touch id=9147 points=0 PASS
+[post] nor id=0xef4019 size=32M PASS
+[post] font c0=48 c1=45 c2=70 c3=46 w=8 h=16 ink=22 blank=0 cjk_min=45 PASS
+[post] fatfs total=25568KB ents=2 [SYSTEM 0B DIR] [??????~1 0B DIR] SYSTEM:n=3 [APP 0B DIR] [SPB 0B DIR] [LWIP 0B DIR] ??????~1:n=16 [ALIENT~1.TXT 2486B] [??????~1.AVI 2534868B] [??????~1.SMS 262144B] [????28~1.BIN 44804B] PASS
+[post] result 6 pass 6 fail 0
+```
+
+## font 这一行怎么判
+
+| 字段 | 实测 | 含义 |
+|---|---|---|
+| `c0=48` / `c1=45` / `c2=70` / `c3=46` | 屏上四个汉字各自的黑点数 | 文本是 GBK 字节 `"\xD6\xD0\xCE\xC4\xCF\xD4\xCA\xBE"`（中 / 文 / 显 / 示）。**c0=48 与 PC 端同一生成器渲染"中"得到的 48 点完全一致** —— 这条交叉验证同时证明了"切字没错位到别的码位"和"点阵数据原样进了 flash" |
+| `cjk_min=45` | 四个字里最小的 | 判据是 `min >= 20`。16×16 宋体一个常用字实测 40~90，缺字 / 空区 / 下标错位全部落在 0 附近 |
+| `w=8 h=16 ink=22 blank=0` | ASCII 那半段判据不变 | 空格必须全 0、'M' 必须有墨。P3 没有动 ASCII 表，两条都还成立 |
+| `PASS` | 三条同时成立 | `ink > 0` 且 `blank == 0` 且 `cjk_min >= 20` |
+
+为什么逐字统计而不是"整行 ink > 0"：四个字里有一个没画出来时，整行 ink 仍然 > 0 ——
+那正是"字库表整体偏移一个码位"的表现（每个字都画成了邻区的字）。逐字最小值能抓住它。
+
+## 数据源：自带 GB2312 全表，不读 NOR
+
+P3 勘探已证卷里没有字库（`/SYSTEM` 是别的工程的素材目录）。所以这一批把字库做成
+`const` 表进 flash：
+
+| 项 | 值 |
+|---|---|
+| 覆盖 | GB2312 的 1..87 区 × 94 位 = **8178 格**（含 10..15 空区，全 0 占位） |
+| 每字 | 16 行 × 2 B = 32 B，bit7 = 最左像素 |
+| 总字节 | **261696 B**（实际有字形 7443 个；7445 个字符里两个空白字符渲染为全 0） |
+| 生成器 | `fml/tools/gen_gbk16.py`（系统宋体 16px，二值化阈值 110/255） |
+| 下标 | `index = (qu-1)*94 + (wei-1)`，`qu/wei` 由 GBK 码减 0xA1 得到 |
+
+下标为什么不能像 ASCII 那样"减 first 线性索引"：GBK 码值不连续 —— 每区里 0xFF 与
+0x00 是空洞，87 个区只散在码值空间里的 8178 个点上。空区也占格子是为了让下标公式
+不需要第二张偏移表；空区取字返回全 0，画出来就是空白，渲染侧不必特判。
+
+## 这一批踩到的两个坑
+
+1. **C 源码是 UTF-8，中文字面量不能直接写**：`fml_gui_text_gbk` 吃的是 GBK 字节串，
+   源码里写 `"中文显示"` 编译进去是 UTF-8 字节，会被当成双字节乱切（每两个 UTF-8
+   字节查一次表，查到的都是不相干的字）。必须写 `"\xD6\xD0..."`。
+2. **`-Wmissing-braces`**：`uint8_t tbl[N][16][2]` 用扁平初始化
+   （`{ 0x00,0x00, 0x00,0x00, ... }`）在 `-Wall -Werror` 下直接编译失败，
+   生成器必须输出内层花括号 `{ {0x00,0x00}, ... }`。
+
+## 代码落点
+
+| 位置 | 内容 |
+|---|---|
+| `fml/inc/fml_font.h` | `fml_font_t` 增 `enc`（`FML_FONT_ENC_U8` / `FML_FONT_ENC_GB2312`）+ `fml_font_gbk16` 声明 |
+| `fml/src/fml_font.c` | `fml_font_glyph` 按 `enc` 分支：GB2312 走 qu/wei 换算，越界返回 NULL（不偏到邻区） |
+| `fml/tools/gen_gbk16.py` | 新生成器（宋体 16px / 阈值 110 / 8178 格） |
+| `fml/src/fml_font_gbk16.c` | 生成表（1.7 MB 源码，261696 B 数据） |
+| `fml/inc/fml_gui.h` `fml/src/fml_gui.c` | `fml_gui_text_gbk`（ASCII 8 宽 + 汉字 16 宽混排、顶对齐）+ `fml_gui_text_gbk_width` |
+| `apl/src/main.c` | POST `font` 项加中文四个字逐字统计 |
+
+## 未做 / 敞口
+
+- 只验了 4 个字，没有逐区校验全表（PC 侧生成器逐字渲染，但没有"屏上抽样回读"）。
+- **GBK 扩展区不支持**：`0x81..0xA0` 起首的码（GBK 扩展、含部分繁体与生僻字）在
+  GB2312 表里没有，`fml_font_glyph` 返回 NULL，屏上是空白块。要支持得另外做表。
+- 10..15 空区占着 6×94×32 = 18048 B 的空白格子，属于"用空间换下标公式"的代价。
+- 混排只有顶对齐，没有基线对齐：ASCII 与汉字都是 16 高，暂时看不出差别；以后换
+  12/24 点阵就要重新对齐。

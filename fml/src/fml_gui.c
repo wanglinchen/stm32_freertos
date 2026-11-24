@@ -82,3 +82,69 @@ uint32_t fml_gui_text_width(const char *text, const fml_font_t *font)
 {
     return fml_font_text_width(font, text);
 }
+
+void fml_gui_text_gbk(uint32_t x, uint32_t y, const char *text, uint16_t fg, uint16_t bg)
+{
+    const fml_font_t *cjk = &fml_font_gbk16;
+    const fml_font_t *asc = &fml_font_ascii8x16;
+    uint32_t cx = x;
+
+    if (text == NULL) {
+        return;
+    }
+    while (*text != '\0') {
+        unsigned char c = (unsigned char)*text;
+
+        if (c < 0x80U) {
+            const uint8_t *glyph = fml_font_glyph(asc, (uint32_t)c);
+
+            if (glyph != NULL) {
+                bsl_fb_mono(cx, y, asc->width, asc->height, glyph, fg, bg, 1);
+            } else {
+                bsl_fb_fill(cx, y, asc->width, asc->height, bg);
+            }
+            cx += asc->width;
+            text++;
+        } else {
+            uint32_t cp;
+            const uint8_t *glyph;
+
+            /* 落单的首字节（串到这里就结束）：吞掉不画。当作半个字去查表会
+             * 查到"区号越界"或邻区字形，屏幕上出现一个莫名其妙的全角字。 */
+            if (text[1] == '\0') {
+                break;
+            }
+            cp = ((uint32_t)c << 8) | (uint32_t)(unsigned char)text[1];
+            glyph = fml_font_glyph(cjk, cp);
+            if (glyph != NULL) {
+                bsl_fb_mono(cx, y, cjk->width, cjk->height, glyph, fg, bg, 1);
+            } else {
+                bsl_fb_fill(cx, y, cjk->width, cjk->height, bg);
+            }
+            cx += cjk->width;
+            text += 2;
+        }
+    }
+}
+
+uint32_t fml_gui_text_gbk_width(const char *text)
+{
+    uint32_t width = 0U;
+
+    if (text == NULL) {
+        return 0U;
+    }
+    while (*text != '\0') {
+        if ((unsigned char)*text < 0x80U) {
+            width += fml_font_ascii8x16.width;
+            text++;
+        } else {
+            if (text[1] == '\0') {
+                break;
+            }
+            width += fml_font_gbk16.width;
+            text += 2;
+        }
+    }
+    return width;
+}

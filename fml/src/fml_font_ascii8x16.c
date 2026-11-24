@@ -112,4 +112,5 @@ const fml_font_t fml_font_ascii8x16 = {
     .glyphs = &ascii8x16_glyphs[0][0],
     .first = 0x20U,
     .count = ASCII8X16_COUNT,
+    .enc = FML_FONT_ENC_U8, 
 };

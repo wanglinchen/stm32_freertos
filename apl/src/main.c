@@ -16,26 +16,41 @@
 /*
  * 显示自检：POST 的 font 项，由 apl 注册（字库与画布都在 fml，bsl 看不见它们）。
  *
- * 判据双向：
+ * ASCII 判据双向：
  *   blank —— 画一个空格，区域内的非背景像素必须为 0（字库表没串位）
  *   ink   —— 画 'M'，区域内必须有非背景像素（字真的写进帧缓冲了）
  * 只看 ink > 0 是不够的：一张整体错位（每个码位取到相邻字形）的表也会让 ink > 0；
  * 而 blank ≠ 0 说明字形里有脏行，会把每个字都糊成一团。
  *
+ * GBK 判据（P3）：画一行四个汉字，逐字统计 ink，每个都必须 ≥ 20。
+ * 16×16 宋体一个常用字的黑点实测 40~90（"永"47 / "中"48 / "国"84），
+ * 缺字、空区（10..15 区）、下标错位全部落在 0 附近 —— 只看"整行 ink > 0"
+ * 抓不住"四个字里有一个没画出来"，逐字才抓得住。
+ *
  * 文字落在蓝区的一块黑条上，不动上面红/绿两块 —— 一次 POST 之后屏上同时留着
- * "色块对不对"和"文字对不对"两份人眼证据。
+ * "色块对不对"和"文字对不对（ASCII + 中文）"两份人眼证据。
  *
  * 细节在 "[post] font " 之后由本函数自己打，与 bsl 的其它项同一行。
  */
+#define APP_CJK_MIN_INK 20U
+
 static int app_display_check(void)
 {
+    /* "中文显示" 的 GBK 字节：D6D0 / CEC4 / CFD4 / CABE。
+     * 必须写转义而不是中文字面量：C 源码是 UTF-8，直接写中文编译进去是 UTF-8
+     * 字节，fml_gui_text_gbk 会把它当双字节乱切。 */
+    static const char cjk_line[] = "\xD6\xD0\xCE\xC4\xCF\xD4\xCA\xBE";
     const fml_font_t *font = &fml_font_ascii8x16;
+    const fml_font_t *cjk = &fml_font_gbk16;
     const uint16_t bg = 0x0000U;
     const uint16_t fg = 0xFFFFU;
     uint32_t x = 16U;
     uint32_t y = 344U;
     uint32_t blank;
     uint32_t ink;
+    uint32_t min_ink = 0xFFFFFFFFU;
+    uint32_t cx;
+    unsigned k;
 
     bsl_fb_fill(0U, y, board_lcd_width(), 128U, bg);
 
@@ -49,6 +64,23 @@ static int app_display_check(void)
     fml_gui_text(x, y, "M", font, fg, bg);
     ink = bsl_fb_count_nonbg(x, y, font->width, font->height, bg);
 
+    /* 中文一行：混排函数自己切字（ASCII 8 宽、汉字 16 宽），这里只负责统计。 */
+    y += cjk->height + 12U;
+    fml_gui_text_gbk(16U, y, cjk_line, fg, bg);
+    cx = 16U;
+    for (k = 0U; k < 4U; k++) {
+        uint32_t one = bsl_fb_count_nonbg(cx, y, cjk->width, cjk->height, bg);
+
+        if (one < min_ink) {
+            min_ink = one;
+        }
+        BSL_LOG_INF(" c");
+        bsl_log_put_dec((int)k);
+        BSL_LOG_INF("=");
+        bsl_log_put_dec((int)one);
+        cx += cjk->width;
+    }
+
     BSL_LOG_INF(" w=");
     bsl_log_put_dec((int)font->width);
     BSL_LOG_INF(" h=");
@@ -57,7 +89,9 @@ static int app_display_check(void)
     bsl_log_put_dec((int)ink);
     BSL_LOG_INF(" blank=");
     bsl_log_put_dec((int)blank);
-    return ((ink > 0U) && (blank == 0U)) ? 1 : 0;
+    BSL_LOG_INF(" cjk_min=");
+    bsl_log_put_dec((int)min_ink);
+    return ((ink > 0U) && (blank == 0U) && (min_ink >= APP_CJK_MIN_INK)) ? 1 : 0;
 }
 
 /*

@@ -30,4 +30,19 @@ void fml_gui_text(uint32_t x, uint32_t y, const char *text, const fml_font_t *fo
 
 uint32_t fml_gui_text_width(const char *text, const fml_font_t *font);
 
+/* 写一行 GBK 混排文本（P3）：ASCII 用 8×16 半角、其余用 GBK16 全角。
+ *
+ * 为什么单独一个函数而不是给 fml_gui_text 加参数：切字规则（首字节 ≥ 0x81 就是
+ * 双字节）、缺字处理、步进宽度（8 还是 16）都跟"只有一个 font"的模型不同；
+ * 塞进同一个函数会让每个调用点都多背一套分支。
+ *
+ * 文本必须是 GBK 字节串（C 源码是 UTF-8，写中文字面量要用 "\xD6\xD0" 这种转义，
+ * 否则编译进去的是 UTF-8 字节，会被当成乱码切字）。
+ *
+ * 两种字形都是顶对齐（都从 y 开始画），不让基线差异把混排行拉歪。 */
+void fml_gui_text_gbk(uint32_t x, uint32_t y, const char *text, uint16_t fg, uint16_t bg);
+
+/* 同一行的像素宽度（半角 8 / 全角 16 逐字累加）。 */
+uint32_t fml_gui_text_gbk_width(const char *text);
+
 #endif

@@ -92,6 +92,7 @@ def main() -> int:
     lines.append("    .glyphs = &ascii8x16_glyphs[0][0],")
     lines.append("    .first = 0x20U,")
     lines.append("    .count = ASCII8X16_COUNT,")
+    lines.append("    .enc = FML_FONT_ENC_U8, ")
     lines.append("};")
     lines.append("")
 
