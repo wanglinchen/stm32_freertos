@@ -29,6 +29,9 @@ LOCAL_OBJS :=
 -include $(BUILD_DIR)/fml/src/fml_font_gbk16.d
 -include $(BUILD_DIR)/fml/src/fml_gui.d
 -include $(BUILD_DIR)/fml/src/fml_panic.d
+-include $(BUILD_DIR)/fml/src/fml_picture.d
+-include $(BUILD_DIR)/fml/src/fml_t9.d
+-include $(BUILD_DIR)/fml/src/fml_t9_table.d
 -include $(BUILD_DIR)/fml/src/fml_ui.d
 
 ifeq ($(CONFIG_FML),y)
@@ -94,6 +97,39 @@ $(BUILD_DIR)/fml/src/fml_panic.o: $(PROJECT_ROOT)/fml/src/fml_panic.c $(FLAG_DEP
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/fml/src/fml_panic.d -c $< -o $@
 	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/fml/src/fml_panic.d
+endif
+endif
+
+ifeq ($(CONFIG_FML),y)
+ifeq ($(CONFIG_FML_SRC),y)
+LOCAL_OBJS += $(BUILD_DIR)/fml/src/fml_picture.o
+$(BUILD_DIR)/fml/src/fml_picture.o: $(PROJECT_ROOT)/fml/src/fml_picture.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/fml/src/fml_picture.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/fml/src/fml_picture.d
+endif
+endif
+
+ifeq ($(CONFIG_FML),y)
+ifeq ($(CONFIG_FML_SRC),y)
+LOCAL_OBJS += $(BUILD_DIR)/fml/src/fml_t9.o
+$(BUILD_DIR)/fml/src/fml_t9.o: $(PROJECT_ROOT)/fml/src/fml_t9.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/fml/src/fml_t9.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/fml/src/fml_t9.d
+endif
+endif
+
+ifeq ($(CONFIG_FML),y)
+ifeq ($(CONFIG_FML_SRC),y)
+LOCAL_OBJS += $(BUILD_DIR)/fml/src/fml_t9_table.o
+$(BUILD_DIR)/fml/src/fml_t9_table.o: $(PROJECT_ROOT)/fml/src/fml_t9_table.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/fml/src/fml_t9_table.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/fml/src/fml_t9_table.d
 endif
 endif
 

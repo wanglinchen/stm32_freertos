@@ -9,6 +9,7 @@
 #include "fml_font.h"
 #include "fml_fatfs.h"
 #include "fml_gui.h"
+#include "fml_picture.h"
 #include "fml_panic.h"
 #include "fml_ui.h"
 #include "osl_boot.h"
@@ -403,6 +404,21 @@ static uint16_t menu_id_by_label(const fml_ui_win_t *win, const char *label)
     return 0U;
 }
 
+/* 4 位小写十六进制。给 `note=` 用：只打字节数说明不了"落进去的是哪两个字"，
+ * 而这条判据的全部意义就是那对字节。 */
+static void app_fmt_hex4(app_fmt_t *f, unsigned v)
+{
+    static const char hx[] = "0123456789abcdef";
+    char s[5];
+
+    s[0] = hx[(v >> 12) & 0xFU];
+    s[1] = hx[(v >> 8) & 0xFU];
+    s[2] = hx[(v >> 4) & 0xFU];
+    s[3] = hx[v & 0xFU];
+    s[4] = '\0';
+    app_fmt_puts(f, s);
+}
+
 /* 同一个图标注入两次 CLICK = 双击。两次调用的间隔是 0，必然落在任何合法的
  * 双击窗口内 —— 这里验的是"双击状态机通"，不是"阈值大小合适"。 */
 static int menu_enter_app(const app_desc_t *app)
@@ -447,9 +463,31 @@ static int menu_click_label(const char *label)
     return (app_menu_dispatch(&ev) == APP_ACTION_APP) ? 1 : 0;
 }
 
+/* 按 id 直接点一次。候选按钮的 label 是 NULL（汉字要 GBK 渲染，fml_ui 的
+ * ASCII 标签画不了），所以这些键只能按 id 找 —— `menu_click_label` 对它们是
+ * 瞎的，这不是退路而是唯一路径。 */
+static int menu_click_id(uint16_t id)
+{
+    fml_ui_evt_t ev;
+
+    if (id == 0U) {
+        return 0;
+    }
+    ev.type = FML_UI_EVT_CLICK;
+    ev.id = id;
+    ev.x = 0;
+    ev.y = 0;
+    return (app_menu_dispatch(&ev) == APP_ACTION_APP) ? 1 : 0;
+}
+
 static int app_menu_check(char *buf, unsigned cap)
 {
     app_fmt_t f = APP_FMT_INIT(buf, cap);
+    /* pic / note / cal 三段的读数先攒进同一条尾巴串：它们是在各自的"进入应用"
+     * 段落里算出来的，而输出顺序要按 apps→enter→…→depth 排。把 f 拿在那几段里
+     * 直接写，字段就会跑到 apps 前面，读日志的人得来回找。 */
+    char tail_s[48];
+    app_fmt_t ft = APP_FMT_INIT(tail_s, (unsigned)sizeof(tail_s));
     const unsigned apps = app_count();
     const app_desc_t *first = app_at(0U);
     int enter = 0;
@@ -457,6 +495,9 @@ static int app_menu_check(char *buf, unsigned cap)
     int enter2 = 0;
     int calc_ok = 0;
     int set_flips = 0;
+    int pic_ok = 0;
+    int note_ok = 0;
+    int cal_ok = 0;
     unsigned leave;
     unsigned depth;
     unsigned i;
@@ -502,6 +543,129 @@ static int app_menu_check(char *buf, unsigned cap)
         (void)menu_back();
     }
 
+    /* 图片查看器（第 6 项）：进入后读它解码出的头部。
+     *
+     * 判据是**长度反推**：`行字节 × 高 + data_off` 必须正好等于文件长度。
+     * 卷里唯一那张图是 320×240 / 24 位 / data_off 54 / 230454 B，等式一成立，
+     * 说明 bpp、宽、高、数据偏移四个字段全解析对了；任何一位错位，乘积就对不上
+     * 230400。这比"屏上看着像张图"硬得多 —— 错位解码出来的画面仍然"像"图。
+     *
+     * 再加 ink>0：全黑图（或根本没画）在屏上也是黑的，只有像素计数分得开。 */
+    if ((apps > 5U) && (menu_enter_app(app_at(5U)) != 0)) {
+        int32_t pw = 0;
+        int32_t ph = 0;
+        uint16_t pbpp = 0U;
+        uint32_t ink = 0U;
+        fml_picture_info_t pi;
+
+        if ((app_picviewer_stat(&pw, &ph, &pbpp, &ink) != 0) && (ink > 0U) &&
+            (fml_picture_info(app_picviewer_path(), &pi) == BSL_OK)) {
+            const uint16_t b = pi.bpp;
+            const uint32_t rowb = ((uint32_t)pi.w * (uint32_t)b + 31U) / 32U * 4U;
+            const uint32_t payload = rowb * (uint32_t)pi.h;
+
+            if ((payload + pi.data_off) == pi.file_size) {
+                pic_ok = 1;
+            }
+            app_fmt_puts(&ft, "pic=");
+            app_fmt_dec(&ft, (int)pi.w);
+            app_fmt_puts(&ft, "x");
+            app_fmt_dec(&ft, (int)pi.h);
+            app_fmt_puts(&ft, "b");
+            app_fmt_dec(&ft, (int)b);
+        } else {
+            app_fmt_puts(&ft, "pic=0");
+        }
+        (void)menu_back();
+    } else {
+        app_fmt_puts(&ft, "pic=-");
+    }
+
+    /* 记事本（第 7 项）：94664 = zhong 的数字映射（z9 h4 o6 n6 g4）。
+     *
+     * 但这串数字同时也是 **xiong**（x9 i4 o6 n6 g4）—— 九宫格的固有歧义，
+     * P5c 第一版"只取表里第一个音节"，于是打出的是 xiong 首字"胸"(0xD0D6)，
+     * 上板日志 note=2:d0d6 就是它。现在候选条跨音节连续编号：
+     * xiong 的 7 个字占 0..6，zhong 从 7 开始，所以"中"在第 2 页第 3 格
+     * （flat 7 = 1*5+2 ⇒ id 102）。
+     *
+     * 判据三件套一起进：文本字节对 0xD6D0、音节数 2、候选总数 18。
+     * 词库重生成、映射改错、翻页逻辑错位，都会让其中之一当场变。 */
+    if ((apps > 6U) && (menu_enter_app(app_at(6U)) != 0)) {
+        unsigned syls;
+        unsigned cand;
+        const char *t;
+        unsigned len;
+
+        (void)menu_click_label("9");
+        (void)menu_click_label("4");
+        (void)menu_click_label("6");
+        (void)menu_click_label("6");
+        (void)menu_click_label("4");
+        /* 匹配集要在"点候选之前"读：选中一个字之后拼音串就被清空、界面上的
+         * 候选条也跟着空了，那时候再问就是 0 —— 不是没匹配，是已经用掉了。 */
+        syls = app_notepad_syl_count();
+        cand = app_notepad_cand_total();
+        (void)menu_click_id(APP_NOTE_ID_NEXT);
+        (void)menu_click_id((uint16_t)(APP_NOTE_ID_CAND0 + 2U));
+
+        t = app_notepad_text();
+        len = app_notepad_len();
+        if ((len == 2U) && (t != NULL) &&
+            ((uint8_t)t[0] == 0xD6U) && ((uint8_t)t[1] == 0xD0U) &&
+            (syls == 2U) && (cand == 18U)) {
+            note_ok = 1;
+        }
+        app_fmt_puts(&ft, " note=");
+        app_fmt_dec(&ft, (int)len);
+        /* 尾部补字节对：len==2 却 FAIL 时，光看 2 分不出"拼音解析成了别的字"、
+         * "字节序反了"还是"插进去了但被 DEL 削掉一字节"。 */
+        if ((len >= 2U) && (t != NULL)) {
+            unsigned pair = ((unsigned)(uint8_t)t[0] << 8) | (unsigned)(uint8_t)t[1];
+
+            app_fmt_puts(&ft, ":");
+            app_fmt_hex4(&ft, pair);
+        }
+        app_fmt_puts(&ft, "/");
+        app_fmt_dec(&ft, (int)syls);
+        app_fmt_puts(&ft, ":");
+        app_fmt_dec(&ft, (int)cand);
+        (void)menu_back();
+    } else {
+        app_fmt_puts(&ft, " note=-");
+    }
+
+    /* 日历（第 8 项）：没有 RTC，起点是编译时刻，所以只判"字段范围合法"。
+     * 判"时间准不准"需要 LSE + 备用电池，那是 P6 的 rtc 项。 */
+    if ((apps > 7U) && (menu_enter_app(app_at(7U)) != 0)) {
+        int cy = 0;
+        int cm = 0;
+        int cd = 0;
+        int chh = 0;
+        int cmm = 0;
+        int css = 0;
+
+        app_calendar_now(&cy, &cm, &cd, &chh, &cmm, &css);
+        if ((cy >= 2020) && (cy <= 2200) && (cm >= 1) && (cm <= 12) && (cd >= 1) &&
+            (cd <= 31) && (chh >= 0) && (chh < 24) && (cmm >= 0) && (cmm < 60) &&
+            (css >= 0) && (css < 60)) {
+            cal_ok = 1;
+        }
+        app_fmt_puts(&ft, " cal=");
+        app_fmt_dec(&ft, cy);
+        if (cm < 10) {
+            app_fmt_puts(&ft, "0");
+        }
+        app_fmt_dec(&ft, cm);
+        if (cd < 10) {
+            app_fmt_puts(&ft, "0");
+        }
+        app_fmt_dec(&ft, cd);
+        (void)menu_back();
+    } else {
+        app_fmt_puts(&ft, " cal=-");
+    }
+
     depth = app_menu_depth();
     leave = app_menu_leave_count();
 
@@ -519,6 +683,11 @@ static int app_menu_check(char *buf, unsigned cap)
     app_fmt_puts(&f, app_calc_display());
     app_fmt_puts(&f, " set=");
     app_fmt_dec(&f, set_flips);
+    /* 三项读数挤在一条尾巴串里，规范是"每个字段前一个空格、整串前面再无空格"：
+     * bsl 会在项名与内容之间补一个分隔空格，这里再带前导空格就成双空格了
+     * （P5b 踩过）。 */
+    app_fmt_puts(&f, " ");
+    app_fmt_puts(&f, tail_s);
     app_fmt_puts(&f, " depth=");
     app_fmt_dec(&f, (int)depth);
     /* leave 必须等于 apps：POST 把每个应用都走了一遍，每次 BACK 都该经过
@@ -528,7 +697,8 @@ static int app_menu_check(char *buf, unsigned cap)
      * "打出来给人看、机器不判"，回归时没人会去比对那两列。 */
     return (((enter != 0) && (back != 0)) &&
             ((leave >= apps) && (depth == 0U)) &&
-            (calc_ok != 0) && (set_flips == 2)) ? 1 : 0;
+            (calc_ok != 0) && (set_flips == 2) && (pic_ok != 0) &&
+            (note_ok != 0) && (cal_ok != 0)) ? 1 : 0;
 }
 
 int main(void)

@@ -60,4 +60,30 @@ bsl_err_t fml_fatfs_list_dir(const char *path, fml_fatfs_dirent_t *buf, unsigned
  * 不在这里翻译成字符串：FRESULT 与 ff.h 一一对应，现场查手册比多一张表更可靠。 */
 int fml_fatfs_last_error(void);
 
+/*
+ * 文件读（P5c 为图片查看器/记事本加的）。
+ *
+ * **只有一个句柄**，不是"每次 open 返回一个对象"：`FF_FS_TINY = 0` 时一个
+ * `FIL` 里带 512 B 扇区缓冲，开第二份就多 560 B bss，而本工程 FatFs 本来就是
+ * 单线程（`FF_FS_REENTRANT = 0`）、只有一个消费者。真要并发读两个文件的那天，
+ * 先开 `FF_FS_REENTRANT` 与 `ff_mutex_*` 的 osl 实现，再谈句柄池。
+ *
+ * 顺序无要求：open → (seek) → read… → close。忘记 close 不致命（下次 open 会
+ * 覆盖），但会一直占着那份扇区缓冲。
+ *
+ * 只读，不提供写：`disk_write` 的读改写路径至今**没有实测过**，拿它写真实卷
+ * 等于拿板上 25 MB 素材做赌注。记事本因此只存 RAM（见 §1.2 与 P5c 记录）。
+ */
+#define FML_FATFS_READ_CHUNK 512U
+
+bsl_err_t fml_fatfs_open(const char *path);
+bsl_err_t fml_fatfs_seek(uint32_t offset);
+/* 读最多 len 字节到 buf，实际读到多少写进 *got（可为 NULL）。读到文件尾时
+ * 返回 BSL_OK 且 *got 可能为 0 —— 那不是错误。 */
+bsl_err_t fml_fatfs_read(void *buf, uint32_t len, uint32_t *got);
+/* 当前句柄的文件长度（未 open 返回 0）。 */
+uint32_t fml_fatfs_size(void);
+void fml_fatfs_close(void);
+
+
 #endif /* FML_FATFS_H */

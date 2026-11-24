@@ -13,12 +13,24 @@ config APL_SRC_APP_CALC
 	bool "app_calc.c"
 	default y
 
+config APL_SRC_APP_CALENDAR
+	bool "app_calendar.c"
+	default y
+
 config APL_SRC_APP_KEY
 	bool "app_key.c"
 	default y
 
 config APL_SRC_APP_LED
 	bool "app_led.c"
+	default y
+
+config APL_SRC_APP_NOTEPAD
+	bool "app_notepad.c"
+	default y
+
+config APL_SRC_APP_PICVIEWER
+	bool "app_picviewer.c"
 	default y
 
 config APL_SRC_APP_SAMPLE

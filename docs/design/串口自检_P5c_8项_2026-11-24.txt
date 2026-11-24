@@ -1,0 +1,109 @@
+# P5c 串口取证：图片查看器 `app_picviewer` + 记事本 `app_notepad` + 日历 `app_calendar`（判据全并入 `menu` 项）
+
+- 日期：2026-11-24
+- 分支/提交：`feature/full-demo`，父提交 P5c 开工核对 `3a86816`
+- 固件：userdebug `text 578624 / data 52 / bss 38156`；user 档 `text 569024 / data 52 / bss 38148`
+  （1 MB flash 用 55.2% / 54.3%）。较 P5c 第一部分的 `559728/36968`（当时只含图片查看器）：
+  text +18.9 KB（拼音表 7510 B + 记事本 + 日历 + 多音节候选逻辑）、bss +1.2 KB
+- 采集：COM3 / 115200 / 8N1；先开串口后台采集 95 s，再 `flash/flash.py flash`（578 KB 镜像烧写约 48 s）
+- 板上现状：`start` / `leave` 全部走 `app_menu_dispatch`；真手指未按（`touch points=0` 表示没人碰屏，正常）
+
+## 通过那一版（`result 8 pass 8 fail 0`）
+
+```text
+[post] sdram size=32M bad=0 PASS
+[post] lcd w=800 h=480 bad=0 PASS
+[post] touch id=9147 points=0 PASS
+[post] nor id=0xef4019 size=32M PASS
+[post] font c0=48 c1=45 c2=70 c3=46 w=8 h=16 ink=22 blank=0 cjk_min=45 PASS
+[post] fatfs total=25568KB ents=2 [SYSTEM 0B DIR] [??????~1 0B DIR] SYSTEM:n=3 [APP 0B DIR] [SPB 0B DIR] [LWIP 0B DIR] ??????~1:n=16 [ALIENT~1.TXT 2486B] [??????~1.AVI 2534868B] [??????~1.SMS 262144B] [????28~1.BIN 44804B] PASS
+[post] ui win=1 btn=8 hit=8/8 ink=520 ovf=0 PASS
+[post] menu apps=8 enter=1 back=1 leave=8 enter2=2 calc=3 set=2 pic=240x320b24 note=2:d6d0/2:18 cal=20261124 depth=0 PASS
+[post] result 8 pass 8 fail 0
+```
+
+采集窗口里同一段 POST 出现两遍（烧写前旧固件一遍 + 复位后新固件一遍），按复位点切分；
+本次两遍都是 `pass 8 fail 0`，即连续两次复位结果一致（不是"碰巧过一次"）。
+
+## 判据拆解（本批新增的三段）
+
+| 字段 | 值 | 说明 |
+|---|---|---|
+| `ui btn=8` | 8 个图标 | 注册表打满 `APP_COUNT_MAX`：`LED` / `KEY` / `BEEP` / `CALC` / `SETTINGS` / `PIC` / `NOTE` / `CAL`（id 1..8），4 列 × 2 行 |
+| `ui hit=8/8` | 八个图标中心 DOWN+UP 全部产出 id 对得上的 CLICK | 走 `fml_ui_feed`，与真手指同一条路径 |
+| `menu pic=240x320b24` | `app_picviewer_stat()` 报的宽 × 高 × bpp | 240 宽 × **320 高**（竖构图）、24 位 |
+| （pic 的判据） | `row_bytes*h + data_off == file_size` | 乘积反推"头部解析无误"：`((240*24+31)/32*4)*320 + 54 = 230454`，与实际文件长度相等。只判 `ink>0` 不够 —— 解析错位也照样画出一片非黑 |
+| `menu note=2:d6d0/2:18` | 长度 2 字节 / 内容 `0xD6D0` / 匹配音节 2 个 / 候选字 18 个 | 见下面「坑 ②」：`94664` 同时是 `xiong` 和 `zhong`，候选条第 8 格（flat 7）才是「中」 |
+| `menu cal=20261124` | 年 / 月 / 日 = 2026-11-24 | 时间起点是**编译时刻**（`__DATE__`/`__TIME__`）+ `osl_tick` 秒累加；只判字段范围合法，判"准不准"要 RTC（P6） |
+| `menu leave=8` | 8 个应用全部走一遍并各自交还执行器 | `leave>=apps` |
+| `menu apps=8` / `enter2=2` / `calc=3` / `set=2` / `depth=0` | 沿用 P5b，未改动 | — |
+
+## 三处坑（都已修）
+
+### ① `app_calendar.c`：`atoi_4()` 定义在 `cal_build_epoch()` 之后
+
+隐式声明，`-Werror` 下必然失败。修法不是补前向声明，而是把它**改名并前移**成
+`cal_four_digits()`，与已有的 `cal_two_digits()` 并排 —— 两者本来就是同族（都从
+`__DATE__` 的固定宽度字段取数）。前向声明只会把"顺序错了"这件事藏起来。
+
+顺带核实：`osl_tick_now()` 返回 `xTaskGetTickCount()`，`configTICK_RATE_HZ = 1000`
+⇒ 1 tick = 1 ms，`/1000U` 取秒正确。
+
+### ② `fml_t9`：`94664` 不是 `zhong` 的唯一解 —— 最贵的一处
+
+第一版 `fml_t9_resolve` 只返回"表里第一个匹配音节"，上板打出 `note=2:d0d6`：
+
+```text
+[post] menu ... note=2:d0d6 ... FAIL     ← 0xD0D6 = "胸"
+```
+
+`0xD0D6` 是 `xiong` 组的首字。`xiong` 与 `zhong` 的数字串都是 **94664**
+（x/z 同在 `9` 键、i/h 同在 `4` 键、o 在 `6`、n 在 `6`、g 在 `4`），而音节表按字母序
+排，`xiong`(idx 339) 排在 `zhong`(idx 378) 前面 ⇒ "取第一个"永远取到 xiong。
+**功能没坏，是"只给一个音节"这个接口错了。**
+
+修法（`fml/inc/fml_t9.h` + `fml/src/fml_t9.c`）：
+
+| 改动 | 内容 |
+|---|---|
+| 新增 `FML_T9_MATCH_MAX 8` | 匹配音节列表上限 |
+| 新增 `fml_t9_match_count` / `fml_t9_match_at` | 返回**全部**完全匹配的音节（完全匹配为 0 才退到前缀匹配）；顺序 = 音节表字母序 |
+| `fml_t9_resolve` 保留 | 语义收窄成"首个匹配音节"（= `match_at(...,0)`），注释写明**不要**用它决定候选；`app_notepad` 的显示行仍消费它（否则 `--gc-sections` 会把它丢掉，`check` 的 G 组会报假 API） |
+
+`app_notepad` 相应改成"跨音节连续编号的候选条"：`xiong` 的 7 个字占 flat 0..6，
+`zhong` 的 11 个字从 flat 7 开始，总数 18、4 页。POST 因此要点
+`NEXT` 翻到第 2 页再点第 3 格（flat 7 ⇒ 候选按钮 id `102`）。
+
+判据同时收三个数：字节对 `0xD6D0`、音节数 `2`、候选总数 `18`。
+词库重生成、映射改错、翻页错位，都会让其中之一当场变 —— 只对字节对的话，
+"恰好第 8 格还是某个字"仍可能是错的。
+
+### ③ `note_draw` 的 unused variable
+
+`const fml_font_t *gbk = &fml_font_gbk16;` 没用上 —— `fml_gui_text_gbk()` 内部就用
+`fml_font_gbk16`，签名里没有 font 参数。删掉即可（`-Werror=unused-variable` 只会
+指出一行，但同类"以为要传字体"的写法在新增界面代码里很容易再犯）。
+
+## 素材事实更正（重要）
+
+`320×240` 是**错的**：卷里那张 BMP 是 **240 宽 × 320 高**（竖构图）。此前按
+`230454 = 320*240*3 + 54` 反推成 320×240，乘积对所以判据不受影响，但文档与
+commit message 里的方向写反了。本次在对照表 §4 P5c 行与本文一并更正为 240×320。
+
+## 未覆盖 / 遗留
+
+- **真手指**未验：图片查看器的 BACK、记事本 19 个键、日历 `<`/`>` 的真触摸路径
+  （POST 走的是 `fml_ui_feed` 注入，同一条路径但不是同一份输入）。
+- `app_picviewer` 只做 **1:1 居中**：不缩放、不能切图（卷里只有一张 BMP 可看）。
+  要"浏览多张"得先有目录内多文件与上一张/下一张的交互设计。
+- `app_notepad` **只存 RAM、不写盘**：`disk_write` 的读改写路径至今未实测（P2b 遗留），
+  拿它往 25 MB 素材卷里写文件是拿现成数据做赌注。要持久化先补写验证。
+- `app_calendar` 的时间起点是**编译时刻**，不是墙钟：断电重来会回到"烧写那一刻"。
+  真 RTC（LSE + 备用电池）属于 P6。
+- 拼音表只收 GB2312 一级 3755 字 + 默认读音；二级汉字、多音字（"重"/"行"的其它读音）
+  都不在候选里。
+- `APP_COUNT_MAX 8` 已被 8 个应用**打满**：再加一个应用必须先扩上限（并同步 §4 的账）。
+- `board_post` 的 4 个外部项名额（`font`/`fatfs`/`ui`/`menu`）也已打满，本批判据只能继续并入 `menu`。
+- `python build/build.py check` 仍报 8 条既有失败（`app_double_click_ms` / `bsl_fb_clear` /
+  `ff.h` 里 34 个未用的 FatFs 函数 / `ffconf.h` 守卫），**本批新增符号全部有消费者**，
+  这些是 P5c 之前就在的历史遗留，未在本批扩大范围处理。

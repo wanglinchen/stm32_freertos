@@ -27,8 +27,11 @@ LOCAL_OBJS :=
 -include $(BUILD_DIR)/apl/src/app.d
 -include $(BUILD_DIR)/apl/src/app_beep.d
 -include $(BUILD_DIR)/apl/src/app_calc.d
+-include $(BUILD_DIR)/apl/src/app_calendar.d
 -include $(BUILD_DIR)/apl/src/app_key.d
 -include $(BUILD_DIR)/apl/src/app_led.d
+-include $(BUILD_DIR)/apl/src/app_notepad.d
+-include $(BUILD_DIR)/apl/src/app_picviewer.d
 -include $(BUILD_DIR)/apl/src/app_sample.d
 -include $(BUILD_DIR)/apl/src/app_settings.d
 -include $(BUILD_DIR)/apl/src/main.d
@@ -74,6 +77,19 @@ endif
 
 ifeq ($(CONFIG_APL),y)
 ifeq ($(CONFIG_APL_SRC),y)
+ifeq ($(CONFIG_APL_SRC_APP_CALENDAR),y)
+LOCAL_OBJS += $(BUILD_DIR)/apl/src/app_calendar.o
+$(BUILD_DIR)/apl/src/app_calendar.o: $(PROJECT_ROOT)/apl/src/app_calendar.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/apl/src/app_calendar.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/apl/src/app_calendar.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_APL),y)
+ifeq ($(CONFIG_APL_SRC),y)
 ifeq ($(CONFIG_APL_SRC_APP_KEY),y)
 LOCAL_OBJS += $(BUILD_DIR)/apl/src/app_key.o
 $(BUILD_DIR)/apl/src/app_key.o: $(PROJECT_ROOT)/apl/src/app_key.c $(FLAG_DEPS)
@@ -94,6 +110,32 @@ $(BUILD_DIR)/apl/src/app_led.o: $(PROJECT_ROOT)/apl/src/app_led.c $(FLAG_DEPS)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/apl/src/app_led.d -c $< -o $@
 	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/apl/src/app_led.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_APL),y)
+ifeq ($(CONFIG_APL_SRC),y)
+ifeq ($(CONFIG_APL_SRC_APP_NOTEPAD),y)
+LOCAL_OBJS += $(BUILD_DIR)/apl/src/app_notepad.o
+$(BUILD_DIR)/apl/src/app_notepad.o: $(PROJECT_ROOT)/apl/src/app_notepad.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/apl/src/app_notepad.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/apl/src/app_notepad.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_APL),y)
+ifeq ($(CONFIG_APL_SRC),y)
+ifeq ($(CONFIG_APL_SRC_APP_PICVIEWER),y)
+LOCAL_OBJS += $(BUILD_DIR)/apl/src/app_picviewer.o
+$(BUILD_DIR)/apl/src/app_picviewer.o: $(PROJECT_ROOT)/apl/src/app_picviewer.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/apl/src/app_picviewer.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/apl/src/app_picviewer.d
 endif
 endif
 endif

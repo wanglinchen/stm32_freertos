@@ -15,6 +15,13 @@
 
 #define MENU_LOG_MOD "menu"
 #define MENU_POLL_PERIOD_MS 10U
+
+/* app_menu 的栈：默认 256 words（1 KB）只够"读触点 + 画窗口"，P5c 起这个任务
+ * 还要在 enter 里列目录、解析 BMP 头、逐行解码（每条调用都会在栈上压一层）。
+ * 512 words（2 KB）是给它留出的余量；目录项数组已经挪成模块级 static
+ * （见 app_picviewer.c 的 pic_find_in），所以这 2 KB 是净余量而不是被吃掉的部分。
+ * 另外 health 的最低水位只看栈用量，与这里给多少无关。 */
+#define MENU_STACK_WORDS 512U
 #define MENU_TITLE "P5 desktop - tap twice to enter"
 
 /*
@@ -37,6 +44,9 @@ static void app_table_build(void)
     s_apps[s_apps_count++] = app_beep_ops();
     s_apps[s_apps_count++] = app_calc_ops();
     s_apps[s_apps_count++] = app_settings_ops();
+    s_apps[s_apps_count++] = app_picviewer_ops();
+    s_apps[s_apps_count++] = app_notepad_ops();
+    s_apps[s_apps_count++] = app_calendar_ops();
     /* 防御：ops() 返回 NULL 说明该应用没装好。就地压缩、不留空槽 ——
      * 空槽会让桌面图标数与 POST 的 apps 计数对不上。 */
     i = 0U;
@@ -333,8 +343,7 @@ static void menu_task(void *argument)
 void app_start(void)
 {
     app_menu_init();
-    if (osl_thread_create(menu_task, "app_menu", OSL_THREAD_STACK_WORDS_DEFAULT,
-                          NULL, 2U) != 0) {
+    if (osl_thread_create(menu_task, "app_menu", MENU_STACK_WORDS, NULL, 2U) != 0) {
         fml_panic(2U);
     }
 }

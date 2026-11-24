@@ -48,6 +48,13 @@ endif
 endif
 ifeq ($(CONFIG_APL),y)
 ifeq ($(CONFIG_APL_SRC),y)
+ifeq ($(CONFIG_APL_SRC_APP_CALENDAR),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/apl/src/app_calendar.o
+endif
+endif
+endif
+ifeq ($(CONFIG_APL),y)
+ifeq ($(CONFIG_APL_SRC),y)
 ifeq ($(CONFIG_APL_SRC_APP_KEY),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/apl/src/app_key.o
 endif
@@ -57,6 +64,20 @@ ifeq ($(CONFIG_APL),y)
 ifeq ($(CONFIG_APL_SRC),y)
 ifeq ($(CONFIG_APL_SRC_APP_LED),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/apl/src/app_led.o
+endif
+endif
+endif
+ifeq ($(CONFIG_APL),y)
+ifeq ($(CONFIG_APL_SRC),y)
+ifeq ($(CONFIG_APL_SRC_APP_NOTEPAD),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/apl/src/app_notepad.o
+endif
+endif
+endif
+ifeq ($(CONFIG_APL),y)
+ifeq ($(CONFIG_APL_SRC),y)
+ifeq ($(CONFIG_APL_SRC_APP_PICVIEWER),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/apl/src/app_picviewer.o
 endif
 endif
 endif

@@ -257,3 +257,77 @@ int fml_fatfs_last_error(void)
 {
     return s_last_error;
 }
+
+/* ---- 文件读（单句柄） ------------------------------------------------ */
+
+static FIL s_fil;
+static int s_fil_open;
+
+bsl_err_t fml_fatfs_open(const char *path)
+{
+    FRESULT fr;
+
+    if ((s_mounted == 0) || (path == NULL)) {
+        return BSL_ERR_INVAL;
+    }
+    if (s_fil_open != 0) {
+        (void)f_close(&s_fil);
+        s_fil_open = 0;
+    }
+    /* FA_READ 是 0x01；这里不写 FA_OPEN_EXISTING 以外的方式：本工程只读，
+     * 传 FA_CREATE_* 会真的在卷上建文件 —— 写路径没实测过，不给它机会。 */
+    fr = f_open(&s_fil, path, FA_READ | FA_OPEN_EXISTING);
+    s_last_error = (int)fr;
+    if (fr != FR_OK) {
+        return BSL_ERR_IO;
+    }
+    s_fil_open = 1;
+    return BSL_OK;
+}
+
+bsl_err_t fml_fatfs_seek(uint32_t offset)
+{
+    FRESULT fr;
+
+    if (s_fil_open == 0) {
+        return BSL_ERR_INVAL;
+    }
+    fr = f_lseek(&s_fil, (FSIZE_t)offset);
+    s_last_error = (int)fr;
+    return (fr == FR_OK) ? BSL_OK : BSL_ERR_IO;
+}
+
+bsl_err_t fml_fatfs_read(void *buf, uint32_t len, uint32_t *got)
+{
+    FRESULT fr;
+    UINT br = 0U;
+
+    if (got != NULL) {
+        *got = 0U;
+    }
+    if ((s_fil_open == 0) || (buf == NULL) || (len == 0U) || (len > 0x7FFFFFFFU)) {
+        return BSL_ERR_INVAL;
+    }
+    fr = f_read(&s_fil, buf, (UINT)len, &br);
+    s_last_error = (int)fr;
+    if (got != NULL) {
+        *got = (uint32_t)br;
+    }
+    return (fr == FR_OK) ? BSL_OK : BSL_ERR_IO;
+}
+
+uint32_t fml_fatfs_size(void)
+{
+    if (s_fil_open == 0) {
+        return 0U;
+    }
+    return (uint32_t)f_size(&s_fil);
+}
+
+void fml_fatfs_close(void)
+{
+    if (s_fil_open != 0) {
+        (void)f_close(&s_fil);
+        s_fil_open = 0;
+    }
+}

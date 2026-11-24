@@ -127,4 +127,47 @@ int app_settings_backlight(void);
  * 同样等于初值，光看终值会把"完全坏了"判成通过。 */
 unsigned app_settings_flips(void);
 
+/* P5c 的第一个应用：图片查看器。另外两个（记事本 / 日历）在同批后续加。 */
+const app_desc_t *app_picviewer_ops(void);
+
+/* 图片查看器这次打开的结果：1 = 找到并解码成功，0 = 没找到或解码失败。
+ * POST 的 `pic=` 字段靠它算：w×h×3+54 必须等于文件长度（那张图是 320×240/24 位），
+ * 头部解析错一位这个等式就不成立 —— 比"屏上看着像"硬得多。
+ * ink 是非黑像素数：全黑图与"根本没画"在屏上一样，只有计数分得开。 */
+int app_picviewer_stat(int32_t *w, int32_t *h, uint16_t *bpp, uint32_t *ink);
+
+/* 找到的文件路径（长名；空串 = 没找到）。POST 把它打进 `pic=` 便于现场核对。 */
+const char *app_picviewer_path(void);
+
+/* P5c 的另两个应用：记事本（fml_t9 九宫格拼音）与日历（osl_tick 走时，
+ * 真实 RTC 在 P6）。 */
+const app_desc_t *app_notepad_ops(void);
+const app_desc_t *app_calendar_ops(void);
+
+/* 记事本已输入的 GBK 字节数与内容。POST 的 `note=` 用它判"94664 → 候选里的
+ * '中' 真的落进了文本缓冲"：只判按钮点得动，判不出输入法整条链通没通。 */
+unsigned app_notepad_len(void);
+const char *app_notepad_text(void);
+
+/* 当前数字串的匹配音节数与候选字总数。94664 上应该是 2 个音节 / 18 个字
+ * （xiong 7 + zhong 11）—— POST 把这两个数也打进日志，词库一换就当场可见，
+ * 免得再去猜"为什么候选条里的第 8 格变成了别的字"。 */
+unsigned app_notepad_syl_count(void);
+unsigned app_notepad_cand_total(void);
+
+/* 日历当前读数。没有真实时间源，起点是**编译时刻**（见 app_calendar.c），
+ * POST 只判字段范围合法 —— 判"时间是准的"需要 RTC，那是 P6 的事。 */
+void app_calendar_now(int *y, int *m, int *d, int *hh, int *mm, int *ss);
+
+/*
+ * 记事本的按钮 id（**公开契约**）。候选键的 label 是 NULL —— 汉字要用 GBK 渲染，
+ * 而 `fml_ui_btn_t.label` 只认 ASCII。POST 因此只能按 id 点候选；把 id 写在
+ * app_notepad.c 里当私有的，main.c 就得再抄一份 100，两处迟早漂移。
+ */
+#define APP_NOTE_ID_CAND0 100U
+#define APP_NOTE_ID_PREV 110U
+#define APP_NOTE_ID_NEXT 111U
+#define APP_NOTE_ID_ZERO 10U
+#define APP_NOTE_ID_DEL 11U
+
 #endif
