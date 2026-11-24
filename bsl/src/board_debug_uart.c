@@ -199,6 +199,38 @@ void board_debug_uart_puts(const char *s)
     (void)board_uart_write(s, len);
 }
 
+/* 非阻塞收一个字节：返回 1 = 读到了，0 = 此刻没有数据。
+ *
+ * 为什么不做阻塞版/中断版：P6b 的 shell 是一条任务、10 ms 轮询一次，一轮里把
+ * 缓冲区里已有的字节全部取走就够；阻塞版会让"没输入时任务不干活"，中断版要
+ * 引入 NVIC/临界区与环形缓冲，而这条链路每秒最多几十字节。
+ *
+ * ORE 必须先清（RM0090 §30.3.9）：溢出错误发生后 RXNE 不再置起、直到 SR 被
+ * 读后跟一次 DR 读。只读 RXNE 不看 ORE 的写法在"主机连发两行、间隔小于
+ * 一个轮询周期"时会把接收永久卡死 —— 现场表现是"shell 只能吃第一行"。
+ *
+ * 不在这里加临界区：当前只有 shell 一条任务调用；将来若有第二个消费者，
+ * 应当把整个"取字节→解析"搬进临界区，而不是只保护 DR 读。 */
+int board_debug_uart_getc(char *out)
+{
+    UART_HandleTypeDef *h = &s_huart_debug;
+
+    if (out == NULL || h->Instance == NULL) {
+        return 0;
+    }
+    if (!bsl_device_is_ready(BSL_DEV_DEBUG_UART)) {
+        return 0;
+    }
+    if (__HAL_UART_GET_FLAG(h, UART_FLAG_ORE) != RESET) {
+        __HAL_UART_CLEAR_OREFLAG(h);
+    }
+    if (__HAL_UART_GET_FLAG(h, UART_FLAG_RXNE) == RESET) {
+        return 0;
+    }
+    *out = (char)(h->Instance->DR & 0xFFU);
+    return 1;
+}
+
 const bsl_device_driver_t bsl_driver_debug_uart = {
     .init = board_debug_uart_init,
 };

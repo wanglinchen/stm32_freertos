@@ -11,6 +11,7 @@
 #include "fml_gui.h"
 #include "fml_picture.h"
 #include "fml_panic.h"
+#include "fml_shell.h"
 #include "fml_ui.h"
 #include "osl_boot.h"
 #include "osl_health.h"
@@ -701,12 +702,86 @@ static int app_menu_check(char *buf, unsigned cap)
             (note_ok != 0) && (cal_ok != 0)) ? 1 : 0;
 }
 
+/*
+ * 串口命令行自检：POST 的 shell 项（P6b，自研补充项 —— 参考工程的 USMART 不在
+ * system_init 的 20 项里，按登记规则落在第 23 行之后）。
+ *
+ * **这一项验不到"串口能收"**，必须先说清：POST 在 `osl_scheduler_start()` 之前
+ * 运行（见 main 末尾），shell 的接收任务那时还不存在；而且接收需要人手在终端
+ * 敲字。POST 能验的是"命令表在、分发通、执行器真能执行"三件事 —— 走的就是
+ * 人敲键时那条 `fml_shell_exec()`。真接收只能靠 HIL（见 上板验证.md 第 32 项）。
+ *
+ * 判据三条：
+ *   cmd    —— 命令表条数 > 0（表被 --gc-sections 整段丢掉时这里是 0）
+ *   help   —— `help` 必须返回 OK 且输出非空：证明查找 + 执行器 + 输出拼接全通
+ *   uptime —— 一个**会返回值**的执行器（osl tick），把数字解析出来；只判
+ *             "help 有输出"不够，那只能证明有一个命令能跑
+ */
+static int app_shell_dec(const char *s, const char *key, int *out)
+{
+    unsigned i = 0U;
+    unsigned k = 0U;
+    int v = 0;
+
+    while ((s[i] != '\0') && (key[k] != '\0') && (s[i] == key[k])) {
+        i++;
+        k++;
+    }
+    if ((key[k] != '\0') || (s[i] != '=')) {
+        return 1;
+    }
+    i++;
+    if ((s[i] < '0') || (s[i] > '9')) {
+        return 1;
+    }
+    while ((s[i] >= '0') && (s[i] <= '9')) {
+        v = v * 10 + (int)(s[i] - '0');
+        i++;
+    }
+    *out = v;
+    return 0;
+}
+
+static int app_shell_check(char *buf, unsigned cap)
+{
+    app_fmt_t f = APP_FMT_INIT(buf, cap);
+    char out_help[96];
+    char out_up[64];
+    unsigned cmds;
+    int help_ok = 0;
+    int up_ok = 0;
+    int uptime = -1;
+
+    if (fml_shell_init() != BSL_OK) {
+        app_fmt_puts(&f, "init=err");
+        return 0;
+    }
+    cmds = fml_shell_cmd_count();
+
+    if ((fml_shell_exec("help", out_help, (unsigned)sizeof(out_help)) == BSL_OK)
+        && (out_help[0] != '\0')) {
+        help_ok = 1;
+    }
+    if (fml_shell_exec("uptime", out_up, (unsigned)sizeof(out_up)) == BSL_OK
+        && (app_shell_dec(out_up, "uptime", &uptime) == 0) && (uptime >= 0)) {
+        up_ok = 1;
+    }
+
+    app_fmt_puts(&f, "cmd=");
+    app_fmt_dec(&f, (int)cmds);
+    app_fmt_puts(&f, " help=");
+    app_fmt_dec(&f, help_ok);
+    app_fmt_puts(&f, " uptime=");
+    app_fmt_dec(&f, (uptime < 0) ? 0 : uptime);
+    app_fmt_puts(&f, "ms");
+    return ((cmds > 0U) && (help_ok != 0) && (up_ok != 0)) ? 1 : 0;
+}
+
 int main(void)
 {
     int rc;
 
     osl_health_init();
-
     rc = board_system_init();
     osl_boot_stage_note((rc == 0) ? 0U : (uint32_t)rc);
     if (rc != 0) {
@@ -737,6 +812,9 @@ int main(void)
     if (board_post_register("menu", app_menu_check) == 0) {
         BSL_LOG_INF("[post] menu register FAIL\r\n");
     }
+    if (board_post_register("shell", app_shell_check) == 0) {
+        BSL_LOG_INF("[post] shell register FAIL\r\n");
+    }
 
     /* 上电自检：设备初始化之后单独跑一轮，结果只走串口。
      * 与 periph init 分开的原因：init 失败与 selftest 失败在串口上是两行。
@@ -753,6 +831,11 @@ int main(void)
      * 任务优先级都低于 app_menu，保证触摸轮询不被按键日志拖慢。 */
     app_sample_start();
     app_start();
+    /* 命令行任务：POST 之后才建（POST 用的是同一套 exec 纯函数，不需要任务）。
+     * 建失败不 panic —— 只是少一个调试入口，不影响应用跑；但必须留一行。 */
+    if (fml_shell_start() != 0) {
+        BSL_LOG_INF("[shell] task create FAIL\r\n");
+    }
 
     osl_scheduler_start();
 

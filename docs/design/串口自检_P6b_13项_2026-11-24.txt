@@ -1,0 +1,159 @@
+串口自检 P6b：13 项（新增 shell）+ 串口命令行 HIL 实测
+日期：2026-11-24
+分支：feature/full-demo
+证据来源：out/boot_p6b5.log（启动，13/13）、out/hil_shell_p6b2.log（人手敲命令）
+产物：out/userdebug/objects/target/stm32-freertos.elf、out/user/objects/target/stm32-freertos.elf
+
+
+== 一、启动自检全文（刷写后复位第一轮，无 ring 回放、无 panic） ==
+
+[post] sdram size=32M bad=0 PASS
+[post] lcd w=800 h=480 bad=0 PASS
+[post] touch id=9147 points=0 PASS
+[post] nor id=0xef4019 size=32M PASS
+[post] rtc src=lse 2026-11-24 23:48:38 walk=1s PASS
+[post] adc raw=981 cal=935/1205 t=43.6C PASS
+[post] crc 0x4c40e0d7 expect=0x4c40e0d7 PASS
+[post] rng n=16 distinct=16 degen=0 PASS
+[post] font c0=48 c1=45 c2=70 c3=46 w=8 h=16 ink=22 blank=0 cjk_min=45 PASS
+[post] fatfs total=25568KB ents=2 [SYSTEM 0B DIR] [??????~1 0B DIR] SYSTEM:n=3 [APP 0B DIR] [SPB 0B DIR] [LWIP 0B DIR] ??????~1:n=16 [ALIENT~1.TXT 2486B] [??????~1.AVI 2534868B] [??????~1.SMS 262144B] [????28~1.BIN 44804B] PASS
+[post] ui win=1 btn=8 hit=8/8 ink=520 ovf=0 PASS
+[post] menu apps=8 enter=1 back=1 leave=8 enter2=2 calc=3 set=2 pic=240x320b24 note=2:d6d0/2:18 cal=20261124 depth=0 PASS
+[post] shell cmd=6 help=1 uptime=0ms PASS
+[post] result 13 pass 13 fail 0
+
+stm32-freertos: USART1 115200 debug ready
+[shell] ready cmds=6, type help
+
+
+== 二、shell 项判据拆解 ==
+
+命令表 6 条：help / uptime / rtc / temp / led <0..2> <0|1> / beep <ms, 1..500>。
+POST 阶段调度器尚未启动（board_post_run() 在 osl_scheduler_start() 之前），
+shell 的接收任务不存在，所以**这一项验不到"串口能收"**，只能验三件事：
+
+  cmd     = 6   —— 命令表在镜像里（整表被 --gc-sections 丢掉时这里是 0）
+  help    = 1   —— fml_shell_exec("help") 返回 BSL_OK 且输出非空
+                   （查找 + 执行器 + 内存攒串 + 全链路拼接都通了）
+  uptime  = 0ms —— 一个**会返回值**的执行器：解析出 "uptime=<n>" 里的数字并判 >= 0。
+                   只判 help 有输出不够（那只能证明有一条命令能跑）。
+                   POST 期间 osl tick 还没起，这里恒为 0，真实 uptime 见第三节。
+
+真接收只能 HIL（见第三节）。判据写法因此是"POST 验纯函数路径 + 人验串口路径"，
+不把没验到的事写成 PASS。
+
+
+== 三、串口命令行 HIL（人手逐字敲，同一轮固件） ==
+
+--- HIL shell 2026-11-24 (fw after 13/13 boot) ---
+>> help
+[shell] > help
+cmds=6:help, uptime, rtc, temp, led <0..2> <0|1>, beep <ms, 1..500>
+>> uptime
+[shell] > uptime
+uptime=58802ms
+>> rtc
+[shell] > rtc
+rtc=2026-11-24 23:49:42 src=lse
+>> temp
+[shell] > temp
+temp=48.0C raw=996
+>> led 0 1
+[shell] > led 0 1
+led 0=1
+>> led 0 0
+[shell] > led 0 0
+led 0=0
+>> beep 100
+[shell] > beep 100
+beep 100ms
+>> led 3 1
+[shell] > led 3 1
+usage: led <0..2> <0|1>
+>> beep 600
+[shell] > beep 600
+usage: beep <ms, 1..500>
+>> badcmd
+[shell] > badcmd
+unknown 'badcmd', type help
+>> uptime
+[shell] > uptime
+uptime=73130ms
+
+逐条对照：
+  help      —— 回显 + 六条 usage 全列出（命令表与 usage 串都在）
+  uptime    —— 58802 ms → 73130 ms 单调递增 ⇒ 调度器在跑、tick 在走、板子没复位
+  rtc       —— 与 POST 的 rtc 同源（LSE），时间正常推进
+  temp      —— 48.0C / raw=996，与 POST adc 一条量级的读数
+  led 0 1/0 —— 执行器真执行（RED 亮灭各一次，人眼可见）
+  beep 100  —— 蜂鸣 100 ms（人耳可闻）
+  三条错误分支 —— 参数越界（led 3 1 / beep 600）打 usage、未知命令打 unknown，
+                 全部返回非 OK（BSL_ERR_INVAL / NOSUPPORT），且没有任何一条把
+                 "写错"当"执行成功"（这条是 shell 最容易出的假绿）
+
+
+== 四、这一批真正的产出：两个**P6b 之前就存在**的架构级缺陷 ==
+
+P6b 代码本身（fml_shell + board_debug_uart_getc + POST shell 项）先编过、先刷上了，
+但上板后串口每轮在 [post] result 之后立刻是 "--- last log lines ---" 回放、
+且**从来没有** [shell] ready / [menu] 行。用 openocd 读 g_panic_record 才定死根因，
+两层缺陷叠加，应用层自 P5a 起**从未真正跑起来**（P5c/P6a 的"上板实测"只验到 POST）：
+
+  第一层（code=2 任务创建失败，magic=50414e43、seq 逐次 +1、reset_csr=0x24000000 的 IWDG 位）：
+    app_start() 用 MENU_STACK_WORDS=512（P5c 抬上去的）建 app_menu，
+    而 osl_thread_create() 的规则是 stack_words > OSL_THREAD_STACK_WORDS_DEFAULT(256)
+    直接拒绝 → fml_panic(2U) → IWDG 复位循环。
+    修法：OSL_THREAD_STACK_WORDS_DEFAULT 256→512（池宽取各任务真实最大需求）、
+          OSL_THREAD_MAX 2→4（button + app_menu + shell 三张 + 1 格余量）。
+
+  第二层（code=3 configASSERT，assert_file=0x08010f3c→"./osl/src/freertos/tasks.c"、
+          assert_line=1892）：
+    configMAX_PRIORITIES 只有 2（合法优先级 0/1），而 app_menu 自 P5a 起用 priority 2
+    → xTaskCreateStatic 里 configASSERT(uxPriority < configMAX_PRIORITIES) 当场断言。
+    修法：configMAX_PRIORITIES 2→4（0 idle / 1 button+shell / 2 app_menu，留 1 档给 P6c）。
+
+两层的判据都不是"看现象猜"，而是 g_panic_record 的四个字段（code / assert_file /
+assert_line / reset_csr）+ s_task_used（只有 button 的 TCB 建过 =1）。
+修完复测：s_task_used=3、boot 日志无 ring 回放、uptime 跨 2.5 分钟单调、IWDG 不再复位。
+
+
+== 五、同批修的两处"偶发/静默" ==
+
+1) touch 偶发 FAIL：GT9147 在"MCU 热复位、触摸 IC 没断电"时会偶发不应答
+   （实测 4 次连续复位里 1 次 PID 读 rc=-2，POST 的 touch 项跟着 FAIL）。
+   修法：board_touch_init() 的 PID 读重试 3 次、间隔 50 ms（成功即返回，无额外代价）。
+   修复后本次复位 touch PASS（此前同一版本 4 轮复位里 1 次 FAIL；只跑了 1 轮复测，
+   不为它单独加多轮统计——但"单次读失败即判 FAIL"这个形态已经消掉）。
+
+2) [shell] ready 被启动瞬间的 UART 争用丢掉：任务一启动 button / app_menu / 启动横幅
+   同时写 UART，bsl_log_puts 是"占住 50 ms 超时后丢行"，实测稳定丢这一行
+   （banner 上可见 "uart busy: 1 line(s) not shown"）。
+   修法：shell_task 先 osl_thread_delay_ms(100) 再打 ready（只影响一行诊断）。
+
+
+== 六、体积与门禁 ==
+
+userdebug：text 584724 / data 52 / bss 44620
+user：     text 574108 / data 52 / bss 44620
+（P6b 前 P6a：582100 / 38188（userdebug）、571900 / 38188（user））
+增量：text +2.6 KB（shell 代码 + 池化差异）、bss +6.4 KB（任务池 512×4 词 = 8192 B
+      与 TCB 336 B，较原来 256×2 词 + 168 B 净增 6312 B）
+nm 核对：s_task_stack = 0x2000（8192 B）、s_task_tcb = 0x150（336 B）、
+        fml_shell_init/cmd_count/exec/poll/start 与 board_debug_uart_getc 全部在场
+update：零 dtc 诊断；build：双档 -Werror 零告警；
+check：仍是那 8 条历史遗留（app_double_click_ms / bsl_fb_clear / ff.h 的 34 个未用
+       FatFs 函数 / ffconf.h 无配对守卫），无新增失败。
+
+
+== 七、未覆盖 / 限制（写清楚，不假装） ==
+
+1) 串口接收是**轮询式**：shell 任务 10 ms 取一次字节，F4 的 USART 没有 RX FIFO
+   （只能缓存 1 字节）。人手逐字敲（≥20 ms/字符）可行；**整行粘贴/脚本连发会因
+   ORE 丢字节**（实测一次连发 "help\r" 只进 1 个字符）。改成中断 + 环形缓冲留给
+   P6e 的 bsl_uart，不在本批扩张。
+2) POST 的 shell 项**验不到串口收**（调度器未启动、也没人敲键），这条缺口靠 HIL。
+3) 命令集刻意只有 6 条：本批目标是"调试入口能用"，`mem` / `nor` 读写 / 寄存器
+   写这类危险命令一律不做（写错寄存器会让下一次上电直接起不来）。
+4) 没有历史记录/行编辑/补全；没有命令别名。
+5) 串口波特率仍固定 115200（DTS 里 periph 的一份），shell 不提供改波特率（改了
+   当场失联，属于"必须人手复位才能恢复"的操作）。

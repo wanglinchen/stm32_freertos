@@ -11,12 +11,14 @@ extern uint32_t SystemCoreClock;
 #define configUSE_TIME_SLICING                1
 #define configUSE_PORT_OPTIMISED_TASK_SELECTION 1
 #define configUSE_TICKLESS_IDLE               0
-/* 只用到优先级 0（idle）和 1（led_blink / button），所以上界收到 2。
- * 这个值直接决定 pxReadyTasksLists[] 的元素数（List_t 20 B/项）：7 项是 140 B，
- * 多出来的 5 项永远不会被任何任务挂上，属于看不出任何迹象的 RAM 白占。
- * 改大之前先核对 fml 里 osl_thread_create 的 priority 实参（原 task-priority
- * 门禁判据已随 2026-11-22 删除，现在靠人工比对）。 */
-#define configMAX_PRIORITIES                  2
+/* 本工程实际用到的优先级：0 = idle，1 = `button`（app_sample）与 `shell`（fml_shell），
+ * 2 = `app_menu`（apl/src/app.c，触摸轮询要压过 1 档任务）。上界取 4 = 0..3，留 1 档给
+ * P6c 的音频任务。**这个值必须 ≥ 所有 osl_thread_create 的 priority 实参 + 1**：
+ * 曾经是 2（注释只核到 0/1），P5a 把 app_menu 起到 2 之后，xTaskCreateStatic 里的
+ * `configASSERT(uxPriority < configMAX_PRIORITIES)`（tasks.c:1892）当场断言，
+ * 菜单任务从未建出来，屏上一直是空的。改这个值或改任何任务的优先级，两侧都要核。
+ * 代价：pxReadyTasksLists[] 每多一档 +20 B（List_t）= 2 档 40 B。 */
+#define configMAX_PRIORITIES                  4
 #define configMINIMAL_STACK_SIZE              128
 /* 固定 16：与 `g_panic_record.task_name[]`（PANIC_TASK_NAME_MAX）一致，panic 全名拷贝上限统一。
  * 最长应用任务名 "led_blink" 只需 10（9+'\0'），多出的字节落在每个 TCB 的 pcTaskName[]。
@@ -52,13 +54,13 @@ extern uint32_t SystemCoreClock;
 #define configSUPPORT_STATIC_ALLOCATION       1
 #define configSUPPORT_DYNAMIC_ALLOCATION      1
 /*
- * 32 KB 是模板默认值，本工程从没有用到过：三个任务的栈（256/128/128 词）+ 三个 TCB
- * 合计约 2.5 KB，堆上其余约 29 KB 一直空闲，却整块落在 .bss 里，把 RAM 占用虚报到
- * 17.7%（34896 B 中 32768 B 就是 ucHeap）。降到 16 KB：仍有约 6 倍余量，真调大了
+ * 32 KB 是模板默认值，本工程从没有用到过：任务栈已经全部静态化（
+ * osl/src/osl_thread.c 的 s_task_stack，P6b 起 512 词 × 4 格 = 8 KB），heap 只剩
+ * 内核对象与非任务型分配，堆上绝大部分一直空闲，却整块落在 .bss 里，把 RAM 占用
+ * 虚报到 17.7%（34896 B 中 32768 B 就是 ucHeap）。降到 16 KB：仍有约 6 倍余量，真调大了
  * 失败也不静默——vApplicationMallocFailedHook 走 code 2 并把现场写进 .noinit。
  * 板上用 g_heap_free_min 复核真实低水位再决定是否继续收；改这个数字必须同步
- * .skills/工程规格.md 的「两套堆的边界」表。
- */
+ * .skills/工程规格.md 的「两套堆的边界」表。 */
 #define configTOTAL_HEAP_SIZE                 (16 * 1024)
 #define configAPPLICATION_ALLOCATED_HEAP      0
 

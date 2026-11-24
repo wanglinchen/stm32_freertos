@@ -60,6 +60,7 @@ bsl_err_t board_touch_init(void)
     uint8_t pid[4];
     uint8_t cmd;
     uint16_t rst_mask;
+    unsigned attempt;
     GPIO_PinState rst_assert;
     GPIO_PinState rst_release;
 
@@ -107,7 +108,17 @@ bsl_err_t board_touch_init(void)
     }
     HAL_Delay(100U);
 
-    if (bsl_i2c_gpio_read_reg16(&s_bus, s_cfg.addr7, GT_PID_REG, pid, 4U) != BSL_OK) {
+    /* PID 读失败重试 3 次、间隔 50 ms。理由：GT9147 在"MCU 热复位、触摸 IC 没断电"
+     * 的场合会偶发不应答（实测 4 次连续复位里 1 次 PID 读超时 rc=-2，POST 的 touch
+     * 项跟着 FAIL）。单次读失败就判整个触摸失败，等于把 POST 做成 flaky 的——
+     * "有时过有时不过"比"一直不过"更难查，而松一口气又没代价：成功的第一次立即返回。 */
+    for (attempt = 0U; attempt < 3U; attempt++) {
+        if (bsl_i2c_gpio_read_reg16(&s_bus, s_cfg.addr7, GT_PID_REG, pid, 4U) == BSL_OK) {
+            break;
+        }
+        HAL_Delay(50U);
+    }
+    if (attempt >= 3U) {
         return BSL_ERR_TIMEOUT;
     }
     if (pid_matches(pid) == 0) {

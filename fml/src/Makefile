@@ -30,6 +30,7 @@ LOCAL_OBJS :=
 -include $(BUILD_DIR)/fml/src/fml_gui.d
 -include $(BUILD_DIR)/fml/src/fml_panic.d
 -include $(BUILD_DIR)/fml/src/fml_picture.d
+-include $(BUILD_DIR)/fml/src/fml_shell.d
 -include $(BUILD_DIR)/fml/src/fml_t9.d
 -include $(BUILD_DIR)/fml/src/fml_t9_table.d
 -include $(BUILD_DIR)/fml/src/fml_ui.d
@@ -108,6 +109,17 @@ $(BUILD_DIR)/fml/src/fml_picture.o: $(PROJECT_ROOT)/fml/src/fml_picture.c $(FLAG
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/fml/src/fml_picture.d -c $< -o $@
 	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/fml/src/fml_picture.d
+endif
+endif
+
+ifeq ($(CONFIG_FML),y)
+ifeq ($(CONFIG_FML_SRC),y)
+LOCAL_OBJS += $(BUILD_DIR)/fml/src/fml_shell.o
+$(BUILD_DIR)/fml/src/fml_shell.o: $(PROJECT_ROOT)/fml/src/fml_shell.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/fml/src/fml_shell.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/fml/src/fml_shell.d
 endif
 endif
 

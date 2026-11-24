@@ -15,8 +15,14 @@
  * 池宽固定为 `OSL_THREAD_STACK_WORDS_DEFAULT`：调用方传更大的值直接拒绝，不再
  * "按请求分配" —— 静态分配的前提就是总量在编译期定死，否则只是把
  * "运行期可能失败"藏进一个更晚的失败点。
+ *
+ * 槽位数 4：`button`（app_sample）+ `app_menu`（app.c）+ `shell`（fml_shell）
+ * 已用 3 格，留 1 格余量给下一批（P6c 音频若要独立任务）。**这个数不是拍脑袋**：
+ * 曾经的 2 格在 P6b 直接把 shell 任务挡在门外（返回 -1，只打一行 FAIL），而
+ * 把槽位耗尽的失败点放在 `osl_thread_create()` 的返回值上，比让它去 malloc
+ * 失败（code 2）更容易看见。
  */
-#define OSL_THREAD_MAX 2U
+#define OSL_THREAD_MAX 4U
 
 static StaticTask_t s_task_tcb[OSL_THREAD_MAX];
 static StackType_t s_task_stack[OSL_THREAD_MAX][OSL_THREAD_STACK_WORDS_DEFAULT];

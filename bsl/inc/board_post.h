@@ -20,7 +20,11 @@
  */
 void board_post_run(void);
 
-#define BOARD_POST_EXT_MAX 4U
+/* 名额 5 而不是 4：P6b 的 shell 项要注册进来（前四个是 font/fatfs/ui/menu）。
+ * 加名额不是"多留余地"——每项占 4 B 指针 + 4 B 函数指针，5 项共 40 B .bss；
+ * 真正的理由是 shell 的判据必须在上层（命令表和执行器都在 fml），bsl 看不见。
+ * 仍然固定上限：无上限的注册表就是"谁都能塞一项"的暗门。 */
+#define BOARD_POST_EXT_MAX 5U
 
 /* 注册一个外部 POST 项，必须在 board_post_run() 之前调用。
  *

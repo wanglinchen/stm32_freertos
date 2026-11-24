@@ -61,6 +61,11 @@ endif
 endif
 ifeq ($(CONFIG_FML),y)
 ifeq ($(CONFIG_FML_SRC),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/fml/src/fml_shell.o
+endif
+endif
+ifeq ($(CONFIG_FML),y)
+ifeq ($(CONFIG_FML_SRC),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/fml/src/fml_t9.o
 endif
 endif
