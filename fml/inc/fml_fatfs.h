@@ -17,14 +17,19 @@
  * 的 osl 实现，再放开。 */
 
 #define FML_FATFS_VOL ""
-#define FML_FATFS_NAME_LEN 13U
+#define FML_FATFS_SNAME_LEN 13U
+#define FML_FATFS_LNAME_LEN 33U
 
-/* 一条根目录项。name 是 FatFs 的 8.3 短名原文（`GBK16   FON` 这样，
- * 8 字节名 + 3 字节扩展名各带填充空格，中间不含点）—— 不在这里拼成 "GBK16.FON"：
- * 短名里允许空格，拼接规则（哪些空格是填充、哪些是名字的一部分）属于展示层，
- * 由调用方自己决定怎么打。FF_USE_LFN = 0，所以长名不可用。 */
+/* 一条目录项。两个名字都带出来，各有用途：
+ *   name  —— 长名（GBK 字节，最长 32）。LFN 开启后它是**唯一能打开该目录**的
+ *            键：板上有一个目录的短名是 `??????~1`，那是 FatFs 给非法字符的
+ *            占位，用短名 f_opendir 一定 FR_INVALID_NAME。拼子路径必须用它。
+ *   sname —— 8.3 短名（ASCII，`GBK16   FON` 这种 8+3 带填充空格）。给人看的、
+ *            也是日志里唯一不会乱码的那个。LFN 关闭时它是空的，此时用 name 补。
+ */
 typedef struct {
-    char name[FML_FATFS_NAME_LEN];
+    char name[FML_FATFS_LNAME_LEN];
+    char sname[FML_FATFS_SNAME_LEN];
     uint32_t size;
     uint8_t is_dir;   /* 1 = 目录（size 为 0）。列目录时"条目数"里混着目录，
                        * 不标出来会被当成"有 N 个文件"。 */

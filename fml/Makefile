@@ -58,6 +58,15 @@ endif
 endif
 endif
 endif
+ifeq ($(CONFIG_FML),y)
+ifeq ($(CONFIG_FML_SRC),y)
+ifeq ($(CONFIG_FML_SRC_FATFS),y)
+ifeq ($(CONFIG_FML_SRC_FATFS_FFUNICODE),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/fml/src/fatfs/ffunicode.o
+endif
+endif
+endif
+endif
 
 .PHONY: all clean subdirs
 

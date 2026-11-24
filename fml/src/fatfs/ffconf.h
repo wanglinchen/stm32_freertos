@@ -115,8 +115,17 @@
 */
 
 
-#define FF_USE_LFN		0
-#define FF_MAX_LFN		255
+/* 本工程：开 LFN。板上卷里有一个目录的短名是 `??????~1` —— `?` 是 FatFs 给
+ * 非法字符占位的结果，也就是说那个目录**没有可用的 SFN**，LFN 关掉时
+ * `f_opendir` 一定返回 FR_INVALID_NAME，P3 的字库文件永远进不去。
+ *
+ * 选 1（静态 BSS 工作缓冲）而不是 2/3：本工程 FatFs 是单线程（FF_FS_REENTRANT=0），
+ * 一个静态缓冲就够；栈上放 (FF_MAX_LFN+1)*2 字节会在 256 words 的任务栈里出事。
+ *
+ * FF_MAX_LFN = 32：够装 "正点原子字库" 这类名字，工作缓冲 66 B。设 255 只多耗
+ * 内存，不解决任何本板的问题。 */
+#define FF_USE_LFN		1
+#define FF_MAX_LFN		32
 /* The FF_USE_LFN switches the support for LFN (long file name).
 /
 /   0: Disable LFN. FF_MAX_LFN has no effect.
@@ -147,8 +156,10 @@
 /  When LFN is not enabled, this option has no effect. */
 
 
-#define FF_LFN_BUF		255
-#define FF_SFN_BUF		12
+/* 32 / 13：FILINFO 里的长名与短名缓冲。LFN 缓冲按 TCHAR（GBK 字节）算，
+ * 32 字节能装 16 个汉字。SFN 缓冲 13 = 8.3 + 点 + NUL。 */
+#define FF_LFN_BUF		32
+#define FF_SFN_BUF		13
 /* This set of options defines size of file name members in the FILINFO structure
 /  which is used to read out directory items. These values should be suffcient for
 /  the file names to read. The maximum possible length of the read file name depends

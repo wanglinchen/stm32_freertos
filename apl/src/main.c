@@ -75,11 +75,19 @@ static int app_display_check(void)
  * 不在 POST 里格式化：`f_mkfs` 会把板上 NOR 现有的内容（出厂写过的 GBK 字库）
  * 整片擦掉。要格式化必须由人在串口命令行显式发起，不能藏在自检里。
  */
-/* 打一条目录项：`[NAME 123B]`，目录再加 ` DIR`。 */
+/* 每个目录最多显示多少项。16 是照着板上最"胖"的那一层定的（长名目录里
+ * 有 16 项）；超过的部分不显示但 total 仍然报全部，所以"少显示"不会被
+ * 误读成"只有这么多"。栈代价：16 × sizeof(dirent) ≈ 832 B/层。 */
+#define APP_FATFS_SHOW 16U
+#define APP_FATFS_SUB_SHOW 4U
+
+/* 打一条目录项：`[SHORTNAME 123B]`，目录再加 ` DIR`。
+ * 用短名而不是长名：长名是 GBK 字节，落进 UTF-8 的日志文件就是乱码；
+ * 短名是 ASCII，且足够定位"这个目录里有什么"。 */
 static void app_fatfs_print_dirent(const fml_fatfs_dirent_t *de)
 {
     BSL_LOG_INF(" [");
-    bsl_log_puts(de->name);
+    bsl_log_puts(de->sname);
     BSL_LOG_INF(" ");
     bsl_log_put_dec((int)de->size);
     BSL_LOG_INF("B");
@@ -89,12 +97,43 @@ static void app_fatfs_print_dirent(const fml_fatfs_dirent_t *de)
     BSL_LOG_INF("]");
 }
 
+/* 拼 "$dir/$name"（dir 已以 "/" 结尾时不重复加）。返回 0 = 成功。 */
+static int app_fatfs_join(char *dst, unsigned cap, const char *dir, const char *name)
+{
+    unsigned n = 0U;
+    unsigned i;
+
+    for (i = 0U; dir[i] != '\0'; i++) {
+        if ((n + 1U) >= cap) {
+            return 1;
+        }
+        dst[n++] = dir[i];
+    }
+    if ((n > 0U) && (dst[n - 1U] != '/')) {
+        if ((n + 1U) >= cap) {
+            return 1;
+        }
+        dst[n++] = '/';
+    }
+    for (i = 0U; name[i] != '\0'; i++) {
+        if ((n + 1U) >= cap) {
+            return 1;
+        }
+        dst[n++] = name[i];
+    }
+    dst[n] = '\0';
+    return 0;
+}
+
 static int app_fatfs_check(void)
 {
-    fml_fatfs_dirent_t de[4];
-    const unsigned show = (unsigned)(sizeof(de) / sizeof(de[0]));
+    fml_fatfs_dirent_t de[APP_FATFS_SHOW];
+    fml_fatfs_dirent_t sub_de[APP_FATFS_SUB_SHOW];
     unsigned total = 0U;
+    unsigned sub_total = 0U;
     unsigned i;
+    unsigned j;
+    unsigned shown = 0U;
 
     if (fml_fatfs_mount() != BSL_OK) {
         BSL_LOG_INF(" fr=");
@@ -106,7 +145,7 @@ static int app_fatfs_check(void)
     bsl_log_put_dec((int)fml_fatfs_total_kb());
     BSL_LOG_INF("KB");
 
-    if (fml_fatfs_list_dir("/", de, show, &total) != BSL_OK) {
+    if (fml_fatfs_list_dir("/", de, APP_FATFS_SHOW, &total) != BSL_OK) {
         BSL_LOG_INF(" list fr=");
         bsl_log_put_dec(fml_fatfs_last_error());
         return 0;
@@ -115,23 +154,43 @@ static int app_fatfs_check(void)
      * 打 files= 会让人以为里面有 2 个文件。 */
     BSL_LOG_INF(" ents=");
     bsl_log_put_dec((int)total);
-    for (i = 0U; (i < show) && (i < total); i++) {
+    for (i = 0U; (i < APP_FATFS_SHOW) && (i < total); i++) {
         app_fatfs_print_dirent(&de[i]);
     }
 
-    /* 子目录：只是证据，不参与判据（判据是上面 mount + 根目录两步）。
-     * 列出来是因为板上根目录只有一个 SYSTEM 目录，字库文件在它里面 ——
-     * 这一行走的是 FAT 链（读数据簇），比只读根目录更能证明卷是真的能读。 */
-    BSL_LOG_INF(" /SYSTEM:");
-    if (fml_fatfs_list_dir("/SYSTEM", de, show, &total) != BSL_OK) {
-        BSL_LOG_INF("fr=");
-        bsl_log_put_dec(fml_fatfs_last_error());
-    } else {
-        BSL_LOG_INF("n=");
-        bsl_log_put_dec((int)total);
-        for (i = 0U; (i < show) && (i < total); i++) {
-            app_fatfs_print_dirent(&de[i]);
+    /* 子目录只是证据，不参与判据（判据是上面 mount + 根目录两步）。它走的是
+     * FAT 链（读数据簇），比只读根目录更能证明卷真的能读。
+     *
+     * 只进前两个目录、每个最多 4 项：这一项每次启动都跑，探目录树那套递归
+     * 打印会把启动日志刷成几千字符，而且它已经完成使命（P3 勘探时用过一次，
+     * 结论见 docs/design/串口自检_P3勘探_6项_2026-11-24.txt）。
+     *
+     * 路径拼的是长名（de.name）而不是短名：短名可能是 `??????~1`（`?` 是
+     * FatFs 给非法字符的占位），拿它 f_opendir 会 FR_INVALID_NAME。 */
+    for (i = 0U; (i < APP_FATFS_SHOW) && (i < total) && (shown < 2U); i++) {
+        char sub[64];
+
+        if (de[i].is_dir == 0U) {
+            continue;
         }
+        if (app_fatfs_join(sub, (unsigned)sizeof(sub), "/", de[i].name) != 0) {
+            BSL_LOG_INF(" path-too-long");
+            continue;
+        }
+        BSL_LOG_INF(" ");
+        bsl_log_puts(de[i].sname);
+        BSL_LOG_INF(":");
+        if (fml_fatfs_list_dir(sub, sub_de, APP_FATFS_SUB_SHOW, &sub_total) != BSL_OK) {
+            BSL_LOG_INF("fr=");
+            bsl_log_put_dec(fml_fatfs_last_error());
+        } else {
+            BSL_LOG_INF("n=");
+            bsl_log_put_dec((int)sub_total);
+            for (j = 0U; (j < APP_FATFS_SUB_SHOW) && (j < sub_total); j++) {
+                app_fatfs_print_dirent(&sub_de[j]);
+            }
+        }
+        shown++;
     }
     return 1;
 }
@@ -177,3 +236,4 @@ int main(void)
     for (;;) {
     }
 }
+

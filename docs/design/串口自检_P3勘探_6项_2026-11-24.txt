@@ -1,0 +1,79 @@
+# P3 前置串口取证：开 LFN + 走通目录树（字库定位）
+
+- 日期：2026-11-24
+- 分支/提交：`feature/full-demo`，父提交 P2b `d8ab728`
+- 固件：userdebug `text 284176 / data 20 / bss 27724`（user 档 `text 278444 / bss 27724`）
+- 采集：COM3 / 115200 / 8N1；串口先开（后台读 70 s），再 `flash/flash.py flash`。
+  **284 KB 的镜像烧写约 25 s**，用 P2b 时的 25 s 采集窗口会在复位前就结束，日志整段错过 —— 窗口必须比烧写长
+
+```text
+[post] sdram size=32M bad=0 PASS
+[post] lcd w=800 h=480 bad=0 PASS
+[post] touch id=9147 points=0 PASS
+[post] nor id=0xef4019 size=32M PASS
+[post] font w=8 h=16 ink=22 blank=0 PASS
+[post] fatfs total=25568KB ents=2 [SYSTEM 0B DIR] [??????~1 0B DIR] SYSTEM:n=3 [APP 0B DIR] [SPB 0B DIR] [LWIP 0B DIR] ??????~1:n=16 [ALIENT~1.TXT 2486B] [??????~1.AVI 2534868B] [??????~1.SMS 262144B] [????28~1.BIN 44804B] PASS
+[post] result 6 pass 6 fail 0
+```
+
+## 为什么必须开 LFN
+
+根目录第二项的短名是 `??????~1`。`?` 不是它真的名字，是 FatFs 给"非法字符"的
+占位 —— 也就是说这个目录**没有可用的 SFN**（名字是纯中文，短名生成失败）。
+`FF_USE_LFN = 0` 时：
+
+- `f_opendir("/??????~1")` → `FR_INVALID_NAME`，进不去；
+- 里层的 `.ZIP`、`.BIN` 之类文件全不可见，P3 无从开始。
+
+开了之后（`FF_USE_LFN = 1`、`FF_MAX_LFN = 32`、`FF_LFN_BUF = 32`、`FF_SFN_BUF = 13`、
+`FF_LFN_UNICODE = 0`、`FF_CODE_PAGE = 936`），路径用**长名**拼就能进去：
+`f_readdir` 给出的 `fname` 就是长名（GBK 字节），拿它做下一级 `f_opendir` 即可，
+不需要人去读中文。
+
+选 `1`（静态 BSS 工作缓冲）而不是 `2`（栈上）：本工程任务栈 256 words，
+`(FF_MAX_LFN+1)*2 = 66 B` 放 BSS 更稳；`FF_FS_REENTRANT = 0`，单线程下静态缓冲没有竞争。
+
+## 目录树全貌（勘探时用递归打印拿到，之后已收敛掉）
+
+```text
+/
+├── SYSTEM/
+│   ├── APP/     (6: APPS, AUDIO, COMMON, PAINT, PHONE, RECORDER)
+│   ├── SPB/     (2: BACKPIC, ICOS)
+│   └── LWIP/    (1: WEBSER~1)
+└── <10 字节中文长名目录>/   (16: ALIENT~1.TXT 2486B, *.AVI 2534868B, *.SMS 262144B,
+                              ????28~1.BIN 44804B, ????29~1.BIN 45076B, ????30~1.BIN 50888B,
+                              *.NES ×4, *.GIF 870675B, *.BMP 230454B, *.JPG 130611B,
+                              *.LRC 498B, *.MP3 1883189B, *.SMS 524288B)
+```
+
+## 结论：这块 NOR 上没有字库文件
+
+`/SYSTEM` 下三棵是**别的工程的系统目录**（APP/SPB/LWIP 是网络/应用例程的素材），
+那个中文长名目录是**多媒体素材目录**（文本 / 视频 / 短信库 / NES ROM / 图片 / 歌词 / MP3）。
+
+三个 `.BIN`（44804 / 45076 / 50888 B）对不上 GBK16 字库的量级：
+GBK 全字库 = 126 区 × 190 字 × 32 B ≈ **766 KB**，即使只做 GB2312 一级（3755 字）
+也要 117 KB。44~51 KB 的 BIN 装不下。
+
+所以 P3 不能走"从卷里读现成字库"，数据源必须自己定，两条路：
+
+| 方案 | 做法 | 代价 |
+|---|---|---|
+| A（推荐）| 用系统宋体在 PC 上生成 GB2312 16×16 点阵（`fml/tools/gen_gbk16.py`），以 `const` 表进 flash | text +约 216 KB（全集）或 +约 120 KB（一级 3755 字）；flash 现用 278 KB / 1 MB |
+| B | 同一份点阵先写成文件写进 NOR 卷，固件经 `fml_fatfs` 读 | 需要一次性写盘工具，且会实测 P2b 从未跑过的写路径（读改写）；占用 NOR 约 216 KB（空闲 25 MB 够） |
+
+## 这一批的代价与取舍
+
+1. **`ffunicode.c` 让 text 从 107268 涨到 284252（+177 KB）**：`FF_CODE_PAGE = 936`
+   的 GBK 双字节映射表就是这个量级。这是"能读中文长名"的门票，不是可选项。
+2. **POST 里的目录树递归打印只保留一次**：它每次启动都会跑，把日志刷成几千字符，
+   且使命已完成。收敛后只列根目录 + 前两个子目录各 4 项，判据不变。
+3. **打印用短名（ASCII）而不是长名**：长名是 GBK 字节，落进 UTF-8 日志就是乱码。
+
+## 未做
+
+- 没有 `f_open` / `f_read` 读过任何一个文件内容（P3 才需要）。目前只验到目录层。
+- 那个中文长名目录的真实名字没有记录：要读它得按 GBK 解码串口字节，本轮没做。
+- `FF_LFN_UNICODE = 0` 意味着 API 层是 GBK 字节串；`FF_LFN_UNICODE = 2`（UTF-8）
+  需要额外的 `ff_uni2oem` 路径，本轮不引入。

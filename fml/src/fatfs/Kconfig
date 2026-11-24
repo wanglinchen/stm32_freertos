@@ -5,4 +5,8 @@ config FML_SRC_FATFS_FF
 	bool "ff.c"
 	default y
 
+config FML_SRC_FATFS_FFUNICODE
+	bool "ffunicode.c"
+	default y
+
 endmenu

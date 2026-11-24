@@ -24,6 +24,7 @@ FLAG_DEPS := $(wildcard $(PROJECT_ROOT)/toolchain.make) $(wildcard $(PROJECT_ROO
 
 LOCAL_OBJS :=
 -include $(BUILD_DIR)/fml/src/fatfs/ff.d
+-include $(BUILD_DIR)/fml/src/fatfs/ffunicode.d
 
 ifeq ($(CONFIG_FML),y)
 ifeq ($(CONFIG_FML_SRC),y)
@@ -35,6 +36,21 @@ $(BUILD_DIR)/fml/src/fatfs/ff.o: $(PROJECT_ROOT)/fml/src/fatfs/ff.c $(FLAG_DEPS)
 	@echo "CC $<"
 	$(CC) $(CFLAGS_PLAIN) -MMD -MP -MF $(BUILD_DIR)/fml/src/fatfs/ff.d -c $< -o $@
 	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/fml/src/fatfs/ff.d
+endif
+endif
+endif
+endif
+
+ifeq ($(CONFIG_FML),y)
+ifeq ($(CONFIG_FML_SRC),y)
+ifeq ($(CONFIG_FML_SRC_FATFS),y)
+ifeq ($(CONFIG_FML_SRC_FATFS_FFUNICODE),y)
+LOCAL_OBJS += $(BUILD_DIR)/fml/src/fatfs/ffunicode.o
+$(BUILD_DIR)/fml/src/fatfs/ffunicode.o: $(PROJECT_ROOT)/fml/src/fatfs/ffunicode.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS_PLAIN) -MMD -MP -MF $(BUILD_DIR)/fml/src/fatfs/ffunicode.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/fml/src/fatfs/ffunicode.d
 endif
 endif
 endif

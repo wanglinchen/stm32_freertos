@@ -223,10 +223,22 @@ bsl_err_t fml_fatfs_list_dir(const char *path, fml_fatfs_dirent_t *buf, unsigned
             continue;
         }
         if (n < max) {
-            for (i = 0U; (i + 1U < FML_FATFS_NAME_LEN) && (fno.fname[i] != '\0'); i++) {
+            for (i = 0U; (i + 1U < FML_FATFS_LNAME_LEN) && (fno.fname[i] != '\0'); i++) {
                 buf[n].name[i] = fno.fname[i];
             }
             buf[n].name[i] = '\0';
+            /* altname 只在 LFN 启用时被填；为空就退回 fname，让 sname 永远
+             * 可读（日志要能看，且 sname 是 ASCII）。 */
+            for (i = 0U; (i + 1U < FML_FATFS_SNAME_LEN) && (fno.altname[i] != '\0'); i++) {
+                buf[n].sname[i] = fno.altname[i];
+            }
+            buf[n].sname[i] = '\0';
+            if (buf[n].sname[0] == '\0') {
+                for (i = 0U; (i + 1U < FML_FATFS_SNAME_LEN) && (buf[n].name[i] != '\0'); i++) {
+                    buf[n].sname[i] = buf[n].name[i];
+                }
+                buf[n].sname[i] = '\0';
+            }
             buf[n].size = (uint32_t)fno.fsize;
             buf[n].is_dir = ((fno.fattrib & AM_DIR) != 0U) ? 1U : 0U;
         }
