@@ -41,6 +41,13 @@ endif
 endif
 ifeq ($(CONFIG_APL),y)
 ifeq ($(CONFIG_APL_SRC),y)
+ifeq ($(CONFIG_APL_SRC_APP_CALC),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/apl/src/app_calc.o
+endif
+endif
+endif
+ifeq ($(CONFIG_APL),y)
+ifeq ($(CONFIG_APL_SRC),y)
 ifeq ($(CONFIG_APL_SRC_APP_KEY),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/apl/src/app_key.o
 endif
@@ -57,6 +64,13 @@ ifeq ($(CONFIG_APL),y)
 ifeq ($(CONFIG_APL_SRC),y)
 ifeq ($(CONFIG_APL_SRC_APP_SAMPLE),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/apl/src/app_sample.o
+endif
+endif
+endif
+ifeq ($(CONFIG_APL),y)
+ifeq ($(CONFIG_APL_SRC),y)
+ifeq ($(CONFIG_APL_SRC_APP_SETTINGS),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/apl/src/app_settings.o
 endif
 endif
 endif

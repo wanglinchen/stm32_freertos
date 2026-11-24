@@ -9,6 +9,10 @@ config APL_SRC_APP_BEEP
 	bool "app_beep.c"
 	default y
 
+config APL_SRC_APP_CALC
+	bool "app_calc.c"
+	default y
+
 config APL_SRC_APP_KEY
 	bool "app_key.c"
 	default y
@@ -19,6 +23,10 @@ config APL_SRC_APP_LED
 
 config APL_SRC_APP_SAMPLE
 	bool "app_sample.c"
+	default y
+
+config APL_SRC_APP_SETTINGS
+	bool "app_settings.c"
 	default y
 
 config APL_SRC_MAIN

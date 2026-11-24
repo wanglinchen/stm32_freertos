@@ -180,10 +180,10 @@ static void post_nor(void)
  * 漏掉，"2 pass" 与屏上实际验过的项数对不上。
  */
 static const char *s_ext_item[BOARD_POST_EXT_MAX];
-static int (*s_ext_fn[BOARD_POST_EXT_MAX])(void);
+static int (*s_ext_fn[BOARD_POST_EXT_MAX])(char *buf, unsigned cap);
 static unsigned s_ext_count;
 
-int board_post_register(const char *item, int (*fn)(void))
+int board_post_register(const char *item, int (*fn)(char *buf, unsigned cap))
 {
     if (item == NULL || fn == NULL) {
         return 0;
@@ -198,13 +198,34 @@ int board_post_register(const char *item, int (*fn)(void))
     return 1;
 }
 
+/* 外部项：算在前、打印在后。
+ *
+ * 顺序不能反 —— fn 的运行期会调到应用的 enter / leave / event，这些回调自己
+ * 打日志（`[app_calc] key = disp=3`）。先把 `[post] <item>` 前缀打出去再调 fn，
+ * 那些行就插进 POST 半行中间，`[post] menu apps=5 ...` 被切成两三行，正则与
+ * 人工都读不出这一项到底过没过。攒到 buf 里再一次性输出，回调日志就自然排在
+ * POST 行之前。 */
+/* 外部项的格式化缓冲。做成 static 而不是栈上：post_ext 只在启动时单线程跑一次，
+ * 512 B 放栈会把 main 任务的栈顶到 2 KB 边上；fatfs 那一行实测约 240 字符。 */
+#define POST_EXT_BUF 512U
+static char s_ext_buf[POST_EXT_BUF];
+
 static void post_ext(void)
 {
     unsigned i;
+    int ok;
 
     for (i = 0U; i < s_ext_count; i++) {
+        s_ext_buf[0] = '\0';
+        ok = s_ext_fn[i](s_ext_buf, POST_EXT_BUF);
         post_begin(s_ext_item[i]);
-        post_end(s_ext_fn[i]());
+        /* 分隔空格由这里补：内置项把值拼进了 item 字符串（"sdram size="），
+         * 外部项只报项名，内容另存 buf，不补空格就会变成 "fatfstotal="。 */
+        if (s_ext_buf[0] != '\0') {
+            bsl_log_puts(" ");
+        }
+        bsl_log_puts(s_ext_buf);
+        post_end(ok);
     }
 }
 

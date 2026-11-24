@@ -28,7 +28,13 @@
  * 队列必须补 __disable_irq 保存-恢复式临界区（见 .skills/SKILL.md 第 9 条）。
  */
 
-#define FML_UI_BTN_MAX 4U
+/*
+ * 按钮上限 20：P4 的三个按钮够用，P5b 的 4×4 计算器要 16 个键 + BACK = 17，
+ * 4 装不下。取 20 而不是 17，是给"以后某一页还要多两个键"留一点余量，
+ * 又不至于让每个窗口都多背几百字节 —— fml_ui_btn_t 24 B，每个窗口
+ * 4→20 多 384 B，九个窗口合计约 +3.5 KB bss（清单见对照表 §4 P5b 行）。
+ */
+#define FML_UI_BTN_MAX 20U
 #define FML_UI_EVT_MAX 8U
 
 /* 事件类型。id 为 0 表示"没命中任何按钮"：DOWN/UP 照常产生，但 CLICK 不会。 */

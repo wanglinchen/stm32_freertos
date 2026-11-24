@@ -26,9 +26,11 @@ FLAG_DEPS := $(wildcard $(PROJECT_ROOT)/toolchain.make) $(wildcard $(PROJECT_ROO
 LOCAL_OBJS :=
 -include $(BUILD_DIR)/apl/src/app.d
 -include $(BUILD_DIR)/apl/src/app_beep.d
+-include $(BUILD_DIR)/apl/src/app_calc.d
 -include $(BUILD_DIR)/apl/src/app_key.d
 -include $(BUILD_DIR)/apl/src/app_led.d
 -include $(BUILD_DIR)/apl/src/app_sample.d
+-include $(BUILD_DIR)/apl/src/app_settings.d
 -include $(BUILD_DIR)/apl/src/main.d
 
 ifeq ($(CONFIG_APL),y)
@@ -53,6 +55,19 @@ $(BUILD_DIR)/apl/src/app_beep.o: $(PROJECT_ROOT)/apl/src/app_beep.c $(FLAG_DEPS)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/apl/src/app_beep.d -c $< -o $@
 	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/apl/src/app_beep.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_APL),y)
+ifeq ($(CONFIG_APL_SRC),y)
+ifeq ($(CONFIG_APL_SRC_APP_CALC),y)
+LOCAL_OBJS += $(BUILD_DIR)/apl/src/app_calc.o
+$(BUILD_DIR)/apl/src/app_calc.o: $(PROJECT_ROOT)/apl/src/app_calc.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/apl/src/app_calc.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/apl/src/app_calc.d
 endif
 endif
 endif
@@ -92,6 +107,19 @@ $(BUILD_DIR)/apl/src/app_sample.o: $(PROJECT_ROOT)/apl/src/app_sample.c $(FLAG_D
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/apl/src/app_sample.d -c $< -o $@
 	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/apl/src/app_sample.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_APL),y)
+ifeq ($(CONFIG_APL_SRC),y)
+ifeq ($(CONFIG_APL_SRC_APP_SETTINGS),y)
+LOCAL_OBJS += $(BUILD_DIR)/apl/src/app_settings.o
+$(BUILD_DIR)/apl/src/app_settings.o: $(PROJECT_ROOT)/apl/src/app_settings.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/apl/src/app_settings.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/apl/src/app_settings.d
 endif
 endif
 endif

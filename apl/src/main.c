@@ -16,6 +16,53 @@
 #include "osl_thread.h"
 
 /*
+ * POST 外部项的内容缓冲。
+ *
+ * 外部项不能自己往串口打：它的判据会注入事件、调应用的 enter/leave/event，
+ * 那些回调自己会打日志。bsl 侧已经把 `[post] <item>` 前缀先打出去了，回调插
+ * 进来的行就把 POST 行切成两三行（P5a、P5b 各踩到一次）。所以这里在内存里攒，
+ * 交回 bsl 一次性输出（见 board_post.h 的 board_post_register 注释）。
+ *
+ * 不引 printf / snprintf：整数格式化够用，而 snprintf 会把格式化引擎整个拖进来。
+ * 容量由 bsl 侧给（BOARD_POST_EXT_BUF）；fatfs 那一行要列两个子目录，实测约 240
+ * 字符，是最长的一项。
+ */
+typedef struct {
+    char *p;
+    unsigned cap;
+    unsigned len;
+} app_fmt_t;
+
+#define APP_FMT_INIT(buf_, cap_) {(buf_), (cap_), 0U}
+
+static void app_fmt_puts(app_fmt_t *f, const char *s)
+{
+    while ((*s != '\0') && ((f->len + 1U) < f->cap)) {
+        f->p[f->len++] = *s++;
+    }
+    f->p[f->len] = '\0';
+}
+
+static void app_fmt_dec(app_fmt_t *f, int value)
+{
+    char tmp[12];
+    unsigned n = 0U;
+    unsigned v = (unsigned)((value < 0) ? -value : value);
+
+    do {
+        tmp[n++] = (char)('0' + (int)(v % 10U));
+        v /= 10U;
+    } while ((v > 0U) && (n < (unsigned)sizeof(tmp)));
+    if ((value < 0) && ((f->len + 1U) < f->cap)) {
+        f->p[f->len++] = '-';
+    }
+    while ((n > 0U) && ((f->len + 1U) < f->cap)) {
+        f->p[f->len++] = tmp[--n];
+    }
+    f->p[f->len] = '\0';
+}
+
+/*
  * 显示自检：POST 的 font 项，由 apl 注册（字库与画布都在 fml，bsl 看不见它们）。
  *
  * ASCII 判据双向：
@@ -36,8 +83,9 @@
  */
 #define APP_CJK_MIN_INK 20U
 
-static int app_display_check(void)
+static int app_display_check(char *buf, unsigned cap)
 {
+    app_fmt_t f = APP_FMT_INIT(buf, cap);
     /* "中文显示" 的 GBK 字节：D6D0 / CEC4 / CFD4 / CABE。
      * 必须写转义而不是中文字面量：C 源码是 UTF-8，直接写中文编译进去是 UTF-8
      * 字节，fml_gui_text_gbk 会把它当双字节乱切。 */
@@ -76,23 +124,25 @@ static int app_display_check(void)
         if (one < min_ink) {
             min_ink = one;
         }
-        BSL_LOG_INF(" c");
-        bsl_log_put_dec((int)k);
-        BSL_LOG_INF("=");
-        bsl_log_put_dec((int)one);
+        /* buf 的第一个 token 不带前导空格 —— bsl 侧在项名与内容之间已经补了一个。
+         * 多补一个就会出现 "[post] font  c0=48" 这种双空格。 */
+        app_fmt_puts(&f, (k == 0U) ? "c" : " c");
+        app_fmt_dec(&f, (int)k);
+        app_fmt_puts(&f, "=");
+        app_fmt_dec(&f, (int)one);
         cx += cjk->width;
     }
 
-    BSL_LOG_INF(" w=");
-    bsl_log_put_dec((int)font->width);
-    BSL_LOG_INF(" h=");
-    bsl_log_put_dec((int)font->height);
-    BSL_LOG_INF(" ink=");
-    bsl_log_put_dec((int)ink);
-    BSL_LOG_INF(" blank=");
-    bsl_log_put_dec((int)blank);
-    BSL_LOG_INF(" cjk_min=");
-    bsl_log_put_dec((int)min_ink);
+    app_fmt_puts(&f, " w=");
+    app_fmt_dec(&f, (int)font->width);
+    app_fmt_puts(&f, " h=");
+    app_fmt_dec(&f, (int)font->height);
+    app_fmt_puts(&f, " ink=");
+    app_fmt_dec(&f, (int)ink);
+    app_fmt_puts(&f, " blank=");
+    app_fmt_dec(&f, (int)blank);
+    app_fmt_puts(&f, " cjk_min=");
+    app_fmt_dec(&f, (int)min_ink);
     return ((ink > 0U) && (blank == 0U) && (min_ink >= APP_CJK_MIN_INK)) ? 1 : 0;
 }
 
@@ -120,17 +170,17 @@ static int app_display_check(void)
 /* 打一条目录项：`[SHORTNAME 123B]`，目录再加 ` DIR`。
  * 用短名而不是长名：长名是 GBK 字节，落进 UTF-8 的日志文件就是乱码；
  * 短名是 ASCII，且足够定位"这个目录里有什么"。 */
-static void app_fatfs_print_dirent(const fml_fatfs_dirent_t *de)
+static void app_fatfs_print_dirent(app_fmt_t *f, const fml_fatfs_dirent_t *de)
 {
-    BSL_LOG_INF(" [");
-    bsl_log_puts(de->sname);
-    BSL_LOG_INF(" ");
-    bsl_log_put_dec((int)de->size);
-    BSL_LOG_INF("B");
+    app_fmt_puts(f, " [");
+    app_fmt_puts(f, de->sname);
+    app_fmt_puts(f, " ");
+    app_fmt_dec(f, (int)de->size);
+    app_fmt_puts(f, "B");
     if (de->is_dir != 0U) {
-        BSL_LOG_INF(" DIR");
+        app_fmt_puts(f, " DIR");
     }
-    BSL_LOG_INF("]");
+    app_fmt_puts(f, "]");
 }
 
 /* 拼 "$dir/$name"（dir 已以 "/" 结尾时不重复加）。返回 0 = 成功。 */
@@ -161,8 +211,9 @@ static int app_fatfs_join(char *dst, unsigned cap, const char *dir, const char *
     return 0;
 }
 
-static int app_fatfs_check(void)
+static int app_fatfs_check(char *buf, unsigned cap)
 {
+    app_fmt_t f = APP_FMT_INIT(buf, cap);
     fml_fatfs_dirent_t de[APP_FATFS_SHOW];
     fml_fatfs_dirent_t sub_de[APP_FATFS_SUB_SHOW];
     unsigned total = 0U;
@@ -172,26 +223,26 @@ static int app_fatfs_check(void)
     unsigned shown = 0U;
 
     if (fml_fatfs_mount() != BSL_OK) {
-        BSL_LOG_INF(" fr=");
-        bsl_log_put_dec(fml_fatfs_last_error());
+        app_fmt_puts(&f, "fr=");
+        app_fmt_dec(&f, fml_fatfs_last_error());
         return 0;
     }
 
-    BSL_LOG_INF(" total=");
-    bsl_log_put_dec((int)fml_fatfs_total_kb());
-    BSL_LOG_INF("KB");
+    app_fmt_puts(&f, "total=");
+    app_fmt_dec(&f, (int)fml_fatfs_total_kb());
+    app_fmt_puts(&f, "KB");
 
     if (fml_fatfs_list_dir("/", de, APP_FATFS_SHOW, &total) != BSL_OK) {
-        BSL_LOG_INF(" list fr=");
-        bsl_log_put_dec(fml_fatfs_last_error());
+        app_fmt_puts(&f, " list fr=");
+        app_fmt_dec(&f, fml_fatfs_last_error());
         return 0;
     }
     /* 叫 ents 而不是 files：根目录里的条目混着目录（"SYSTEM" 这种），
      * 打 files= 会让人以为里面有 2 个文件。 */
-    BSL_LOG_INF(" ents=");
-    bsl_log_put_dec((int)total);
+    app_fmt_puts(&f, " ents=");
+    app_fmt_dec(&f, (int)total);
     for (i = 0U; (i < APP_FATFS_SHOW) && (i < total); i++) {
-        app_fatfs_print_dirent(&de[i]);
+        app_fatfs_print_dirent(&f, &de[i]);
     }
 
     /* 子目录只是证据，不参与判据（判据是上面 mount + 根目录两步）。它走的是
@@ -210,20 +261,20 @@ static int app_fatfs_check(void)
             continue;
         }
         if (app_fatfs_join(sub, (unsigned)sizeof(sub), "/", de[i].name) != 0) {
-            BSL_LOG_INF(" path-too-long");
+            app_fmt_puts(&f, " path-too-long");
             continue;
         }
-        BSL_LOG_INF(" ");
-        bsl_log_puts(de[i].sname);
-        BSL_LOG_INF(":");
+        app_fmt_puts(&f, " ");
+        app_fmt_puts(&f, de[i].sname);
+        app_fmt_puts(&f, ":");
         if (fml_fatfs_list_dir(sub, sub_de, APP_FATFS_SUB_SHOW, &sub_total) != BSL_OK) {
-            BSL_LOG_INF("fr=");
-            bsl_log_put_dec(fml_fatfs_last_error());
+            app_fmt_puts(&f, "fr=");
+            app_fmt_dec(&f, fml_fatfs_last_error());
         } else {
-            BSL_LOG_INF("n=");
-            bsl_log_put_dec((int)sub_total);
+            app_fmt_puts(&f, "n=");
+            app_fmt_dec(&f, (int)sub_total);
             for (j = 0U; (j < APP_FATFS_SUB_SHOW) && (j < sub_total); j++) {
-                app_fatfs_print_dirent(&sub_de[j]);
+                app_fatfs_print_dirent(&f, &sub_de[j]);
             }
         }
         shown++;
@@ -245,8 +296,9 @@ static int app_fatfs_check(void)
  * 注入前 fml_ui_reset()：清掉可能残留的按压状态与事件，免得把上一帧的残留
  * 算进本次结果。
  */
-static int app_ui_check(void)
+static int app_ui_check(char *buf, unsigned cap)
 {
+    app_fmt_t f = APP_FMT_INIT(buf, cap);
     fml_ui_win_t *win = app_menu_win();
     unsigned i;
     unsigned hit = 0U;
@@ -254,7 +306,7 @@ static int app_ui_check(void)
     unsigned ovf;
 
     if ((win == NULL) || (win->n_btn == 0U)) {
-        BSL_LOG_INF(" win=0");
+        app_fmt_puts(&f, "win=0");
         return 0;
     }
     fml_ui_reset();
@@ -293,16 +345,16 @@ static int app_ui_check(void)
     }
 
     ovf = fml_ui_overflow();
-    BSL_LOG_INF(" win=1 btn=");
-    bsl_log_put_dec((int)win->n_btn);
-    BSL_LOG_INF(" hit=");
-    bsl_log_put_dec((int)hit);
-    BSL_LOG_INF("/");
-    bsl_log_put_dec((int)win->n_btn);
-    BSL_LOG_INF(" ink=");
-    bsl_log_put_dec((int)ink);
-    BSL_LOG_INF(" ovf=");
-    bsl_log_put_dec((int)ovf);
+    app_fmt_puts(&f, "win=1 btn=");
+    app_fmt_dec(&f, (int)win->n_btn);
+    app_fmt_puts(&f, " hit=");
+    app_fmt_dec(&f, (int)hit);
+    app_fmt_puts(&f, "/");
+    app_fmt_dec(&f, (int)win->n_btn);
+    app_fmt_puts(&f, " ink=");
+    app_fmt_dec(&f, (int)ink);
+    app_fmt_puts(&f, " ovf=");
+    app_fmt_dec(&f, (int)ovf);
     return ((hit == win->n_btn) && (ink > 0U) && (ovf == 0U)) ? 1 : 0;
 }
 
@@ -318,52 +370,165 @@ static int app_ui_check(void)
  *
  * 这里走的是 app_menu_dispatch，与任务里那条路径是同一个函数 —— 不会出现
  * "POST 通过、手指不通过"的两套逻辑。
+ *
+ * P5b 起再加三项，都走同一条注入路径：
+ *   - enter2：注册表第 2、3 项也各走一遍进入-返回（P5a 只验了第 1 项，
+ *     另两个应用的 enter 画面与 leave 从未被执行过）；
+ *   - calc：按**标签**取 id 注入 1 + 2 =，读 app_calc_display() 判 3 ——
+ *     判据不能停在"按钮画出来了"，那与"算得对不对"无关；
+ *   - set：设置页连切两次背光，判 flips==2 且状态回到初值。用翻转计数而不是
+ *     只看终值：两次都没生效时终值同样等于初值，光看终值会把"完全坏了"判成通过。
  */
-static int app_menu_check(void)
+static int menu_label_is(const char *a, const char *b)
 {
-    const unsigned apps = app_count();
-    const app_desc_t *first = app_at(0U);
-    fml_ui_evt_t ev;
-    int click_ret = 0;
-    int enter = 0;
-    int back = 0;
-    unsigned leave;
-    unsigned depth;
+    while ((*a != '\0') && (*a == *b)) {
+        a++;
+        b++;
+    }
+    return (*a == *b) ? 1 : 0;
+}
 
-    if ((apps == 0U) || (first == NULL)) {
-        BSL_LOG_INF(" apps=0");
+static uint16_t menu_id_by_label(const fml_ui_win_t *win, const char *label)
+{
+    unsigned i;
+
+    if (win == NULL) {
+        return 0U;
+    }
+    for (i = 0U; i < win->n_btn; i++) {
+        if ((win->btn[i].label != NULL) && (menu_label_is(win->btn[i].label, label) != 0)) {
+            return win->btn[i].id;
+        }
+    }
+    return 0U;
+}
+
+/* 同一个图标注入两次 CLICK = 双击。两次调用的间隔是 0，必然落在任何合法的
+ * 双击窗口内 —— 这里验的是"双击状态机通"，不是"阈值大小合适"。 */
+static int menu_enter_app(const app_desc_t *app)
+{
+    fml_ui_evt_t ev;
+
+    if (app == NULL) {
         return 0;
     }
     ev.type = FML_UI_EVT_CLICK;
-    ev.id = first->id;
+    ev.id = app->id;
     ev.x = 0;
     ev.y = 0;
-    click_ret = app_menu_dispatch(&ev);
-    (void)click_ret;
-    if (app_menu_dispatch(&ev) == APP_ACTION_ENTER) {
-        enter = 1;
-    }
+    (void)app_menu_dispatch(&ev);
+    return (app_menu_dispatch(&ev) == APP_ACTION_ENTER) ? 1 : 0;
+}
+
+static int menu_back(void)
+{
+    fml_ui_evt_t ev;
+
+    ev.type = FML_UI_EVT_CLICK;
     ev.id = APP_ID_BACK;
-    if (app_menu_dispatch(&ev) == APP_ACTION_BACK) {
-        back = 1;
+    ev.x = 0;
+    ev.y = 0;
+    return (app_menu_dispatch(&ev) == APP_ACTION_BACK) ? 1 : 0;
+}
+
+/* 在当前应用的窗口里按标签点一次。返回 1 = 事件确实转交给了应用。 */
+static int menu_click_label(const char *label)
+{
+    fml_ui_evt_t ev;
+    uint16_t id = menu_id_by_label(app_menu_current_win(), label);
+
+    if (id == 0U) {
+        return 0;
     }
+    ev.type = FML_UI_EVT_CLICK;
+    ev.id = id;
+    ev.x = 0;
+    ev.y = 0;
+    return (app_menu_dispatch(&ev) == APP_ACTION_APP) ? 1 : 0;
+}
+
+static int app_menu_check(char *buf, unsigned cap)
+{
+    app_fmt_t f = APP_FMT_INIT(buf, cap);
+    const unsigned apps = app_count();
+    const app_desc_t *first = app_at(0U);
+    int enter = 0;
+    int back = 0;
+    int enter2 = 0;
+    int calc_ok = 0;
+    int set_flips = 0;
+    unsigned leave;
+    unsigned depth;
+    unsigned i;
+
+    if ((apps == 0U) || (first == NULL)) {
+        app_fmt_puts(&f, "apps=0");
+        return 0;
+    }
+    /* 第 1 项：单击一次 → SELECT（不产 ENTER），再点一次 → ENTER。 */
+    enter = menu_enter_app(first);
+    back = menu_back();
+
+    /* 第 2、3 项：各走一遍进入-返回。 */
+    for (i = 1U; (i < apps) && (i < 3U); i++) {
+        if ((menu_enter_app(app_at(i)) != 0) && (menu_back() != 0)) {
+            enter2++;
+        }
+    }
+
+    /* 计算器（第 4 项）：1 + 2 = 应该是 3。 */
+    if ((apps > 3U) && (menu_enter_app(app_at(3U)) != 0)) {
+        if ((menu_click_label("1") != 0) && (menu_click_label("+") != 0) &&
+            (menu_click_label("2") != 0) && (menu_click_label("=") != 0) &&
+            (menu_label_is(app_calc_display(), "3") != 0)) {
+            calc_ok = 1;
+        }
+        (void)menu_back();
+    }
+
+    /* 设置页（第 5 项）：切两次背光。 */
+    if ((apps > 4U) && (menu_enter_app(app_at(4U)) != 0)) {
+        const unsigned flips0 = app_settings_flips();
+        const int bl0 = app_settings_backlight();
+
+        (void)menu_click_label("BL");
+        (void)menu_click_label("BL");
+        /* 两次都生效 ⇒ 计数恰好 +2，且状态回到初值（1 → 0 → 1）。
+         * 只判终值会把"两次都没生效"判成通过。 */
+        if ((app_settings_flips() == (flips0 + 2U)) &&
+            (app_settings_backlight() == bl0)) {
+            set_flips = 2;
+        }
+        (void)menu_back();
+    }
+
     depth = app_menu_depth();
     leave = app_menu_leave_count();
 
-    BSL_LOG_INF(" apps=");
-    bsl_log_put_dec((int)apps);
-    BSL_LOG_INF(" enter=");
-    bsl_log_put_dec(enter);
-    BSL_LOG_INF(" back=");
-    bsl_log_put_dec(back);
-    BSL_LOG_INF(" leave=");
-    bsl_log_put_dec((int)leave);
-    BSL_LOG_INF(" depth=");
-    bsl_log_put_dec((int)depth);
-    /* leave 必须 ≥1：BACK 走的是"离开应用"的唯一路径，若它为 0，说明 dispatch 的
-     * BACK 分支没真的把 s_current 归零（或不经过 app_leave_current），
-     * 那时 depth 也可能碰巧是 0，光看 depth 判不出来。 */
-    return (((enter != 0) && (back != 0)) && ((depth == 0U) && (leave > 0U))) ? 1 : 0;
+    app_fmt_puts(&f, "apps=");
+    app_fmt_dec(&f, (int)apps);
+    app_fmt_puts(&f, " enter=");
+    app_fmt_dec(&f, enter);
+    app_fmt_puts(&f, " back=");
+    app_fmt_dec(&f, back);
+    app_fmt_puts(&f, " leave=");
+    app_fmt_dec(&f, (int)leave);
+    app_fmt_puts(&f, " enter2=");
+    app_fmt_dec(&f, enter2);
+    app_fmt_puts(&f, " calc=");
+    app_fmt_puts(&f, app_calc_display());
+    app_fmt_puts(&f, " set=");
+    app_fmt_dec(&f, set_flips);
+    app_fmt_puts(&f, " depth=");
+    app_fmt_dec(&f, (int)depth);
+    /* leave 必须等于 apps：POST 把每个应用都走了一遍，每次 BACK 都该经过
+     * app_leave_current。若它小于 apps，说明某个应用的退出路径没走全，
+     * 而 depth 也可能碰巧是 0，光看 depth 判不出来。
+     * calc_ok / set_flips 也进判据：这两项各自有独立的读数，不并进去就等于
+     * "打出来给人看、机器不判"，回归时没人会去比对那两列。 */
+    return (((enter != 0) && (back != 0)) &&
+            ((leave >= apps) && (depth == 0U)) &&
+            (calc_ok != 0) && (set_flips == 2)) ? 1 : 0;
 }
 
 int main(void)
@@ -404,8 +569,14 @@ int main(void)
     }
 
     /* 上电自检：设备初始化之后单独跑一轮，结果只走串口。
-     * 与 periph init 分开的原因：init 失败与 selftest 失败在串口上是两行。 */
+     * 与 periph init 分开的原因：init 失败与 selftest 失败在串口上是两行。
+     *
+     * menu 项要注入点击，点击会进到应用的 event 回调；回调自己的日志会插在
+     * `[post] menu` 与它的判定之间。项名与结果已由 bsl 一次性输出，中间夹别人
+     * 的行就没法读了 —— 所以 POST 期间关掉应用侧日志，跑完立刻恢复。 */
+    app_set_trace(0);
     board_post_run();
+    app_set_trace(1);
 
     /* 样例应用：四键去抖 + 蜂鸣（apl/src/app_sample.c）。
      * 桌面与应用切换：唯一的输入泵任务（apl/src/app.c）。

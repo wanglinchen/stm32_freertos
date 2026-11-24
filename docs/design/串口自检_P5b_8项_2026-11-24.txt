@@ -1,0 +1,94 @@
+# P5b 串口取证：计算器 `app_calc` + 设置页 `app_settings`（判据并入 `menu` 项）
+
+- 日期：2026-11-24
+- 分支/提交：`feature/full-demo`，父提交 P5b 开工核对 `704d293`
+- 固件：userdebug `text 554592 / data 48 / bss 31608`；user 档 `text 548028 / data 48 / bss 31600`
+  （1 MB flash 用 52.9% / 52.3%）。较 P5a 的 `551536/545356`、`bss 28472`：text +3.0 KB / +2.6 KB，bss +3.1 KB
+- 采集：COM3 / 115200 / 8N1；先开串口后台采集 110 s，再 `flash/flash.py flash`（548 KB 镜像烧写约 40 s）
+- 板上现状：`start` / `leave` 全部走 `app_menu_dispatch`，真手指未按（`touch points=0` 是没人碰屏，正常）
+
+## 通过那一版（`result 8 pass 8 fail 0`）
+
+```text
+[post] sdram size=32M bad=0 PASS
+[post] lcd w=800 h=480 bad=0 PASS
+[post] touch id=9147 points=0 PASS
+[post] nor id=0xef4019 size=32M PASS
+[post] font c0=48 c1=45 c2=70 c3=46 w=8 h=16 ink=22 blank=0 cjk_min=45 PASS
+[post] fatfs total=25568KB ents=2 [SYSTEM 0B DIR] [??????~1 0B DIR] SYSTEM:n=3 [APP 0B DIR] [SPB 0B DIR] [LWIP 0B DIR] ??????~1:n=16 [ALIENT~1.TXT 2486B] [??????~1.AVI 2534868B] [??????~1.SMS 262144B] [????28~1.BIN 44804B] PASS
+[post] ui win=1 btn=5 hit=5/5 ink=355 ovf=0 PASS
+[post] menu apps=5 enter=1 back=1 leave=5 enter2=2 calc=3 set=2 depth=0 PASS
+[post] result 8 pass 8 fail 0
+```
+
+采集窗口里同一段 POST 出现两遍（烧写前旧固件一遍 + 复位后新固件一遍，内容一致），
+按复位点切分即可；这是采集脚本的既有行为，不是重置复位。
+
+## 判据拆解
+
+| 字段 | 值 | 说明 |
+|---|---|---|
+| `ui btn=5` | 5 个图标 | 图标数 = 注册表条目数：`LED` / `KEY` / `BEEP` / `CALC` / `SETTINGS`（id 1..5） |
+| `ui hit=5/5` | 五个图标中心注入 DOWN+UP 全部产出 id 对得上的 CLICK | 走 `fml_ui_feed`，与真手指同一条路径 |
+| `ui ink=355` | 五按钮内部非背景像素 | 比 P5a 的 169 大（多了两个图标 + 短标签 `CALC` / `SET`） |
+| `menu apps=5` | 注册表 5 项 | 同上 |
+| `menu enter=1` | 第 1 项（`LED`）连注两次 CLICK → 进应用 1 次 | 双击语义 350 ms（运行期可改，见下） |
+| `menu back=1` | 注入 `BACK`（id `0xFF`）→ 回桌面 1 次 | BACK 不进注册表 |
+| `menu leave=5` | **5 个应用全部被走了一遍并各自交还了执行器** | `leave>=apps` 是本批新判据；P5a 时只有 3 个应用 |
+| `menu enter2=2` | 第 2、3 项（`KEY` / `BEEP`）各走一遍 ENTER→BACK | 覆盖"应用里不点任何控件直接退出"的路径 |
+| `menu calc=3` | 按**按钮标签**找到 `1` `+` `2` `=` 依次注入 CLICK，读 `app_calc_display()` 得 `"3"` | 按标签而不是按 id：id 是布局细节，改布局不该让判据失效 |
+| `menu set=2` | 连点 `BL` 两次，`app_settings_flips()` 从 0 变 2，且 `backlight` 回到初值 | 背光**真的**调了执行器（`board_lcd_backlight`，PB5），不是只改 RAM 里的变量 |
+| `depth=0` | 栈深回到 0 | 进 / 出层层配对 |
+
+## 三处坑（都已修）
+
+### ① 首版 `calc=0`，但日志里 `key = disp=3`
+
+`calc_leave()` 在点 BACK 时把显示缓冲复位成 `"0"`；`menu` 项打印排在 BACK 之后，
+于是判据算出来是 `3`、打出来的却是 `0`。**判据没错，是读数位置错了。**
+删掉 `calc_leave`（`calc_enter` 本来就会 clear）后 `calc=3`。
+
+教训：判据字段必须在**被测动作之后、退出之前**读；`leave` 里做复位会让"退出后读数"变成读另一个东西。
+
+### ② POST 行被应用回调切成多行（架构级修正）
+
+首版把 `board_post_register` 的签名设成 `int (*fn)(void)`，注册函数自己往串口打。
+`menu` 项要注入 CLICK 去验计算器与设置页，于是应用 `event` 回调的日志插进了
+`[post] ui ... PASS` 与 `[post] menu ... PASS` 之间：
+
+```text
+[post] uiwin=1 btn=5 hit=5/5 ink=355 ovf=0 PASS
+[app_calc] key 1 disp=1
+[app_calc] key + disp=1
+[app_calc] key 2 disp=2
+[app_calc] key = disp=3
+[app_settings] bl=0 dbl=350
+[app_settings] bl=1 dbl=350
+[post] menuapps=5 enter=1 back=1 leave=5 enter2=2 calc=3 set=2 depth=0 PASS
+```
+
+P5a 当时定的纪律是"运行期 `event` 日志无妨，那时 POST 已结束" —— **P5b 证伪了它**：
+POST 自己会注入事件。修法两层：
+
+| 位置 | 改动 |
+|---|---|
+| `bsl/inc/board_post.h` | 注册签名改 `int (*fn)(char *buf, unsigned cap)` |
+| `bsl/src/board_post.c` | `post_ext` 用 `static char s_ext_buf[512]`（不是栈，main 只 2 KB 栈）；先 `fn(buf,512)` 再 `post_begin(item)` → 补分隔空格 → `bsl_log_puts(buf)` → `post_end(ok)` |
+| `apl/src/main.c` | 新增 `app_fmt_t{p,cap,len}` + `app_fmt_puts` / `app_fmt_dec`（不引 `snprintf`，避免拖进格式化引擎）；`font` / `fatfs` / `ui` / `menu` 四项全部改成攒串 |
+| `apl/inc/app.h` + `apl/src/app.c` | `app_set_trace(int)` / `app_trace_on()`；`main` 在 `board_post_run()` 前后拨 0 / 1；`app_calc` 与 `app_settings` 的 `event` 日志用 `if (app_trace_on())` 包住 |
+
+`512` 这个数不是拍的：`fatfs` 项要列根目录 + 两个子目录，实测约 240 字符，是最长的一项。
+
+### ③ 分隔空格（三种错法依次被抓到）
+
+| 现象 | 原因 | 修法 |
+|---|---|---|
+| `[post] fatfstotal=` / `[post] menuapps=` | 内置项把值拼进 item 字符串（`"sdram size="`），外部项只报项名，没人补空格 | `post_ext` 在 buf 非空时补一个空格 |
+| `[post] font  c0=48`（双空格） | `font` 项 buf 的首个 token 自带前导空格，bsl 又补一个 | buf 首 token 不带前导空格（`(k == 0U) ? "c" : " c"`） |
+
+## 未覆盖 / 遗留
+
+- **真手指**未验：计算器按键、设置页 `BL` / `DBL` 的真触摸路径（POST 走的是 `fml_ui_feed` 注入，同一条路径但不是同一份输入）。
+- 双击间隔改成运行期变量后，`DBL` 三档（250 / 350 / 500）只验了"点击会翻档"，**没有验新档位真的改变了双击判定窗口** —— 要真按两次才知道。
+- 设置项**只回写 RAM**：重启回默认。持久化到 24C02 是 P6 的 `board_eeprom`，本批有意不假装有。
+- `app_calc` 只有整数链式即时运算（无括号、无优先级、无小数），除零显示 `Err` 后链继续。要做的"全部功能"里计算器属于哪一档，见对照表 §1.2。

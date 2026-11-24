@@ -27,8 +27,18 @@
 
 /* 双击判定窗口：同一图标两次 CLICK 的间隔不超过这个毫秒数就算进入。
  * 350 ms 是按"手指抬起到第二次按下"的常见节奏定的：太短会把正常双击拆成
- * 两次单击，太长会让"点了两下不同图标"误进前一个。 */
-#define APP_DOUBLE_CLICK_MS 350U
+ * 两次单击，太长会让"点了两下不同图标"误进前一个。
+ *
+ * P5b 起改为**运行期变量**（设置页可改），这个宏只是上电默认值。
+ * 为什么不在没改之前就做成变量：P5a 时没有消费者，做出来就是死代码。 */
+#define APP_DOUBLE_CLICK_MS_DEFAULT 350U
+#define APP_DOUBLE_CLICK_MS_MIN 200U
+#define APP_DOUBLE_CLICK_MS_MAX 800U
+
+uint32_t app_double_click_ms(void);
+/* 限幅到 [MIN, MAX]：设置页只能给三个档位，但接口不能假定调用方守规矩 ——
+ * 传 0 会让同一图标"永远不双击"，而屏上没有任何提示。 */
+void app_set_double_click_ms(uint32_t ms);
 
 /* 图标网格：固定 4 列，行数按注册表条目数算。图标随注册表增长（P5a 3 个、
  * P5b 5 个、P5c 8 个），不写死 8 —— 写死就得为空槽建空壳应用。 */
@@ -78,6 +88,20 @@ unsigned app_menu_leave_count(void);  /* 已调过几次 leave（POST 判据） 
  * app_menu 任务与 POST 的 menu 项都调它 —— 一份实现，两处不会漂移。 */
 int app_menu_dispatch(const fml_ui_evt_t *ev);
 
+/*
+ * 应用事件日志的总开关（默认开）。
+ *
+ * POST 的 menu 项要注入点击，而点击会落到应用的事件回调里；回调若照常打
+ * `[app_calc] key ...`，那几行就会插进 POST 的项与判定之间 —— 项名和结果已经
+ * 由 bsl 侧一次性打出来了，中间再冒出别的模块的行，读日志的人就分不清哪些
+ * 属于这一项。所以 POST 期间关掉（apl/src/main.c 在 board_post_run() 前后拨）。
+ *
+ * 关的是"应用回调里的日志"，不是 bsl 的：POST 自己的项照常输出。
+ */
+void app_set_trace(int on);
+int app_trace_on(void);
+
+
 /* 建桌面并画一次（必须在 POST 之前调，两个 POST 项都要拿它注入）；
  * app_start() 启动唯一的输入泵任务。 */
 void app_menu_init(void);
@@ -87,5 +111,20 @@ void app_start(void);
 const app_desc_t *app_led_ops(void);
 const app_desc_t *app_key_ops(void);
 const app_desc_t *app_beep_ops(void);
+
+/* P5b 的两个应用。 */
+const app_desc_t *app_calc_ops(void);
+const app_desc_t *app_settings_ops(void);
+
+/* 计算器显示值（只读）。POST 用它核对"注入 1 + 2 = 之后屏上真的是 3" ——
+ * 没有这个出口，POST 只能判"按钮画出来了"，判不出算得对不对。 */
+const char *app_calc_display(void);
+
+/* 设置页当前背光状态（1 = 亮）。POST 用它核对"切两次之后真的回到原值"。 */
+int app_settings_backlight(void);
+
+/* 设置页累计"生效的切换次数"。POST 判据不能只看终值：两次都没生效时终值
+ * 同样等于初值，光看终值会把"完全坏了"判成通过。 */
+unsigned app_settings_flips(void);
 
 #endif

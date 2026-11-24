@@ -35,6 +35,8 @@ static void app_table_build(void)
     s_apps[s_apps_count++] = app_led_ops();
     s_apps[s_apps_count++] = app_key_ops();
     s_apps[s_apps_count++] = app_beep_ops();
+    s_apps[s_apps_count++] = app_calc_ops();
+    s_apps[s_apps_count++] = app_settings_ops();
     /* 防御：ops() 返回 NULL 说明该应用没装好。就地压缩、不留空槽 ——
      * 空槽会让桌面图标数与 POST 的 apps 计数对不上。 */
     i = 0U;
@@ -84,6 +86,33 @@ static app_id_t s_pending_id;
 static osl_tick_t s_pending_tick;
 static int s_desktop_built;
 static unsigned s_leave_count;
+static uint32_t s_double_click_ms = APP_DOUBLE_CLICK_MS_DEFAULT;
+static int s_trace = 1;
+
+uint32_t app_double_click_ms(void)
+{
+    return s_double_click_ms;
+}
+
+void app_set_double_click_ms(uint32_t ms)
+{
+    if (ms < APP_DOUBLE_CLICK_MS_MIN) {
+        ms = APP_DOUBLE_CLICK_MS_MIN;
+    } else if (ms > APP_DOUBLE_CLICK_MS_MAX) {
+        ms = APP_DOUBLE_CLICK_MS_MAX;
+    }
+    s_double_click_ms = ms;
+}
+
+void app_set_trace(int on)
+{
+    s_trace = (on != 0) ? 1 : 0;
+}
+
+int app_trace_on(void)
+{
+    return s_trace;
+}
 
 fml_ui_win_t *app_menu_win(void)
 {
@@ -192,7 +221,7 @@ int app_menu_dispatch(const fml_ui_evt_t *ev)
         }
         now = osl_tick_now();
         if ((s_pending_id == app->id) &&
-            ((now - s_pending_tick) <= APP_DOUBLE_CLICK_MS)) {
+            ((now - s_pending_tick) <= s_double_click_ms)) {
             s_pending_id = 0U;
             /* 桌面双击才走到这里，正常路径下这一步是空转；留着是为了"应用之间
              * 直接跳转"若将来开出来，执行器也一定先交还。 */
@@ -226,8 +255,7 @@ int app_menu_dispatch(const fml_ui_evt_t *ev)
 
 static void menu_log_tap(const fml_ui_evt_t *ev, int action)
 {
-    BSL_LOG_MOD_INF(MENU_LOG_MOD, "tap id=");
-    bsl_log_put_dec((int)ev->id);
+    BSL_LOG_MOD_INF(MENU_LOG_MOD, "tap id=");    bsl_log_put_dec((int)ev->id);
     BSL_LOG_INF(" act=");
     bsl_log_put_dec(action);
     BSL_LOG_INF("\r\n");

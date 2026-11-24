@@ -24,8 +24,20 @@ void board_post_run(void);
 
 /* 注册一个外部 POST 项，必须在 board_post_run() 之前调用。
  *
- * fn 在 "[post] <item> " 之后被调用，自己可以用 BSL_LOG_INF 在同一行打细节；
- * 返回 1 = PASS。注册超过 BOARD_POST_EXT_MAX 项、或参数为空返回 0（失败可见）。 */
-int board_post_register(const char *item, int (*fn)(void));
+ * **fn 不写串口**：它把细节格式化进 buf（NUL 结尾），返回 1 = PASS。bsl 侧
+ * 再一次性打 `[post] <item> <buf> PASS|FAIL`。
+ *
+ * 为什么不像内置项那样"fn 在 [post] 前缀之后自己打"：外部项的判据要注入事件、
+ * 调应用的 enter/leave/event，而这些回调自己会打日志（`[app_calc] key = disp=3`）。
+ * 前缀已经先打出去了，回调插进来的那行就把 `[post] menu ...` 切成两三行，
+ * POST 行当场不可解析（P5a、P5b 各踩到一次）。改成"先在内存里攒结果"以后，
+ * 回调日志自然排在 POST 行之前，两者互不干扰。
+ *
+ * 注册超过 BOARD_POST_EXT_MAX 项、或参数为空返回 0（失败可见）。
+ *
+ * buf 的首个字符不要写前导空格：bsl 侧在项名与 buf 之间已经补了一个，
+ * 多补就是 `[post] font  c0=48` 这种双空格。cap 当前是 512（`post_ext` 内部的
+ * static 缓冲，不是栈 —— main 任务栈只有 2 KB）。 */
+int board_post_register(const char *item, int (*fn)(char *buf, unsigned cap));
 
 #endif
