@@ -1,6 +1,22 @@
 # 自动生成，勿手改。刷新：python3 build/build.py update
 menu "src"
 
+config APL_SRC_APP
+	bool "app.c"
+	default y
+
+config APL_SRC_APP_BEEP
+	bool "app_beep.c"
+	default y
+
+config APL_SRC_APP_KEY
+	bool "app_key.c"
+	default y
+
+config APL_SRC_APP_LED
+	bool "app_led.c"
+	default y
+
 config APL_SRC_APP_SAMPLE
 	bool "app_sample.c"
 	default y

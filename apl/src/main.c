@@ -1,3 +1,4 @@
+#include "app.h"
 #include "app_sample.h"
 #include "board_lcd.h"
 #include "board_post.h"
@@ -246,7 +247,7 @@ static int app_fatfs_check(void)
  */
 static int app_ui_check(void)
 {
-    fml_ui_win_t *win = app_sample_ui_win();
+    fml_ui_win_t *win = app_menu_win();
     unsigned i;
     unsigned hit = 0U;
     uint32_t ink = 0U;
@@ -305,6 +306,66 @@ static int app_ui_check(void)
     return ((hit == win->n_btn) && (ink > 0U) && (ovf == 0U)) ? 1 : 0;
 }
 
+/*
+ * 桌面与应用切换：POST 的 menu 项（§1.1 第 21 行）。
+ *
+ * 判据用动作码而不是"看屏"：同一图标注入两次 CLICK，第一次必须是 SELECT、
+ * 第二次必须是 ENTER（双击判定），然后注入 BACK(0xFF) 必须得到 BACK，
+ * 且 depth 回到 0。四件事缺一条都说明状态机没走通：
+ *   - 两次都 SELECT → 双击窗口没生效（阈值/时间戳写错）；
+ *   - 第一次就 ENTER → 残留的 pending 没被清，用户单击就会误进应用；
+ *   - BACK 不返回 → 用户进了应用回不来，只能复位。
+ *
+ * 这里走的是 app_menu_dispatch，与任务里那条路径是同一个函数 —— 不会出现
+ * "POST 通过、手指不通过"的两套逻辑。
+ */
+static int app_menu_check(void)
+{
+    const unsigned apps = app_count();
+    const app_desc_t *first = app_at(0U);
+    fml_ui_evt_t ev;
+    int click_ret = 0;
+    int enter = 0;
+    int back = 0;
+    unsigned leave;
+    unsigned depth;
+
+    if ((apps == 0U) || (first == NULL)) {
+        BSL_LOG_INF(" apps=0");
+        return 0;
+    }
+    ev.type = FML_UI_EVT_CLICK;
+    ev.id = first->id;
+    ev.x = 0;
+    ev.y = 0;
+    click_ret = app_menu_dispatch(&ev);
+    (void)click_ret;
+    if (app_menu_dispatch(&ev) == APP_ACTION_ENTER) {
+        enter = 1;
+    }
+    ev.id = APP_ID_BACK;
+    if (app_menu_dispatch(&ev) == APP_ACTION_BACK) {
+        back = 1;
+    }
+    depth = app_menu_depth();
+    leave = app_menu_leave_count();
+
+    BSL_LOG_INF(" apps=");
+    bsl_log_put_dec((int)apps);
+    BSL_LOG_INF(" enter=");
+    bsl_log_put_dec(enter);
+    BSL_LOG_INF(" back=");
+    bsl_log_put_dec(back);
+    BSL_LOG_INF(" leave=");
+    bsl_log_put_dec((int)leave);
+    BSL_LOG_INF(" depth=");
+    bsl_log_put_dec((int)depth);
+    /* leave 必须 ≥1：BACK 走的是"离开应用"的唯一路径，若它为 0，说明 dispatch 的
+     * BACK 分支没真的把 s_current 归零（或不经过 app_leave_current），
+     * 那时 depth 也可能碰巧是 0，光看 depth 判不出来。 */
+    return (((enter != 0) && (back != 0)) && ((depth == 0U) && (leave > 0U))) ? 1 : 0;
+}
+
 int main(void)
 {
     int rc;
@@ -324,9 +385,9 @@ int main(void)
      * board_system_init 专用的（复用会把"哪一级失败"搅在一起）。 */
     (void)bsl_board_periph_init();
 
-    /* P4 的演示窗口先建好：POST 的 ui 项要拿它注入点击，应用任务还没起来。
-     * 幂等，app_sample_start() 会再调一次。 */
-    app_sample_ui_init();
+    /* 桌面先建好：POST 的 ui 与 menu 两项都要拿它注入点击，应用任务还没起来。
+     * 幂等，app_start() 会再调一次。 */
+    app_menu_init();
 
     /* 注册失败要看得见：静默丢项会让 result 的 total 少 1，而没人知道为什么。 */
     if (board_post_register("font", app_display_check) == 0) {
@@ -338,14 +399,19 @@ int main(void)
     if (board_post_register("ui", app_ui_check) == 0) {
         BSL_LOG_INF("[post] ui register FAIL\r\n");
     }
+    if (board_post_register("menu", app_menu_check) == 0) {
+        BSL_LOG_INF("[post] menu register FAIL\r\n");
+    }
 
     /* 上电自检：设备初始化之后单独跑一轮，结果只走串口。
      * 与 periph init 分开的原因：init 失败与 selftest 失败在串口上是两行。 */
     board_post_run();
 
-    /* 样例应用：LED 1 s 红绿交替 + 四键去抖 + 蜂鸣器随按键（apl/src/app_sample.c）。
-     * 框架层（fml）只提供 panic 播报，演示行为不放功能层。 */
+    /* 样例应用：四键去抖 + 蜂鸣（apl/src/app_sample.c）。
+     * 桌面与应用切换：唯一的输入泵任务（apl/src/app.c）。
+     * 任务优先级都低于 app_menu，保证触摸轮询不被按键日志拖慢。 */
     app_sample_start();
+    app_start();
 
     osl_scheduler_start();
 

@@ -27,14 +27,17 @@
  * 必须在调度器启动前调 osl_health_init()：`.bss` 初值为 0，而 0 对“最低剩余”
  * 是无意义的值（每次采样都比它大，最低值永远记成 0）。
  */
-/* 只留实际用到的槽：0 = led_blink，1 = button。多一个槽就是 4 B 永远写不进值，
+/* 只留实际用到的槽：0 = button，1 = app_menu。多一个槽就是 4 B 永远写不进值，
  * 而 `size` 只报 bss 总量，看不出来。槽数与调用点槽号是否一致现在只能人工核对
- * （原"比对槽数与调用点"的判据已随 2026-11-22 门禁删除）。 */
+ * （原"比对槽数与调用点"的判据已随 2026-11-22 门禁删除）。
+ *
+ * 2026-11-24 P5a：led_blink 任务删除（LED 交给 app_led 应用独占），原来给它的
+ * 槽 0 让给 button，app_menu 用槽 1 —— 槽数随线程数一起从 2 变 2，只是重新分配。 */
 #define OSL_HEALTH_STACK_SLOTS 2U
 
 /* 槽号的单一出处：调用点不再写裸数字，改槽数时只需改这里 + 上面一行。 */
-#define OSL_HEALTH_SLOT_LED 0U    /* app_sample 的 led_blink 任务 */
-#define OSL_HEALTH_SLOT_BUTTON 1U /* app_sample 的 button 任务 */
+#define OSL_HEALTH_SLOT_BUTTON 0U /* app_sample 的 button 任务 */
+#define OSL_HEALTH_SLOT_MENU 1U   /* app_menu 的应用泵任务 */
 
 #define OSL_HEALTH_UNSET 0xFFFFFFFFUL
 

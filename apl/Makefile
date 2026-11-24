@@ -27,6 +27,34 @@ LOCAL_OBJS :=
 ARCHIVE_OBJS :=
 ifeq ($(CONFIG_APL),y)
 ifeq ($(CONFIG_APL_SRC),y)
+ifeq ($(CONFIG_APL_SRC_APP),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/apl/src/app.o
+endif
+endif
+endif
+ifeq ($(CONFIG_APL),y)
+ifeq ($(CONFIG_APL_SRC),y)
+ifeq ($(CONFIG_APL_SRC_APP_BEEP),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/apl/src/app_beep.o
+endif
+endif
+endif
+ifeq ($(CONFIG_APL),y)
+ifeq ($(CONFIG_APL_SRC),y)
+ifeq ($(CONFIG_APL_SRC_APP_KEY),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/apl/src/app_key.o
+endif
+endif
+endif
+ifeq ($(CONFIG_APL),y)
+ifeq ($(CONFIG_APL_SRC),y)
+ifeq ($(CONFIG_APL_SRC_APP_LED),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/apl/src/app_led.o
+endif
+endif
+endif
+ifeq ($(CONFIG_APL),y)
+ifeq ($(CONFIG_APL_SRC),y)
 ifeq ($(CONFIG_APL_SRC_APP_SAMPLE),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/apl/src/app_sample.o
 endif

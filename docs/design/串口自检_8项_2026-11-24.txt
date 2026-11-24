@@ -1,0 +1,97 @@
+# P5a 串口取证：应用注册表 / 桌面 / LED·KEY·BEEP 三应用（`app_menu`）
+
+- 日期：2026-11-24
+- 分支/提交：`feature/full-demo`，父提交 P5 判据修正 `0071d9b9`
+- 固件：userdebug `text 551536 / data 32 / bss 28472`；user 档 `text 545356 / data 32 / bss 28472`（1 MB flash 用 52.0%）
+- 采集：COM3 / 115200 / 8N1；先开串口后台采集 75 s，再 `flash/flash.py flash`（545 KB 镜像烧写约 40 s）
+
+## 通过那一版（`result 8 pass 8 fail 0`）
+
+```text
+[post] sdram size=32M bad=0 PASS
+[post] lcd w=800 h=480 bad=0 PASS
+[post] touch id=9147 points=0 PASS
+[post] nor id=0xef4019 size=32M PASS
+[post] font c0=48 c1=45 c2=70 c3=46 w=8 h=16 ink=22 blank=0 cjk_min=45 PASS
+[post] fatfs total=25568KB ents=2 [SYSTEM 0B DIR] [??????~1 0B DIR] SYSTEM:n=3 [APP 0B DIR] [SPB 0B DIR] [LWIP 0B DIR] ??????~1:n=16 [ALIENT~1.TXT 2486B] [??????~1.AVI 2534868B] [??????~1.SMS 262144B] [????28~1.BIN 44804B] PASS
+[post] ui win=1 btn=3 hit=3/3 ink=169 ovf=0 PASS
+[post] menu apps=3 enter=1 back=1 leave=1 depth=0 PASS
+[post] result 8 pass 8 fail 0
+```
+
+（更早两次烧写的日志里开头出现过 4 行 `[led] R=0 G=1`：那是烧写前板上仍在跑的 P4 固件
+输出的 1 s 红绿心跳 —— 采集窗口先于烧写打开，旧固件最后两个周期被录进来。P5a 已删掉心跳。）
+
+## 判据拆解
+
+| 字段 | 值 | 说明 |
+|---|---|---|
+| `ui win=1` | 桌面窗口 1 个 | 窗口 `(0,0,800,480)`，单活动窗口约定沿用 P4 |
+| `ui btn=3` | 3 个图标按钮 | 图标数取自**注册表条目数**，不写死 8：P5a 3 个 → P5b 5 个 → P5c 8 个；4 列 × 160×120、gap 16，起点 x=(800-688)/2=56、y=120 |
+| `ui hit=3/3` | 三个图标中心注入 DOWN+UP 全部产出 id 对得上的 CLICK | 注入点走 `fml_ui_feed`，与真手指同一条路径 |
+| `ui ink=169` | 三按钮内部（扣 1 px 边框）非背景像素 | 比 P4 的 231 小：P4 是 3×96 px 小按钮带标签，这里是大图标 + 短标签 |
+| `ovf=0` | 事件队列零溢出 | 溢出 = 点了没反应且串口看不出区别 |
+| `menu apps=3` | 注册表 3 项 | `LED` / `KEY` / `BEEP`，id 1/2/3 |
+| `menu enter=1` | **同一图标连注两次 CLICK → 进应用 1 次** | 双击语义：`APP_DOUBLE_CLICK_MS 350` 内同一 id 两次 CLICK ⇒ `APP_ACTION_ENTER` |
+| `menu back=1` | 注入 `BACK`（id `0xFF`）→ 回桌面 1 次 | BACK 不进注册表，由 `app_menu_dispatch` 在轮询里拦 |
+| `menu leave=1` | **退出路径调到了 `leave` 钩子 1 次** | 见下节；`depth` 也可能碰巧为 0，光看它判不出"执行器交还过没有" |
+| `depth=0` | 栈深回到 0 | 进 / 出层层配对，泄漏一次就是"回不去" |
+
+## 收工核对发现的两个缺口（都已修）
+
+### ① 退出应用时没有人交还执行器
+
+首版 `app_desc_t` 只有 `enter` / `tick` / `win` / `event`。退出后 `tick` 不再被调，
+于是"由 tick 维持的状态"没人关：
+
+- `app_beep` 在 CLICK 时把响拉到 `s_min_until`（40 ms 最短响）。若在这 40 ms 内点
+  `BACK`，`s_current` 归 0、`tick` 停止 → 蜂鸣器一直响到下次进 BEEP。
+- `app_led` 点亮的灯在回桌面后仍然亮着，而屏上已没有任何 LED 状态 ——
+  违反"屏上显示 = 执行器实际状态"。
+
+修法（先改对照表 §3「执行器交还必须走 `leave`」，再改代码）：`app_desc_t` 补第六个钩子
+`leave`，`app_menu_dispatch` 在 `BACK`（`s_current` 归零之前）调；
+`app_leave_current()` 在桌面（`s_current == 0`）直接返回、不计数，否则 POST 的
+`leave=<n>` 会被"每次进入前那次空调用"抬高。`app_led` / `app_beep` 各自关灯 / 停响，
+`app_key` 没有执行器，留 `NULL`（仍计数 —— `leave` 判的是"退出路径走过"，不是"关掉了什么"）。
+
+### ② 回调里的日志把 POST 半行切开
+
+第一次带 `leave` 的版本线上是这两行：
+
+```text
+[post] menu[app_led] leave r=0 g=0 b=0
+ apps=3 enter=1 back=1 leave=1 depth=0 PASS
+```
+
+`led_leave()` 里打了日志，而 `[post] menu` 是分多次 `bsl_log_puts` 拼出来的半行 ——
+回调插进来就把整行切成两行，`[post] menu` 当场不可解析。
+
+修法：`app_led` 的 `leave` 全静默；`app_beep` 的 `leave` 不能走带日志的 `beep_set()`，
+改成直接调 `beep->set(0)` 再存回 `s_sounding = 0` / `s_min_until = now`。
+纪律写进对照表 §3「回调里不能打日志」：动作是否发生由 POST 计数（`enter=` / `leave=`）证明，
+运行期的 `event` 日志（`[app_led] toggle`）不受影响，那时 POST 早已结束。
+
+## 首版编译错误与修法
+
+```text
+apl/src/app.c:111:9: error: implicit declaration of function 'fml_gui_text'; did you mean 'fml_ui_next'?
+apl/src/app.c:230:22: error: 'BOARD_TOUCH_BUS_ERROR' undeclared
+apl/src/app_key.c:57:11: error: unknown type name 'fml_font_t'
+apl/src/app_key.c:74:9: error: implicit declaration of function 'fml_gui_fill'
+```
+
+新文件只 include 了 `fml_ui.h`（它自身不吃 gui/font），画字与 `fml_font_t` 用的是
+`fml_gui.h` / `fml_font.h`，`BOARD_TOUCH_BUS_ERROR` 用的是 `board_touch.h`。
+`-Werror` + `-Wimplicit-function-declaration` 下隐式声明直接判失败。
+修法：`app.c` 补 `fml_gui.h` + `board_touch.h`，`app_led.c` / `app_key.c` 补 `fml_gui.h` + `fml_font.h`。
+**头文件按用到的 API 加，不按模块名加** —— `app_led` 的名字里没有 gui，但它在画文字。
+
+## 尚未覆盖
+
+- **真手指**：点图标应打 `[menu] touch down x=.. y=..` + 抬手 `[menu] tap id=<id> act=1`；
+  350 ms 内再点同一图标打 `act=2` 与 `[menu] enter <name>`；点 BACK 打 `id=255 act=3`。
+  左右是否镜像由这一笔定。
+- 只有应用 1（`LED`）走过 `enter` / `leave`：`enter=1` 是 POST 只注入了第一个图标。
+  `app_key` / `app_beep` 的 `enter` 画面没有逐一点过 —— 这是 P5b 的 `enter2` 要补的。
+- `app_beep` 的 40 ms 最短响只有源码上的截止点，没有实测波形。
