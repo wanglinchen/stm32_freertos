@@ -17,6 +17,10 @@ config APL_SRC_APP_CALENDAR
 	bool "app_calendar.c"
 	default y
 
+config APL_SRC_APP_IMU
+	bool "app_imu.c"
+	default y
+
 config APL_SRC_APP_KEY
 	bool "app_key.c"
 	default y
@@ -25,8 +29,16 @@ config APL_SRC_APP_LED
 	bool "app_led.c"
 	default y
 
+config APL_SRC_APP_LEVEL
+	bool "app_level.c"
+	default y
+
 config APL_SRC_APP_NOTEPAD
 	bool "app_notepad.c"
+	default y
+
+config APL_SRC_APP_PAINT
+	bool "app_paint.c"
 	default y
 
 config APL_SRC_APP_PICVIEWER

@@ -1,6 +1,7 @@
 #include "app.h"
 #include "app_sample.h"
 #include "board_lcd.h"
+#include "board_mpu9250.h"
 #include "board_post.h"
 #include "board_system.h"
 #include "bsl_fb.h"
@@ -514,7 +515,7 @@ static int app_menu_check(char *buf, unsigned cap)
      * P8b 加 paint 之后已经超过 48 —— 放不下时 app_fmt_puts 直接截断，
      * 结果是 `[post] menu` 那一行后半段消失、解析器读不到 depth（判 FAIL
      * 却看不出为什么）。128 是"再多一两个字段也不用改"的余量，栈上 128 B。 */
-    char tail_s[128];
+    char tail_s[192];
     app_fmt_t ft = APP_FMT_INIT(tail_s, (unsigned)sizeof(tail_s));
     const unsigned apps = app_count();
     const app_desc_t *first = app_at(0U);
@@ -527,6 +528,8 @@ static int app_menu_check(char *buf, unsigned cap)
     int note_ok = 0;
     int cal_ok = 0;
     int paint_ok = 0;
+    int imu_ok = 0;
+    int level_ok = 0;
     int view_ok = 1;
     uint32_t vw_p = 0U;
     uint32_t vh_p = 0U;
@@ -754,6 +757,83 @@ static int app_menu_check(char *buf, unsigned cap)
         app_fmt_puts(&ft, " paint=-");
     }
 
+    /* 陀螺仪（第 10 项）与水平仪（第 11 项）。
+     *
+     * 两者都从应用的模块级 static 取数（应用在 enter 里读过一次），**不重读总线**：
+     * 重读会让"应用显示的那一份"和"POST 判的那一份"变成两次采样，板子一晃就
+     * 对不上。判据分工：
+     *   imu   —— WHO_AM_I == 0x71（应用拿到的确实是 MPU9250）且三轴不全为 0
+     *            （全 0 说明读回来的是一批默认值，I2C 通但数据没来）；
+     *   level —— 倾角在 [-90.0, 90.0] 且与 imu 的 ax/az 自洽（|dd| 与
+     *            ax·573/|az| 相差不超过 20，即允许两次采样间隔里的抖动）。 */
+    if ((apps > 9U) && (menu_enter_app(app_at(9U)) != 0)) {
+        int16_t acc[3];
+        int16_t gyr[3];
+
+        acc[0] = 0;
+        acc[1] = 0;
+        acc[2] = 0;
+        gyr[0] = 0;
+        gyr[1] = 0;
+        gyr[2] = 0;
+        if ((app_imu_sample(acc, gyr) != 0) &&
+            (board_mpu9250_who() == 0x71U) &&
+            ((acc[0] != 0) || (acc[1] != 0) || (acc[2] != 0))) {
+            imu_ok = 1;
+        }
+        app_fmt_puts(&ft, " imu=");
+        app_fmt_hex4(&ft, (unsigned)board_mpu9250_who());
+        app_fmt_puts(&ft, "/");
+        app_fmt_dec(&ft, (int)acc[0]);
+        app_fmt_puts(&ft, ",");
+        app_fmt_dec(&ft, (int)acc[1]);
+        app_fmt_puts(&ft, ",");
+        app_fmt_dec(&ft, (int)acc[2]);
+        (void)menu_back();
+    } else {
+        app_fmt_puts(&ft, " imu=-");
+    }
+
+    if ((apps > 10U) && (menu_enter_app(app_at(10U)) != 0)) {
+        const int dd = app_level_angle_dd();
+        int16_t acc[3];
+        int expect = 0;
+
+        acc[0] = 0;
+        acc[1] = 0;
+        acc[2] = 0;
+        if (app_level_acc(acc) != 0) {
+            int az = (acc[2] < 0) ? -(int)acc[2] : (int)acc[2];
+
+            if (az < 64) {
+                az = 64;
+            }
+            expect = ((int)acc[0] * 573) / az;
+        }
+        if ((dd >= -900) && (dd <= 900)) {
+            int diff = dd - expect;
+
+            if (diff < 0) {
+                diff = -diff;
+            }
+            /* 水平仪自己在 enter 里读了一次、这里又取 imu 的样本：两次采样之间
+             * 板子没动，差 20（=2.0°）以内算自洽。 */
+            if (diff <= 20) {
+                level_ok = 1;
+            }
+        }
+        app_fmt_puts(&ft, " level=");
+        if (dd < 0) {
+            app_fmt_puts(&ft, "-");
+        }
+        app_fmt_dec(&ft, ((dd < 0) ? -dd : dd) / 10);
+        app_fmt_puts(&ft, ".");
+        app_fmt_dec(&ft, ((dd < 0) ? -dd : dd) % 10);
+        (void)menu_back();
+    } else {
+        app_fmt_puts(&ft, " level=-");
+    }
+
     depth = app_menu_depth();
     leave = app_menu_leave_count();    app_fmt_puts(&f, "apps=");
     app_fmt_dec(&f, (int)apps);
@@ -800,7 +880,7 @@ static int app_menu_check(char *buf, unsigned cap)
             ((leave >= apps) && (depth == 0U)) &&
             (calc_ok != 0) && (set_flips == 2) && (pic_ok != 0) &&
             (note_ok != 0) && (cal_ok != 0) && (view_ok != 0) &&
-            (paint_ok != 0)) ? 1 : 0;
+            (paint_ok != 0) && (imu_ok != 0) && (level_ok != 0)) ? 1 : 0;
 }
 
 /*

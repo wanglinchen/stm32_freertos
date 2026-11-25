@@ -48,6 +48,8 @@ static void app_table_build(void)
     s_apps[s_apps_count++] = app_notepad_ops();
     s_apps[s_apps_count++] = app_calendar_ops();
     s_apps[s_apps_count++] = app_paint_ops();
+    s_apps[s_apps_count++] = app_imu_ops();
+    s_apps[s_apps_count++] = app_level_ops();
     /* 防御：ops() 返回 NULL 说明该应用没装好。就地压缩、不留空槽 ——
      * 空槽会让桌面图标数与 POST 的 apps 计数对不上。 */
     i = 0U;

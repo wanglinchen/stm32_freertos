@@ -198,5 +198,10 @@ const app_desc_t *app_level_ops(void);
 /* 倾角，单位 0.1°（-900..900）。没有数学库，用 ax/az 的小角线性近似：
  * dd ≈ (ax * 573) / |az|，量程内误差随角度增大而变大，只作"准星动了"的判据。 */
 int app_level_angle_dd(void);
+/* 算出这个倾角所用的那一份加速度原始值（与 `app_level_angle_dd()` 同一次采样）。
+ * POST 用它做自洽判读：**不能借 `app_imu_sample()`** —— 那是另一个应用实例的
+ * static，陀螺仪应用 BACK 时会在 leave 里清零，这里取到的就是 0，
+ * 于是"倾角 3.9° vs 期望 0°"被判不自洽（P8c 首版就撞在这上面）。 */
+int app_level_acc(int16_t acc[3]);
 
 #endif
