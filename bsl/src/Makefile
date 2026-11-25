@@ -28,6 +28,7 @@ LOCAL_OBJS :=
 -include $(BUILD_DIR)/bsl/src/board_led.d
 -include $(BUILD_DIR)/bsl/src/board_mpu9250.d
 -include $(BUILD_DIR)/bsl/src/board_nor.d
+-include $(BUILD_DIR)/bsl/src/board_nt35510.d
 -include $(BUILD_DIR)/bsl/src/board_post.d
 -include $(BUILD_DIR)/bsl/src/board_rt.d
 -include $(BUILD_DIR)/bsl/src/board_sdram.d
@@ -44,6 +45,7 @@ LOCAL_OBJS :=
 -include $(BUILD_DIR)/bsl/src/bsl_gpio.d
 -include $(BUILD_DIR)/bsl/src/bsl_i2c_gpio.d
 -include $(BUILD_DIR)/bsl/src/bsl_init.d
+-include $(BUILD_DIR)/bsl/src/bsl_lcd_8080.d
 -include $(BUILD_DIR)/bsl/src/bsl_log.d
 -include $(BUILD_DIR)/bsl/src/bsl_pcf8574.d
 -include $(BUILD_DIR)/bsl/src/bsl_rng.d
@@ -178,6 +180,19 @@ $(BUILD_DIR)/bsl/src/board_nor.o: $(PROJECT_ROOT)/bsl/src/board_nor.c $(FLAG_DEP
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_nor.d -c $< -o $@
 	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_nor.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BOARD_NT35510),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/board_nt35510.o
+$(BUILD_DIR)/bsl/src/board_nt35510.o: $(PROJECT_ROOT)/bsl/src/board_nt35510.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_nt35510.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_nt35510.d
 endif
 endif
 endif
@@ -386,6 +401,19 @@ $(BUILD_DIR)/bsl/src/bsl_init.o: $(PROJECT_ROOT)/bsl/src/bsl_init.c $(FLAG_DEPS)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/bsl_init.d -c $< -o $@
 	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/bsl_init.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BSL_LCD_8080),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/bsl_lcd_8080.o
+$(BUILD_DIR)/bsl/src/bsl_lcd_8080.o: $(PROJECT_ROOT)/bsl/src/bsl_lcd_8080.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/bsl_lcd_8080.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/bsl_lcd_8080.d
 endif
 endif
 endif

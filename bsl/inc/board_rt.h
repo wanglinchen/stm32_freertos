@@ -29,33 +29,56 @@ GPIO_TypeDef *board_rt_sdram_pin_port(unsigned index);
 uint16_t board_rt_sdram_pin_mask(unsigned index);
 uint32_t board_rt_sdram_pin_af(unsigned index);
 
-/* RGB 面板（LTDC）：时序、像素时钟的 PLLSAI 参数、像素格式、帧缓冲基址、背光脚。
- * 用结构体而不是十三个标量 getter：这些值必须成套出现 —— 少一项就配不出时序，
- * 而单个 0 值（比如 hbp=0）看起来像合法参数，现场表现成"图像整体偏移"，
- * 没有任何读数指向 DTB。任一属性缺失时 board_rt_panel() 返回 0、*out 不被写。 */
+/* 面板：一份结构体，两种总线形态。
+ *
+ * 用结构体而不是十几个标量 getter：这些值必须成套出现 —— 少一项就配不出画面，
+ * 而单个 0 值（比如 hbp=0）看起来像合法参数，现场表现成"图像整体偏移/白屏"，
+ * 没有任何读数指向 DTB。任一该形态必需的属性缺失时 board_rt_panel() 返回 0、
+ * *out 不被写。
+ *
+ * P7 之前这里只描述 LTDC 直驱的 RGB 屏（时序 + PLLSAI + 像素格式）。板上实插的是
+ * NT35510 的 4.3" MCU 屏（480×800、FMC 8080 16 位并口），没有 hsw/hbp/pllsai 这些
+ * 概念 —— 硬套那组字段的后果就是 LTDC 白扫一遍、屏一个像素也收不到。所以新增
+ * bus 区分"像素怎么送"，两种形态共用的只有 width/height/pixel-format/帧缓冲/背光。 */
+#define BOARD_RT_PANEL_BUS_RGB 0U      /* LTDC 直驱 RGB 屏（同步信号 + 像素时钟） */
+#define BOARD_RT_PANEL_BUS_FMC8080 1U  /* FMC 8080 并口 MCU 屏（命令/数据 + 片选） */
+
 typedef struct {
+    uint32_t bus;            /* BOARD_RT_PANEL_BUS_* */
+    uint32_t panel_id;       /* MCU 屏的 DTB panel-id（如 0x5510）；RGB 屏恒为 0 */
     uint32_t width;          /* 有效宽度（像素） */
     uint32_t height;         /* 有效高度（像素） */
-    uint32_t hsw;            /* 水平同步宽度 */
-    uint32_t hbp;            /* 水平后廊 */
-    uint32_t hfp;            /* 水平前廊 */
-    uint32_t vsw;            /* 垂直同步宽度 */
-    uint32_t vbp;            /* 垂直后廊 */
-    uint32_t vfp;            /* 垂直前廊 */
-    uint32_t pixel_format;   /* LTDC PFCR 编码：0=ARGB8888 1=RGB888 2=RGB565 3=ARGB1555 ... */
-    uint32_t pllsai_n;       /* PLLSAI 倍频：VCO = PLLIN × N */
-    uint32_t pllsai_r;       /* PLLSAI R 分频，输出即像素时钟源 */
-    uint32_t pllsai_divr;    /* DCKCFGR[17:16]：0=/2 1=/4 2=/8 3=/16 */
+    uint32_t hsw;            /* 水平同步宽度（仅 RGB） */
+    uint32_t hbp;            /* 水平后廊（仅 RGB） */
+    uint32_t hfp;            /* 水平前廊（仅 RGB） */
+    uint32_t vsw;            /* 垂直同步宽度（仅 RGB） */
+    uint32_t vbp;            /* 垂直后廊（仅 RGB） */
+    uint32_t vfp;            /* 垂直前廊（仅 RGB） */
+    uint32_t pixel_format;   /* 像素编码：RGB=LTDC PFCR，8080=0b101 即 RGB565 的常用编码 */
+    uint32_t pllsai_n;       /* PLLSAI 倍频：VCO = PLLIN × N（仅 RGB） */
+    uint32_t pllsai_r;       /* PLLSAI R 分频，输出即像素时钟源（仅 RGB） */
+    uint32_t pllsai_divr;    /* DCKCFGR[17:16]：0=/2 1=/4 2=/8 3=/16（仅 RGB） */
     uintptr_t framebuffer;   /* 帧缓冲基址（framebuffer phandle 所指节点的 reg[0]） */
 } board_rt_panel_t;
 
 int board_rt_panel(board_rt_panel_t *out);
 
-/* LTDC 引脚按端口聚合（一个端口一项，掩码 + AF），含 DE/VS/HS/CLK 与数据脚。 */
+/* 面板引脚按端口聚合（一个端口一项，掩码 + AF）。
+ * RGB 屏：DE/VS/HS/CLK + 数据脚，走 LTDC；
+ * MCU 屏：只剩数据脚 D0..D15，走 FMC —— 控制脚见 board_rt_panel_ctrl()。 */
 unsigned board_rt_panel_pin_groups(void);
 GPIO_TypeDef *board_rt_panel_pin_port(unsigned index);
 uint16_t board_rt_panel_pin_mask(unsigned index);
 uint32_t board_rt_panel_pin_af(unsigned index);
+
+/* MCU 屏的四根控制脚（各占一位，端口由 phandle 决定）。
+ * 下标用 BOARD_RT_LCD_PIN_*；RGB 屏或 DTB 没写时返回 0。 */
+#define BOARD_RT_LCD_PIN_CS 0U   /* 片选，FMC_NE1 = PD7 */
+#define BOARD_RT_LCD_PIN_RS 1U   /* 命令/数据选择，FMC_A18 = PD13 */
+#define BOARD_RT_LCD_PIN_NWE 2U  /* 写选通，FMC_NWE = PD5 */
+#define BOARD_RT_LCD_PIN_NOE 3U  /* 读选通，FMC_NOE = PD4 */
+#define BOARD_RT_LCD_PIN_COUNT 4U
+int board_rt_panel_ctrl(unsigned index, GPIO_TypeDef **port, unsigned *pin, uint32_t *af);
 
 /* 背光脚：active_high 表示"高电平点亮"。返回 1 表示三项都拿到。 */
 int board_rt_panel_backlight(GPIO_TypeDef **port, unsigned *pin, int *active_high);

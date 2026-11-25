@@ -26,6 +26,7 @@ void bsl_fb_pixel(uint32_t x, uint32_t y, uint16_t color)
         return;
     }
     fb[y * board_lcd_width() + x] = color;
+    board_lcd_dirty_mark(x, y, 1U, 1U);
 }
 
 void bsl_fb_hline(uint32_t x, uint32_t y, uint32_t w, uint16_t color)
@@ -49,6 +50,7 @@ void bsl_fb_hline(uint32_t x, uint32_t y, uint32_t w, uint16_t color)
     for (i = x; i < end; i++) {
         fb[y * width + i] = color;
     }
+    board_lcd_dirty_mark(x, y, end - x, 1U);
 }
 
 void bsl_fb_vline(uint32_t x, uint32_t y, uint32_t h, uint16_t color)
@@ -74,6 +76,7 @@ void bsl_fb_vline(uint32_t x, uint32_t y, uint32_t h, uint16_t color)
     for (i = y; i < end; i++) {
         fb[i * width + x] = color;
     }
+    board_lcd_dirty_mark(x, y, 1U, end - y);
 }
 
 void bsl_fb_fill(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint16_t color)
@@ -138,6 +141,8 @@ void bsl_fb_mono(uint32_t x, uint32_t y, uint32_t w, uint32_t h,
             }
         }
     }
+    /* 只标真正落到屏内的那块：y 越界时循环会 break，整块标脏会白推一遍。 */
+    board_lcd_dirty_mark(x, y, w, (y + h > height) ? (height - y) : h);
 }
 
 uint32_t bsl_fb_count_nonbg(uint32_t x, uint32_t y, uint32_t w, uint32_t h,

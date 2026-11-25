@@ -184,20 +184,33 @@ static void desktop_draw(const char *status)
  */
 static void desktop_build(void)
 {
-    const uint32_t total_w = (APP_ICON_COLS * APP_ICON_W) +
-                             ((APP_ICON_COLS - 1U) * APP_ICON_GAP);
-    const uint32_t origin_x = (board_lcd_width() - total_w) / 2U;
+    const uint32_t width = board_lcd_width();
+    const uint32_t pitch = APP_ICON_W + APP_ICON_GAP;
+    /* 列数按屏宽算，并夹在 [1, APP_ICON_MAX_COLS]：竖屏 480 宽 → 2 列，
+     * 横屏 800 宽 → 4 列。先夹再算 total_w，否则夹小之后 origin_x 还会按
+     * 未夹的列数算，仍然是负的。 */
+    uint32_t cols = (width + APP_ICON_GAP) / pitch;
+    uint32_t total_w;
+    uint32_t origin_x;
     const uint32_t origin_y = 120U;
     unsigned i;
 
-    fml_ui_win_init(&s_desktop, 0U, 0U, board_lcd_width(), board_lcd_height(), MENU_TITLE);
+    if (cols == 0U) {
+        cols = 1U;
+    }
+    if (cols > APP_ICON_MAX_COLS) {
+        cols = APP_ICON_MAX_COLS;
+    }
+    total_w = (cols * APP_ICON_W) + ((cols - 1U) * APP_ICON_GAP);
+    origin_x = (width > total_w) ? ((width - total_w) / 2U) : 0U;
+    fml_ui_win_init(&s_desktop, 0U, 0U, width, board_lcd_height(), MENU_TITLE);
     for (i = 0U; i < app_count(); i++) {
         const app_desc_t *app = app_at(i);
-        const uint32_t col = i % APP_ICON_COLS;
-        const uint32_t row = i / APP_ICON_COLS;
+        const uint32_t col = i % cols;
+        const uint32_t row = i / cols;
 
         (void)fml_ui_btn_add(&s_desktop, app->id, app->name,
-                             origin_x + (col * (APP_ICON_W + APP_ICON_GAP)),
+                             origin_x + (col * pitch),
                              origin_y + (row * (APP_ICON_H + APP_ICON_GAP)),
                              APP_ICON_W, APP_ICON_H);
     }
@@ -337,6 +350,11 @@ static void menu_task(void *argument)
         if ((app != NULL) && (app->tick != NULL)) {
             app->tick();
         }
+        /* 把这一轮画出来的东西推到屏上。RGB 屏（LTDC 自扫）这里是空操作；
+         * MCU 屏（NT35510 + FMC）只推脏矩形 —— 全屏 384000 像素约 48 ms，
+         * 每轮盲目全推会把 20 ms 的轮询周期拖成 60 ms 以上，触摸就发粘。
+         * 放在 tick 之后：本轮所有绘制都已落进帧缓冲，一次推完。 */
+        (void)board_lcd_present();
         osl_health_stack_mark(OSL_HEALTH_SLOT_MENU);
         osl_thread_delay_until(&last_wake, MENU_POLL_PERIOD_MS);
     }

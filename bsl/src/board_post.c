@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "board_lcd.h"
+#include "board_nt35510.h"
 #include "board_sdram.h"
 #include "board_touch.h"
 #include "bsl_adc.h"
@@ -70,12 +71,17 @@ static void post_sdram(void)
 /*
  * LCD：初始化失败与读回不一致分开报 —— 与 sdram 同一条纪律。
  *   - 设备没 READY → 直接 FAIL，不调 selftest（未初始化时返回 0xFFFFFFFF）
- *   - READY 但寄存器与 DTB 不一致 → FAIL，并打出不一致项数
- * 判 PASS 只覆盖「寄存器按 DTB 写对了」，不覆盖「面板真的亮了」：后者由屏上的
+ *   - READY 但自检不一致 → FAIL，并打出不一致项数
+ * 判 PASS 只覆盖「面板按 DTB 描述通了」，不覆盖「面板真的亮了」：后者由屏上的
  * 三色块用眼睛验收。这就是要画色块的原因 —— 读回全对但屏全黑，说明问题在
- * 面板供电/背光/数据线，而不是时序配置，两者不能被同一行 PASS 混在一起。
+ * 面板供电/背光/数据线，而不是配置，两者不能被同一行 PASS 混在一起。
+ *
+ * 两种面板形态的判据不同（由 board_lcd_selftest 内部按 bus 分派）：
+ *   RGB 屏读回时序寄存器；MCU 屏（NT35510）读回的是 ID 0x5510（初始化时已比对），
+ * 自检再做一次「帧缓冲一个点 → GRAM → 读回」的端到端比对。
+ * 色块画完必须 present()：MCU 屏的 GRAM 不会自己跟着内存变。
  * 宽高经 api 取（bsl_devapi_panel），不直接调 board_lcd_width()：api 结构必须有
- * 消费者，否则 `--gc-sections` 会把 bsl_api_brd_rgb_panel 丢掉。
+ * 消费者，否则 `--gc-sections` 会把 bsl_api_brd_panel 丢掉。
  */
 static void post_lcd(void)
 {
@@ -99,6 +105,7 @@ static void post_lcd(void)
     board_lcd_fill(0U, 0U, w, third, 0xF800U);
     board_lcd_fill(0U, third, w, third, 0x07E0U);
     board_lcd_fill(0U, third * 2U, w, h - third * 2U, 0x001FU);
+    board_lcd_present_all();
 
     post_begin("lcd w=");
     bsl_log_put_dec((int)w);
@@ -106,6 +113,10 @@ static void post_lcd(void)
     bsl_log_put_dec((int)h);
     BSL_LOG_INF(" bad=");
     bsl_log_put_dec((int)bad);
+    if (board_nt35510_ready() != 0) {
+        BSL_LOG_INF(" id=0x");
+        bsl_log_put_hex((uint32_t)board_nt35510_detected_id(), 4U);
+    }
     post_end((w != 0U) && (h != 0U) && (bad == 0U));
 }
 

@@ -10,6 +10,7 @@
 #define RT_COMPAT_CLOCKS "brd,board-clocks"
 #define RT_COMPAT_SDRAM "brd,fmc-sdram"
 #define RT_COMPAT_PANEL "brd,rgb-panel"
+#define RT_COMPAT_PANEL_MCU "novatek,nt35510"
 #define RT_COMPAT_TOUCH "goodix,gt9147"
 #define RT_COMPAT_NOR "winbond,w25q256"
 #define RT_COMPAT_LEDS "brd,gpio-leds"
@@ -74,6 +75,10 @@ typedef struct {
     GPIO_TypeDef *panel_bl_port;
     unsigned panel_bl_pin;
     int panel_bl_active_high;
+    /* MCU 屏（FMC 8080）的四根控制脚：DTB 里各是一条 3-cell 属性。 */
+    GPIO_TypeDef *panel_ctrl_port[BOARD_RT_LCD_PIN_COUNT];
+    unsigned panel_ctrl_pin[BOARD_RT_LCD_PIN_COUNT];
+    uint32_t panel_ctrl_af[BOARD_RT_LCD_PIN_COUNT];
 
     int touch_ok;
     board_rt_touch_t touch;
@@ -467,51 +472,101 @@ static void parse_sdram(void)
  * 帧缓冲基址不写死：framebuffer 是 phandle，指向 sdram 节点，基址取它的 reg[0]。
  * 「帧缓存在哪」因此只有一处事实（sdram 的 reg），改 FMC 基址不用动两个地方。
  */
+/* 由单一位掩码取位号（调用点已保证只有一位）。 */
+static unsigned pin_bit_index(uint16_t mask)
+{
+    unsigned i;
+
+    for (i = 0U; i < 16U; i++) {
+        if ((mask & (uint16_t)(1U << i)) != 0U) {
+            return i;
+        }
+    }
+    return 0U;
+}
+
 static void parse_panel(void)
 {
-    bsl_fdt_node_t node = bsl_fdt_find(RT_COMPAT_PANEL, 0U);
+    bsl_fdt_node_t node;
     bsl_fdt_node_t fb;
     board_rt_panel_t t;
     uint32_t fb_cell[1];
     uint32_t reg[2];
     uint32_t cells[RT_MAX_PIN_GROUPS * 3U];
     uint32_t bl[3];
+    uint32_t one[3];
     GPIO_TypeDef *port[RT_MAX_PIN_GROUPS];
     uint16_t mask[RT_MAX_PIN_GROUPS];
     uint32_t af[RT_MAX_PIN_GROUPS];
     GPIO_TypeDef *bl_port = NULL;
+    GPIO_TypeDef *ctrl_port[BOARD_RT_LCD_PIN_COUNT];
+    unsigned ctrl_pin[BOARD_RT_LCD_PIN_COUNT];
+    uint32_t ctrl_af[BOARD_RT_LCD_PIN_COUNT];
     unsigned n;
-    unsigned groups;
+    unsigned groups = 0U;
     unsigned i;
 
+    /* 先找 MCU 屏、再找 RGB 屏：板上一块屏，命中哪个就由它决定 bus。
+     * 两种 compatible 同时存在属于错配置（一份 DTB 描述两块物理屏），
+     * 这里以 MCU 那份为准，因为它带着 panel-id 和控制脚，删错哪个都能看出来。 */
+    node = bsl_fdt_find(RT_COMPAT_PANEL_MCU, 0U);
+    t.bus = BOARD_RT_PANEL_BUS_FMC8080;
+    if (node == NULL) {
+        node = bsl_fdt_find(RT_COMPAT_PANEL, 0U);
+        t.bus = BOARD_RT_PANEL_BUS_RGB;
+    }
     if (node == NULL) {
         return;
     }
+    t.panel_id = 0U;
+    t.hsw = 0U;
+    t.hbp = 0U;
+    t.hfp = 0U;
+    t.vsw = 0U;
+    t.vbp = 0U;
+    t.vfp = 0U;
+    t.pllsai_n = 0U;
+    t.pllsai_r = 0U;
+    t.pllsai_divr = 0U;
+
     if (bsl_fdt_prop_u32(node, "width", &t.width) == 0
         || bsl_fdt_prop_u32(node, "height", &t.height) == 0
-        || bsl_fdt_prop_u32(node, "hsw", &t.hsw) == 0
-        || bsl_fdt_prop_u32(node, "hbp", &t.hbp) == 0
-        || bsl_fdt_prop_u32(node, "hfp", &t.hfp) == 0
-        || bsl_fdt_prop_u32(node, "vsw", &t.vsw) == 0
-        || bsl_fdt_prop_u32(node, "vbp", &t.vbp) == 0
-        || bsl_fdt_prop_u32(node, "vfp", &t.vfp) == 0
-        || bsl_fdt_prop_u32(node, "pixel-format", &t.pixel_format) == 0
-        || bsl_fdt_prop_u32(node, "pllsai-n", &t.pllsai_n) == 0
-        || bsl_fdt_prop_u32(node, "pllsai-r", &t.pllsai_r) == 0
-        || bsl_fdt_prop_u32(node, "pllsai-divr", &t.pllsai_divr) == 0) {
+        || bsl_fdt_prop_u32(node, "pixel-format", &t.pixel_format) == 0) {
         return;
     }
-    /* 0 在这里不是"某个值"，而是属性没写：宽高/同步为 0 的面板不存在，
-     * 而寄存器里写着 0 的 SSCR 会安静地少出一整行一行同步。 */
-    if (t.width == 0U || t.height == 0U || t.hsw == 0U || t.vsw == 0U) {
+    if (t.width == 0U || t.height == 0U || t.pixel_format > 7U) {
         return;
     }
-    if (t.pllsai_n == 0U || t.pllsai_r == 0U || t.pllsai_divr > 3U) {
-        return;
+
+    if (t.bus == BOARD_RT_PANEL_BUS_RGB) {
+        if (bsl_fdt_prop_u32(node, "hsw", &t.hsw) == 0
+            || bsl_fdt_prop_u32(node, "hbp", &t.hbp) == 0
+            || bsl_fdt_prop_u32(node, "hfp", &t.hfp) == 0
+            || bsl_fdt_prop_u32(node, "vsw", &t.vsw) == 0
+            || bsl_fdt_prop_u32(node, "vbp", &t.vbp) == 0
+            || bsl_fdt_prop_u32(node, "vfp", &t.vfp) == 0
+            || bsl_fdt_prop_u32(node, "pllsai-n", &t.pllsai_n) == 0
+            || bsl_fdt_prop_u32(node, "pllsai-r", &t.pllsai_r) == 0
+            || bsl_fdt_prop_u32(node, "pllsai-divr", &t.pllsai_divr) == 0) {
+            return;
+        }
+        /* 0 在这里不是"某个值"，而是属性没写：同步为 0 的 RGB 面板不存在，
+         * 而寄存器里写着 0 的 SSCR 会安静地少出一整行同步。 */
+        if (t.hsw == 0U || t.vsw == 0U) {
+            return;
+        }
+        if (t.pllsai_n == 0U || t.pllsai_r == 0U || t.pllsai_divr > 3U) {
+            return;
+        }
+    } else {
+        /* MCU 屏：panel-id 用来和读回来的 ID 比对，写 0 等于没判据，所以必须有。 */
+        uint32_t pid = 0U;
+        if (bsl_fdt_prop_u32(node, "panel-id", &pid) == 0 || pid == 0U) {
+            return;
+        }
+        t.panel_id = pid;
     }
-    if (t.pixel_format > 7U) {
-        return;
-    }
+
     if (bsl_fdt_prop_cells(node, "framebuffer", fb_cell, 1U) != 1U) {
         return;
     }
@@ -521,7 +576,11 @@ static void parse_panel(void)
     }
     t.framebuffer = (uintptr_t)reg[0];
 
-    n = bsl_fdt_prop_cells(node, "ltdc-pins", cells, RT_MAX_PIN_GROUPS * 3U);
+    if (t.bus == BOARD_RT_PANEL_BUS_RGB) {
+        n = bsl_fdt_prop_cells(node, "ltdc-pins", cells, RT_MAX_PIN_GROUPS * 3U);
+    } else {
+        n = bsl_fdt_prop_cells(node, "lcd-data-pins", cells, RT_MAX_PIN_GROUPS * 3U);
+    }
     if (n < 3U || (n % 3U) != 0U) {
         return;
     }
@@ -532,6 +591,25 @@ static void parse_panel(void)
         af[i] = cells[i * 3U + 2U];
         if (port[i] == NULL || mask[i] == 0U || af[i] > 15U) {
             return;
+        }
+    }
+
+    /* 控制脚：每根必须是"单独一位"—— 两位共用一条属性意味着 RS 会跟着 D 线跳。 */
+    if (t.bus == BOARD_RT_PANEL_BUS_FMC8080) {
+        static const char *const ctrl_prop[BOARD_RT_LCD_PIN_COUNT] = {
+            "lcd-cs-pins", "lcd-rs-pins", "lcd-nwe-pins", "lcd-noe-pins"
+        };
+        for (i = 0U; i < BOARD_RT_LCD_PIN_COUNT; i++) {
+            if (bsl_fdt_prop_cells(node, ctrl_prop[i], one, 3U) != 3U) {
+                return;
+            }
+            ctrl_port[i] = board_rt_port_of_phandle(one[0]);
+            if (ctrl_port[i] == NULL || one[1] == 0U || (one[1] & (one[1] - 1U)) != 0U
+                || one[1] > 0x8000U || one[2] > 15U) {
+                return;
+            }
+            ctrl_pin[i] = pin_bit_index((uint16_t)one[1]);
+            ctrl_af[i] = one[2];
         }
     }
 
@@ -550,6 +628,11 @@ static void parse_panel(void)
         s_rt.panel_group_mask[i] = mask[i];
         s_rt.panel_group_af[i] = af[i];
     }
+    for (i = 0U; i < BOARD_RT_LCD_PIN_COUNT; i++) {
+        s_rt.panel_ctrl_port[i] = (t.bus == BOARD_RT_PANEL_BUS_FMC8080) ? ctrl_port[i] : NULL;
+        s_rt.panel_ctrl_pin[i] = (t.bus == BOARD_RT_PANEL_BUS_FMC8080) ? ctrl_pin[i] : 0U;
+        s_rt.panel_ctrl_af[i] = (t.bus == BOARD_RT_PANEL_BUS_FMC8080) ? ctrl_af[i] : 0U;
+    }
     s_rt.panel_bl_port = bl_port;
     s_rt.panel_bl_pin = (unsigned)bl[1];
     /* gpios 第三 cell 与 leds 同一套语义：1 = 低有效。参考工程 LTDC_BL(1) 点亮，
@@ -557,6 +640,8 @@ static void parse_panel(void)
     s_rt.panel_bl_active_high = (bl[2] != 0U) ? 0 : 1;
     s_rt.panel_ok = 1;
 }
+
+
 
 /*
  * touch：GT9xxx 的地址、复位/中断脚与它那条软件 I2C 的两脚。
@@ -1500,5 +1585,23 @@ int board_rt_tpad(board_rt_tpad_t *out)
         return 0;
     }
     *out = s_rt.tpad;
+    return 1;
+}
+
+int board_rt_panel_ctrl(unsigned index, GPIO_TypeDef **port, unsigned *pin, uint32_t *af)
+{
+    parse_all();
+    if (index >= BOARD_RT_LCD_PIN_COUNT || s_rt.panel_ctrl_port[index] == NULL) {
+        return 0;
+    }
+    if (port != NULL) {
+        *port = s_rt.panel_ctrl_port[index];
+    }
+    if (pin != NULL) {
+        *pin = s_rt.panel_ctrl_pin[index];
+    }
+    if (af != NULL) {
+        *af = s_rt.panel_ctrl_af[index];
+    }
     return 1;
 }

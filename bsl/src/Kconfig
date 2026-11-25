@@ -41,6 +41,10 @@ config BSL_SRC_BOARD_NOR
 	bool "board_nor.c"
 	default y
 
+config BSL_SRC_BOARD_NT35510
+	bool "board_nt35510.c"
+	default y
+
 config BSL_SRC_BOARD_POST
 	bool "board_post.c"
 	default y
@@ -103,6 +107,10 @@ config BSL_SRC_BSL_I2C_GPIO
 
 config BSL_SRC_BSL_INIT
 	bool "bsl_init.c"
+	default y
+
+config BSL_SRC_BSL_LCD_8080
+	bool "bsl_lcd_8080.c"
 	default y
 
 config BSL_SRC_BSL_LOG

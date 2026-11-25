@@ -91,6 +91,13 @@ endif
 endif
 ifeq ($(CONFIG_BSL),y)
 ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BOARD_NT35510),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/board_nt35510.o
+endif
+endif
+endif
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
 ifeq ($(CONFIG_BSL_SRC_BOARD_POST),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/board_post.o
 endif
@@ -198,6 +205,13 @@ ifeq ($(CONFIG_BSL),y)
 ifeq ($(CONFIG_BSL_SRC),y)
 ifeq ($(CONFIG_BSL_SRC_BSL_INIT),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/bsl_init.o
+endif
+endif
+endif
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BSL_LCD_8080),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/bsl_lcd_8080.o
 endif
 endif
 endif

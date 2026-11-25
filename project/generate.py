@@ -1221,42 +1221,38 @@ _BOARD_NODES = """\
                    <&gpiog 0x8137 12>;
     };
 
-    /* 4.3 寸 800×480 RGB 屏（面板 ID 0x4384），LTDC 直驱。
-     * 时序与引脚取自参考工程 lcd.c / ltdc.c 的 0X4384 分支（[参考工程]）：
-     *   hsw/hbp/hfp = 48/88/40，vsw/vbp/vfp = 3/32/13。
-     * 像素时钟（[代码推算]）：PLLSAI 输入 = HSE/PLLM = 25/25 = 1 MHz，
-     *   VCO = 1 MHz × 396 = 396 MHz，R=3 → 132 MHz，DIVR=/4 → 33 MHz。
-     *   PLLSAI 的 N/R 与主 PLL 的 N 无关，所以参考工程 192 MHz 下的这组值
-     *   在本工程 168 MHz 下同样给出 33 MHz —— 这是推出来的，不是抄来的。
-     * 帧缓冲不写地址：framebuffer 指向 sdram 节点，基址取那份 reg，
-     *   于是「帧缓存在哪」只有一处事实。
-     * ltdc-pins 第二个 cell 是端口掩码、第三个是 AF 号（LTDC 全在 AF14），
-     *   同端口合并成一格：
-     *   PF10 = DE；PI9 = VS、PI10 = HS、PI0..2 + PI4..7 = 数据；
-     *   PG7 = CLK、PG6 + PG11 = 数据；PH9..15 = 数据。
-     * backlight-gpios 第三 cell 是极性：0 = 高电平点亮（参考工程 LTDC_BL(1) 点亮）。 */
+    /* 4.3 寸 480×800 MCU 屏（NT35510，板上实际插的就是这块），FMC Bank1 8080 并口。
+     *
+     * P7 之前这个节点描述的是 800×480 RGB 屏（brd,rgb-panel）+ LTDC 时序。板上
+     * 从来没有那块 RGB 屏：LTDC 那组引脚在板上没接到这块 NT35510，屏收不到
+     * 像素/DE/时钟，背光又开着 —— 现场就是纯白屏（已在板上实测确认）。
+     *
+     * 因此这里换成 MCU 形态，事实全部取自原厂固件源码与板上寄存器对拍：
+     *   总线：FMC Bank1（0x60000000），16 位，SRAM 型 + EXTMOD + WREN；
+     *   控制脚 CS=PD7(NE1)、RS=PD13(A18)、NWE=PD5、NOE=PD4，全 AF12；
+     *   数据 D0..D15 = PD14/PD15/PD0/PD1/PE7..PE15/PD8/PD9/PD10
+     *     ⇒ PD 掩码 0xC703、PE 掩码 0xFF80（两个端口各一格）；
+     *   面板 480×800 竖屏，驱动 IC 读回 ID = 0x5510。
+     * 没有 hsw/hbp/hfp/vsw/vbp/vfp/pllsai-*：那些是 LTDC 的同步与像素时钟概念，
+     * MCU 屏靠命令-数据时序推进素，写了也无人消费（解析器按 bus 分支，不会读它们）。
+     * framebuffer 仍指向 sdram：像素在内存里画，present() 再推 GRAM。 */
     /* panel 不带 unit address：它没有 reg/ranges，名字里带 @0 会被 dtc 判为
      * unit_address_vs_reg 警告，而本工程的 dtc 诊断是硬失败。 */
     panel: panel {
-        compatible = "brd,rgb-panel";
-        width = <800>;
-        height = <480>;
-        hsw = <48>;
-        hbp = <88>;
-        hfp = <40>;
-        vsw = <3>;
-        vbp = <32>;
-        vfp = <13>;
+        compatible = "novatek,nt35510";
+        bus = "fmc-8080";
+        panel-id = <0x5510>;
+        width = <480>;
+        height = <800>;
         pixel-format = <2>;
-        pllsai-n = <396>;
-        pllsai-r = <3>;
-        pllsai-divr = <1>;
         framebuffer = <&sdram>;
         backlight-gpios = <&gpiob 5 0>;
-        ltdc-pins = <&gpiof 0x0400 14>,
-                    <&gpioi 0x06f7 14>,
-                    <&gpiog 0x08c0 14>,
-                    <&gpioh 0xfe00 14>;
+        lcd-cs-pins = <&gpiod 0x0080 12>;
+        lcd-rs-pins = <&gpiod 0x2000 12>;
+        lcd-nwe-pins = <&gpiod 0x0020 12>;
+        lcd-noe-pins = <&gpiod 0x0010 12>;
+        lcd-data-pins = <&gpiod 0xc703 12>,
+                        <&gpioe 0xff80 12>;
     };
 
     /* GT9147 电容触摸，走 PH6/PI3 的**软件 I2C**（与主 I2C 那条不是同一总线）。

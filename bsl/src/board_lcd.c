@@ -1,28 +1,39 @@
 #include "board_lcd.h"
 
+#include "board_nt35510.h"
+#include "bsl_lcd_8080.h"
+#include "bsl_log.h"
 #include "board_rt.h"
 #include "bsl_device.h"
 #include "bsl_device_api.h"
 #include "bsl_gpio.h"
 
 /*
- * 寄存器值出处（[参考工程] Drivers/BSP/LCD/ltdc.c 的 ltdc_init / ltdc_clk_set）：
- *   - PLLSAICFGR = (N << 6) | (R << 28)，DCKCFGR[17:16] = DIVR 编码
- *   - GCR 极性：像素时钟不反向、DE/VS/HS 均低电平有效
- *   - SSCR/BPCR/AWCR/TWCR 的累加口径（脉宽、后沿、有效区、总区）
- *   - 层 1：PFCR/CACR/DCCR/BFCR/CFBAR/CFBLR/CFBLNR
- * 数值本身（800×480、48/88/40、3/32/13、N=396/R=3/DIVR=/4）来自 DTB，
- * 不来自这份代码。
+ * 面板驱动：一台"屏"设备，两种总线形态（DTB 的 panel 节点用 bus 区分）。
  *
- * PLLSAI 输入是 HSE/PLLM = 25/25 = 1 MHz，与主 PLL 的 N 无关：所以参考工程在
- * 192 MHz 下的 (396, 3, /4) 在本工程 168 MHz 下同样得到 396/3/4 = 33 MHz 像素
- * 时钟。这不是"抄参数碰巧对"，而是 PLLSAI 独立于 SYSCLK。
+ *   1) RGB 屏（BOARD_RT_PANEL_BUS_RGB）：LTDC 直驱，像素由 LTDC 按同步时序自己扫；
+ *      固件只需要把像素写进 SDRAM 帧缓冲。寄存器口径出处（[参考工程]
+ *      Drivers/BSP/LCD/ltdc.c 的 ltdc_init / ltdc_clk_set）：
+ *        - PLLSAICFGR = (N << 6) | (R << 28)，DCKCFGR[17:16] = DIVR 编码
+ *        - GCR 极性：像素时钟不反向、DE/VS/HS 均低电平有效
+ *        - SSCR/BPCR/AWCR/TWCR 的累加口径（脉宽、后沿、有效区、总区）
+ *        - 层 1：PFCR/CACR/DCCR/BFCR/CFBAR/CFBLR/CFBLNR
+ *
+ *   2) MCU 屏（BOARD_RT_PANEL_BUS_FMC8080）：板上实插的 NT35510 480×800，
+ *      FMC Bank1 8080 16 位并口。像素不在内存里 —— 内存那份只是"待推的副本"，
+ *      每次改完要用 present() 把脏矩形推进 GRAM。
+ *
+ * 为什么保留 SDRAM 帧缓冲、而不是让所有绘制直接打 GRAM：8080 写一像素约 125 ns，
+ * 逐点画线/画字会把界面刷新拖到看不清；而 42 处消费方都只认 base/width/height/fill，
+ * 留一份内存副本可以让 fml_gui/fml_ui/app 一行不改。
  */
 
 #define LCD_PLL_RETRY 0x1FFFU
 #define LCD_BFCR_CONST_ALPHA ((6UL << 8) | 7UL) /* 恒定 Alpha 混合，与参考工程一致 */
+#define LCD_FULL_SELFTEST_BAD 0xFFFFFFFFU
 
 static int s_ready;
+static int s_bus;
 static void *s_fb;
 static uint32_t s_width;
 static uint32_t s_height;
@@ -34,6 +45,14 @@ static uint32_t s_pixfmt;
 static GPIO_TypeDef *s_bl_port;
 static unsigned s_bl_pin;
 static int s_bl_active_high;
+
+/* 脏矩形：所有写帧缓冲的路径都会往这里登记，present() 只推这一块。
+ * 用"含头不含尾"的 (x0,y0)-(x1,y1)，空矩形时 s_dirty=0。 */
+static int s_dirty;
+static uint32_t s_dirty_x0;
+static uint32_t s_dirty_y0;
+static uint32_t s_dirty_x1;
+static uint32_t s_dirty_y1;
 
 /* PLLSAI 是像素时钟的唯一来源。关掉再配：运行中改 PLLSAICFGR 而不先关电源，
  * 锁定位会一直是"已锁"，配置写进去看不出生效过。 */
@@ -95,35 +114,62 @@ static uint32_t lcd_exp_twcr(void)
            | ((s_hsw + s_hbp + s_width + p.hfp - 1U) << 16);
 }
 
-bsl_err_t board_lcd_init(void)
+void board_lcd_dirty_mark(uint32_t x, uint32_t y, uint32_t w, uint32_t h)
 {
-    board_rt_panel_t panel;
-    GPIO_TypeDef *bl_port = NULL;
-    unsigned bl_pin = 0U;
-    int bl_active_high = 0;
+    uint32_t x1;
+    uint32_t y1;
+
+    if (w == 0U || h == 0U || s_width == 0U || s_height == 0U) {
+        return;
+    }
+    if (x >= s_width || y >= s_height) {
+        return;
+    }
+    x1 = (w > s_width - x) ? s_width : x + w;
+    y1 = (h > s_height - y) ? s_height : y + h;
+    if (s_dirty == 0) {
+        s_dirty_x0 = x;
+        s_dirty_y0 = y;
+        s_dirty_x1 = x1;
+        s_dirty_y1 = y1;
+        s_dirty = 1;
+        return;
+    }
+    if (x < s_dirty_x0) {
+        s_dirty_x0 = x;
+    }
+    if (y < s_dirty_y0) {
+        s_dirty_y0 = y;
+    }
+    if (x1 > s_dirty_x1) {
+        s_dirty_x1 = x1;
+    }
+    if (y1 > s_dirty_y1) {
+        s_dirty_y1 = y1;
+    }
+}
+
+static void lcd_backlight_setup(GPIO_TypeDef *port, unsigned pin, int active_high)
+{
+    s_bl_port = port;
+    s_bl_pin = pin;
+    s_bl_active_high = active_high;
+    (void)bsl_gpio_init_output_pp(port, (uint16_t)(1U << pin),
+                                  GPIO_NOPULL, GPIO_SPEED_FREQ_LOW);
+    /* 背光先熄：面板上电瞬间的随机内容不该被点亮给人看见。 */
+    board_lcd_backlight(0);
+}
+
+static bsl_err_t lcd_init_ltdc(const board_rt_panel_t *panel)
+{
     unsigned groups;
     unsigned i;
 
-    if (board_rt_panel(&panel) == 0) {
-        return BSL_ERR_INVAL;
-    }
-    if (panel.framebuffer == 0U) {
-        return BSL_ERR_INVAL;
-    }
-    /* 帧缓冲的落脚点必须是已初始化的 SDRAM：先写画面再初始化 SDRAM 的话，
-     * 写入会被丢弃，屏上是雪花而不是黑屏，看起来像"面板坏了"。 */
-    if (bsl_device_is_ready(BSL_DEV_SDRAM) == 0) {
-        return BSL_ERR_INVAL;
-    }
-    if (board_rt_panel_backlight(&bl_port, &bl_pin, &bl_active_high) == 0) {
-        return BSL_ERR_INVAL;
-    }
     groups = board_rt_panel_pin_groups();
     if (groups == 0U) {
         return BSL_ERR_INVAL;
     }
-
-    if (lcd_clock_config(&panel) != BSL_OK) {
+    if (lcd_clock_config(panel) != BSL_OK) {
         return BSL_ERR_TIMEOUT;
     }
 
@@ -139,27 +185,13 @@ bsl_err_t board_lcd_init(void)
         }
     }
 
-    /* 背光先熄：面板上电瞬间的随机内容不该被点亮给人看见。 */
-    s_bl_port = bl_port;
-    s_bl_pin = bl_pin;
-    s_bl_active_high = bl_active_high;
-    if (bsl_gpio_init_output_pp(bl_port, (uint16_t)(1U << bl_pin),
-                               GPIO_NOPULL, GPIO_SPEED_FREQ_LOW) == 0) {
-        return BSL_ERR_IO;
-    }
-    board_lcd_backlight(0);
+    s_hsw = panel->hsw;
+    s_hbp = panel->hbp;
+    s_vsw = panel->vsw;
+    s_vbp = panel->vbp;
 
     RCC->APB2ENR |= RCC_APB2ENR_LTDCEN;
     (void)RCC->APB2ENR; /* 读回一次，保证时钟已生效再写 LTDC 寄存器 */
-
-    s_width = panel.width;
-    s_height = panel.height;
-    s_hsw = panel.hsw;
-    s_hbp = panel.hbp;
-    s_vsw = panel.vsw;
-    s_vbp = panel.vbp;
-    s_pixfmt = panel.pixel_format;
-    s_fb = (void *)panel.framebuffer;
 
     /* GCR 全 0：像素时钟不反向，DE/VS/HS 都是低电平有效（参考工程除 10.1 寸外同此）。 */
     LTDC->GCR = 0U;
@@ -174,7 +206,7 @@ bsl_err_t board_lcd_init(void)
     LTDC_Layer1->CACR = 255U;                       /* 层恒定 Alpha：不透明 */
     LTDC_Layer1->DCCR = 0U;                         /* 默认颜色：黑、全透明 */
     LTDC_Layer1->BFCR = LCD_BFCR_CONST_ALPHA;
-    LTDC_Layer1->CFBAR = (uint32_t)panel.framebuffer;
+    LTDC_Layer1->CFBAR = (uint32_t)(uintptr_t)s_fb;
     LTDC_Layer1->CFBLR = ((s_width * 2U) << 16) | (s_width * 2U + 3U);
     LTDC_Layer1->CFBLNR = s_height;
     /* 窗口以面板坐标为基准：起始 = 后沿+脉宽，结束 = 起始+宽-1（参考工程同口径）。 */
@@ -190,6 +222,7 @@ bsl_err_t board_lcd_init(void)
     /* 清成黑再点背光：上电时 SDRAM 里是 POST 写过的模式字，不清屏直接点亮
      * 会看到一片花点，容易被当成"面板初始化失败"。 */
     board_lcd_fill(0U, 0U, s_width, s_height, 0x0000U);
+    s_dirty = 0; /* LTDC 自己会扫，帧缓冲里的黑已经就在屏上，无需推 */
 
     s_ready = 1;
     board_lcd_backlight(1);
@@ -198,6 +231,66 @@ bsl_err_t board_lcd_init(void)
      * 33 MHz 像素时钟下一帧 800×480 约 13 ms，20 ms 够一帧半。 */
     HAL_Delay(20U);
     return BSL_OK;
+}
+
+static bsl_err_t lcd_init_mcu(const board_rt_panel_t *panel)
+{
+    bsl_err_t err;
+
+    /* 总线 + ID + 381 条初始化表都在 board_nt35510_init 里；这里只管屏上内容。 */
+    err = board_nt35510_init(panel->panel_id);
+    if (err != BSL_OK) {
+        return err;
+    }
+
+    s_ready = 1;
+    /* 先清黑并整屏推一次：不清就点背光，屏上会留着 GRAM 里的随机内容。 */
+    board_lcd_fill(0U, 0U, s_width, s_height, 0x0000U);
+    (void)board_lcd_present();
+    s_dirty = 0;
+
+    board_lcd_backlight(1);
+    HAL_Delay(20U);
+    return BSL_OK;
+}
+
+bsl_err_t board_lcd_init(void)
+{
+    board_rt_panel_t panel;
+    GPIO_TypeDef *bl_port = NULL;
+    unsigned bl_pin = 0U;
+    int bl_active_high = 0;
+
+    s_ready = 0;
+    s_dirty = 0;
+
+    if (board_rt_panel(&panel) == 0) {
+        return BSL_ERR_INVAL;
+    }
+    if (panel.framebuffer == 0U) {
+        return BSL_ERR_INVAL;
+    }
+    /* 帧缓冲的落脚点必须是已初始化的 SDRAM：先写画面再初始化 SDRAM 的话，
+     * 写入会被丢弃，屏上是雪花而不是黑屏，看起来像"面板坏了"。 */
+    if (bsl_device_is_ready(BSL_DEV_SDRAM) == 0) {
+        return BSL_ERR_INVAL;
+    }
+    if (board_rt_panel_backlight(&bl_port, &bl_pin, &bl_active_high) == 0) {
+        return BSL_ERR_INVAL;
+    }
+
+    s_width = panel.width;
+    s_height = panel.height;
+    s_pixfmt = panel.pixel_format;
+    s_fb = (void *)panel.framebuffer;
+    s_bus = (int)panel.bus;
+
+    lcd_backlight_setup(bl_port, bl_pin, bl_active_high);
+
+    if (panel.bus == BOARD_RT_PANEL_BUS_FMC8080) {
+        return lcd_init_mcu(&panel);
+    }
+    return lcd_init_ltdc(&panel);
 }
 
 void *board_lcd_base(void)
@@ -250,15 +343,96 @@ void board_lcd_fill(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint16_t rgb
             fb[(y + row) * s_width + x + col] = rgb565;
         }
     }
+    board_lcd_dirty_mark(x, y, w, h);
+}
+
+int board_lcd_present(void)
+{
+    uint32_t x0;
+    uint32_t y0;
+    uint32_t x1;
+    uint32_t y1;
+    uint32_t written;
+
+    if (s_ready == 0 || s_fb == NULL) {
+        return 0;
+    }
+    /* RGB 屏由 LTDC 连续扫描，帧缓冲改了就等于屏上改了，没有"推"这一步。 */
+    if (s_bus != BOARD_RT_PANEL_BUS_FMC8080) {
+        s_dirty = 0;
+        return 0;
+    }
+    /* 总线没配好就推是往一个没上电的并口写：会把脏区清掉而屏上什么也没变，
+     * 于是"画面不刷新"和"总线挂了"分不开。留着脏区，等总线好了下一轮再推。 */
+    if (bsl_lcd_8080_ready() == 0) {
+        return 0;
+    }
+    if (s_dirty == 0) {
+        return 0;
+    }
+    x0 = s_dirty_x0;
+    y0 = s_dirty_y0;
+    x1 = s_dirty_x1;
+    y1 = s_dirty_y1;
+    s_dirty = 0;
+
+    written = board_nt35510_blit((uint16_t)x0, (uint16_t)y0,
+                                 (uint16_t)(x1 - x0), (uint16_t)(y1 - y0),
+                                 (const uint16_t *)s_fb + y0 * s_width + x0,
+                                 (uint16_t)s_width);
+    return (int)written;
+}
+
+void board_lcd_present_all(void)
+{
+    board_lcd_dirty_mark(0U, 0U, s_width, s_height);
+    (void)board_lcd_present();
 }
 
 unsigned board_lcd_selftest(void)
 {
     unsigned bad = 0U;
+    uint16_t want;
+    uint16_t probe;
+    uint16_t got;
+    uint32_t x;
+    uint32_t y;
 
     if (s_ready == 0) {
-        return 0xFFFFFFFFU;
+        return LCD_FULL_SELFTEST_BAD;
     }
+
+    if (s_bus == BOARD_RT_PANEL_BUS_FMC8080) {
+        /* MCU 屏没有"时序寄存器"可读回，判据改成端到端：
+         * 把帧缓冲里某个点的颜色推进 GRAM，再读回来比对。
+         * 取帧缓冲的原值而不是硬编码颜色 —— 既不破坏画面，也顺带验证了
+         * "内存副本 → GRAM"这条链是通的；硬编码红色只验证了后半段。 */
+        if (board_nt35510_ready() == 0) {
+            return LCD_FULL_SELFTEST_BAD;
+        }
+        x = s_width / 2U;
+        y = s_height / 2U;
+        /* 判据值取全 1（白）：它是 6 位→5 位量化下的不动点，读回必须一字不差；
+         * 取画面原色则会被量化误差咬掉低位（0x2104 → 0x2100），那种不一致
+         * 说明不了"写没写进去"。写完立刻把原值写回，屏上看不到这一瞬。 */
+        want = ((volatile uint16_t *)s_fb)[y * s_width + x];
+        probe = 0xFFFFU;
+        (void)board_nt35510_blit((uint16_t)x, (uint16_t)y, 1U, 1U, &probe, 1U);
+        got = board_nt35510_read_pixel((uint16_t)x, (uint16_t)y);
+        (void)board_nt35510_blit((uint16_t)x, (uint16_t)y, 1U, 1U, &want, 1U);
+        if (got != probe) {
+            /* 失败必须可读：把期望值与读回值都打出来。只报 bad=1 的话，
+             * "读时序不对" 和 "GRAM 没写进去" 在串口上长得一模一样。 */
+            BSL_LOG_INF("[lcd] gram want=0x");
+            bsl_log_put_hex((uint32_t)probe, 4U);
+            BSL_LOG_INF(" got=0x");
+            bsl_log_put_hex((uint32_t)got, 4U);
+            BSL_LOG_INF("\r\n");
+            bad++;
+        }
+        return bad;
+    }
+
     if (LTDC->SSCR != lcd_exp_sscr()) {
         bad++;
     }
@@ -271,7 +445,7 @@ unsigned board_lcd_selftest(void)
     if (LTDC->TWCR != lcd_exp_twcr()) {
         bad++;
     }
-    if (LTDC_Layer1->CFBAR != (uint32_t)s_fb) {
+    if (LTDC_Layer1->CFBAR != (uint32_t)(uintptr_t)s_fb) {
         bad++;
     }
     if (LTDC_Layer1->CFBLNR != s_height) {
@@ -283,12 +457,12 @@ unsigned board_lcd_selftest(void)
     return bad;
 }
 
-const bsl_panel_api_t bsl_api_brd_rgb_panel = {
+const bsl_panel_api_t bsl_api_brd_panel = {
     .framebuffer = board_lcd_base,
     .width = board_lcd_width,
     .height = board_lcd_height,
 };
 
-const bsl_device_driver_t bsl_driver_brd_rgb_panel = {
+const bsl_device_driver_t bsl_driver_brd_panel = {
     .init = board_lcd_init,
 };

@@ -35,7 +35,7 @@ typedef enum {
 
 /* 节点 debug_serial: compatible = "brd,usart-ch340" → bsl_driver_debug_uart */
 /* 节点 sdram: compatible = "brd,fmc-sdram" → bsl_driver_brd_fmc_sdram */
-/* 节点 panel: compatible = "brd,rgb-panel" → bsl_driver_brd_rgb_panel */
+/* 节点 panel: compatible = "novatek,nt35510" 或 "brd,rgb-panel" → bsl_driver_brd_panel */
 /* 节点 touch: compatible = "goodix,gt9147" → bsl_driver_goodix_gt9147 */
 /* 节点 nor: compatible = "winbond,w25q256" → bsl_driver_winbond_w25q256 */
 /* 节点 leds: compatible = "brd,gpio-leds" → bsl_driver_brd_gpio_leds */
@@ -59,7 +59,7 @@ extern const struct bsl_device_driver bsl_driver_brd_gpio_leds;
 extern const struct bsl_device_driver bsl_driver_brd_i2c_gpio;
 extern const struct bsl_device_driver bsl_driver_brd_pcf8574_beep;
 extern const struct bsl_device_driver bsl_driver_brd_fmc_sdram;
-extern const struct bsl_device_driver bsl_driver_brd_rgb_panel;
+extern const struct bsl_device_driver bsl_driver_brd_panel;
 extern const struct bsl_device_driver bsl_driver_goodix_gt9147;
 extern const struct bsl_device_driver bsl_driver_winbond_w25q256;
 extern const struct bsl_device_driver bsl_driver_debug_uart;
@@ -78,7 +78,7 @@ extern const bsl_gpio_leds_api_t bsl_api_brd_gpio_leds;
 extern const bsl_gpio_keys_api_t bsl_api_brd_gpio_keys;
 extern const bsl_beep_api_t bsl_api_brd_beep;
 extern const bsl_sdram_api_t bsl_api_brd_fmc_sdram;
-extern const bsl_panel_api_t bsl_api_brd_rgb_panel;
+extern const bsl_panel_api_t bsl_api_brd_panel;
 extern const bsl_touch_api_t bsl_api_goodix_gt9147;
 extern const bsl_nor_api_t bsl_api_winbond_w25q256;
 extern const bsl_rtc_api_t bsl_api_brd_rtc;
@@ -118,7 +118,7 @@ static inline const bsl_sdram_api_t *bsl_devapi_sdram(void)
 /* BSL_DEV_PANEL: brd,rgb-panel 的 api，类型在编译期确定 */
 static inline const bsl_panel_api_t *bsl_devapi_panel(void)
 {
-    return &bsl_api_brd_rgb_panel;
+    return &bsl_api_brd_panel;
 }
 
 /* BSL_DEV_TOUCH: goodix,gt9147 的 api，类型在编译期确定 */
@@ -191,7 +191,7 @@ static inline const bsl_uart_api_t *bsl_devapi_usart3(void)
 #define BOARD_DEVICE_REGISTRY_APPLY(M) \
     M(BSL_DEV_DEBUG_UART, "debug_uart", BSL_INIT_LEVEL_POST_CLOCK, bsl_driver_debug_uart, 0) \
     M(BSL_DEV_SDRAM, "sdram", BSL_INIT_LEVEL_BOARD, bsl_driver_brd_fmc_sdram, 0) \
-    M(BSL_DEV_PANEL, "panel", BSL_INIT_LEVEL_BOARD, bsl_driver_brd_rgb_panel, 0) \
+    M(BSL_DEV_PANEL, "panel", BSL_INIT_LEVEL_BOARD, bsl_driver_brd_panel, 0) \
     M(BSL_DEV_TOUCH, "touch", BSL_INIT_LEVEL_BOARD, bsl_driver_goodix_gt9147, 0) \
     M(BSL_DEV_NOR, "nor", BSL_INIT_LEVEL_BOARD, bsl_driver_winbond_w25q256, 0) \
     M(BSL_DEV_LEDS, "leds", BSL_INIT_LEVEL_BOARD, bsl_driver_brd_gpio_leds, 1) \

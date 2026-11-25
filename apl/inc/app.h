@@ -42,7 +42,10 @@ void app_set_double_click_ms(uint32_t ms);
 
 /* 图标网格：固定 4 列，行数按注册表条目数算。图标随注册表增长（P5a 3 个、
  * P5b 5 个、P5c 8 个），不写死 8 —— 写死就得为空槽建空壳应用。 */
-#define APP_ICON_COLS 4U
+/* 桌面图标网格：列数不再写死。800×480 时 4 列×160 宽刚好铺满；换到 480×800
+ * 竖屏后 4 列总宽 688 会让 origin_x 往下溢，图标被摆到屏外 —— POST 的 ui 项
+ * 报的 "ink=0 hit=6/8" 就是这个。列数按屏宽算（见 app.c 的 desktop_build）。 */
+#define APP_ICON_MAX_COLS 4U
 #define APP_ICON_W 160U
 #define APP_ICON_H 120U
 #define APP_ICON_GAP 16U
