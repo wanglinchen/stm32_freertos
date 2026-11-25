@@ -198,6 +198,36 @@ typedef struct {
 
 int board_rt_tpad(board_rt_tpad_t *out);
 
+/* CAN1（P6e-1）：引脚掩码 + AF + 目标位率 + 运行模式。
+ *
+ * loopback 是**运行模式**而不是"降级开关"：本板 PA11/PA12 与 USB D-/D+ 共用
+ * P9 跳线，板上也没有第二个 CAN 节点，正常模式发帧只会得到"无人应答"。
+ * 回环模式下 BTR.LBKM=1，CAN 核内部把 Tx 直接送进 Rx，与跳线和收发器无关，
+ * 于是"发一帧、自己收到同一帧"就能证明分频/邮箱/过滤器/FIFO 全链是通的。
+ * 真有对端时把 DTB 的 loopback 改 0，驱动逻辑不动。 */
+typedef struct {
+    GPIO_TypeDef *port;
+    uint16_t mask;       /* 恰好 1~2 位：RX + TX 可以同端口（本板都在 PA） */
+    unsigned af;
+    uint32_t bitrate;
+    int loopback;
+} board_rt_can_t;
+
+int board_rt_can(board_rt_can_t *out);
+
+/* USART3（P6e-1）：引脚掩码 + AF + 波特率 + 判帧空闲阈值（ms）。
+ * 掩码必须恰好 2 位（TX + RX）——只剩一位说明 DTS 少写了一根脚，
+ * 那种配置会"发得出去、收不回来"，现场表现成"对端没回话"，最难查。 */
+typedef struct {
+    GPIO_TypeDef *port;
+    uint16_t mask;
+    unsigned af;
+    uint32_t baud;
+    uint32_t frame_idle_ms;
+} board_rt_usart_t;
+
+int board_rt_usart(board_rt_usart_t *out);
+
 unsigned board_rt_led_count(void);
 GPIO_TypeDef *board_rt_led_port(void);
 uint16_t board_rt_led_pin(unsigned index);

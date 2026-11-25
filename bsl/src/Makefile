@@ -36,6 +36,7 @@ LOCAL_OBJS :=
 -include $(BUILD_DIR)/bsl/src/board_tpad.d
 -include $(BUILD_DIR)/bsl/src/board_wm8978.d
 -include $(BUILD_DIR)/bsl/src/bsl_adc.d
+-include $(BUILD_DIR)/bsl/src/bsl_can.d
 -include $(BUILD_DIR)/bsl/src/bsl_crc.d
 -include $(BUILD_DIR)/bsl/src/bsl_device.d
 -include $(BUILD_DIR)/bsl/src/bsl_fb.d
@@ -49,6 +50,7 @@ LOCAL_OBJS :=
 -include $(BUILD_DIR)/bsl/src/bsl_rtc.d
 -include $(BUILD_DIR)/bsl/src/bsl_sai.d
 -include $(BUILD_DIR)/bsl/src/bsl_spi.d
+-include $(BUILD_DIR)/bsl/src/bsl_uart.d
 
 ifeq ($(CONFIG_BSL),y)
 ifeq ($(CONFIG_BSL_SRC),y)
@@ -286,6 +288,19 @@ endif
 
 ifeq ($(CONFIG_BSL),y)
 ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BSL_CAN),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/bsl_can.o
+$(BUILD_DIR)/bsl/src/bsl_can.o: $(PROJECT_ROOT)/bsl/src/bsl_can.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/bsl_can.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/bsl_can.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
 ifeq ($(CONFIG_BSL_SRC_BSL_CRC),y)
 LOCAL_OBJS += $(BUILD_DIR)/bsl/src/bsl_crc.o
 $(BUILD_DIR)/bsl/src/bsl_crc.o: $(PROJECT_ROOT)/bsl/src/bsl_crc.c $(FLAG_DEPS)
@@ -449,6 +464,19 @@ $(BUILD_DIR)/bsl/src/bsl_spi.o: $(PROJECT_ROOT)/bsl/src/bsl_spi.c $(FLAG_DEPS)
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/bsl_spi.d -c $< -o $@
 	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/bsl_spi.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BSL_UART),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/bsl_uart.o
+$(BUILD_DIR)/bsl/src/bsl_uart.o: $(PROJECT_ROOT)/bsl/src/bsl_uart.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/bsl_uart.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/bsl_uart.d
 endif
 endif
 endif

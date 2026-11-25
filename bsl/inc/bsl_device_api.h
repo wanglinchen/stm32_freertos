@@ -147,4 +147,29 @@ typedef struct {
 } bsl_tpad_api_t;
 
 
+/* CAN1（P6e-1）：位率 + 分频（timing 一次给 brp/tseg，POST 三个数一起打）
+ * + 发送 + 非阻塞收帧。send 只证"邮箱受理"，"对方收到"要靠 recv ——
+ * 回环模式下这两步合起来才是完整判据。 */
+typedef struct {
+    int (*ready)(void);
+    uint32_t (*bit_rate)(void);
+    void (*timing)(uint32_t *brp, uint32_t *tseg);
+    bsl_err_t (*send)(uint32_t id, const uint8_t *data, uint8_t len);
+    int (*recv)(uint32_t *id, uint8_t *data, uint8_t *len);
+} bsl_can_api_t;
+
+/* USART3（P6e-1）：波特率/BRR + 发一字节（带实测耗时）+ 空閒判帧取帧
+ * + inject（POST 注入自证，绕过硬件）。
+ * send 的 *us 是判据来源：8N1 = 10 bit/帧，连发 n 字节的总时长应等于
+ * n*10*bit_time（单字节口径含 up to 1 bit 的启停量化，不用来判分频）。 */
+typedef struct {
+    int (*ready)(void);
+    uint32_t (*baud)(void);
+    uint32_t (*brr)(void);
+    bsl_err_t (*send_byte)(uint8_t b, uint32_t *us);
+    bsl_err_t (*send)(const uint8_t *buf, unsigned n, uint32_t *us);
+    int (*recv_frame)(uint8_t *buf, unsigned max, unsigned *len);
+    void (*inject)(uint8_t b);
+} bsl_uart_api_t;
+
 #endif

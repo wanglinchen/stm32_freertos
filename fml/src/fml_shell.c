@@ -93,7 +93,7 @@ static void sh_put_hex2(sh_out_t *o, int v)
 
 /* 解析 1~2 位十六进制，允许 `0x` / `0X` 前缀。范围校验由调用方做：
  * 0x7F 与 0xFF 在同一个解析器里都能过，谁是地址谁是数据由用途决定。 */
-static int sh_hex(const char *s, int *out)
+static int sh_hex_max(const char *s, int *out, unsigned maxd)
 {
     unsigned v = 0U;
     unsigned digits = 0U;
@@ -120,7 +120,7 @@ static int sh_hex(const char *s, int *out)
         } else {
             return 1;
         }
-        if (digits >= 2U) {
+        if (digits >= maxd) {
             return 1;
         }
         v = (v << 4) | (unsigned)d;
@@ -129,6 +129,13 @@ static int sh_hex(const char *s, int *out)
     }
     *out = (int)v;
     return 0;
+}
+
+/* 1~2 位十六进制的常用形态（寄存器、字节）。三位的只有 CAN 标准帧 ID（最大 0x7FF），
+ * 由 cmd_can 走 sh_hex_max(..., 3)。 */
+static int sh_hex(const char *s, int *out)
+{
+    return sh_hex_max(s, out, 2U);
 }
 
 static int sh_atoi(const char *s, int *out)
@@ -174,6 +181,8 @@ static int cmd_als(int argc, char **argv, sh_out_t *o);
 static int cmd_imu(int argc, char **argv, sh_out_t *o);
 static int cmd_eeprom(int argc, char **argv, sh_out_t *o);
 static int cmd_tpad(int argc, char **argv, sh_out_t *o);
+static int cmd_can(int argc, char **argv, sh_out_t *o);
+static int cmd_uart(int argc, char **argv, sh_out_t *o);
 
 static const sh_cmd_t s_cmds[] = {
     {"help", "help", cmd_help},
@@ -188,6 +197,8 @@ static const sh_cmd_t s_cmds[] = {
     {"imu", "imu", cmd_imu},
     {"eeprom", "eeprom <addr8 0..255>", cmd_eeprom},
     {"tpad", "tpad", cmd_tpad},
+    {"can", "can <id 0..0x7ff>", cmd_can},
+    {"uart", "uart <hex8>", cmd_uart},
 };
 
 /* `beep` 命令已删除：蜂鸣器由策略永久禁用（bsl/board_beep.c 的 BEEP_ALLOW_ON），
@@ -521,6 +532,89 @@ static int cmd_tpad(int argc, char **argv, sh_out_t *o)
     sh_puts(o, " thr=");
     sh_dec(o, (int)bsl_devapi_tpad()->threshold());
     sh_puts(o, (hit == 1) ? " pressed" : " idle");
+    return 1;
+}
+
+/* can：回环自发自收。回环模式下 CAN 核把 Tx 直接送进 Rx，所以这条命令不需要
+ * 第二个 CAN 节点、也不依赖 P9 跳线 —— 敲下去能看到自己发出的同一帧才算通。
+ * 打印发送结果、收到的 ID/长度/8 字节，以及 BTR 的 brp/tseg（位率偏了先看这两个数）。 */
+static int cmd_can(int argc, char **argv, sh_out_t *o)
+{
+    static const uint8_t tx[8] = {0x01U, 0x23U, 0x45U, 0x67U, 0x89U, 0xABU, 0xCDU, 0xEFU};
+    uint8_t rx[8];
+    uint8_t rxlen = 0U;
+    uint32_t rxid = 0U;
+    uint32_t brp = 0U;
+    uint32_t tseg = 0U;
+    int id = 0;
+    int i;
+
+    if ((argc < 2) || (sh_hex_max(argv[1], &id, 3U) != 0) || (id < 0) || (id > 0x7FF)) {
+        sh_puts(o, "usage: can <id 0..0x7ff>");
+        return 0;
+    }
+    if (bsl_devapi_can()->ready() == 0) {
+        sh_puts(o, "can=not-ready");
+        return 0;
+    }
+    bsl_devapi_can()->timing(&brp, &tseg);
+    sh_puts(o, "can bt=");
+    sh_dec(o, (int)bsl_devapi_can()->bit_rate());
+    sh_puts(o, " brp=");
+    sh_dec(o, (int)brp);
+    sh_puts(o, " tseg=");
+    sh_dec(o, (int)tseg);
+    if (bsl_devapi_can()->send((uint32_t)id, tx, 8U) != BSL_OK) {
+        sh_puts(o, " send FAIL");
+        return 0;
+    }
+    for (i = 0; i < 20; i++) {
+        if (bsl_devapi_can()->recv(&rxid, rx, &rxlen) != 0) {
+            break;
+        }
+        osl_thread_delay_ms(1U);
+    }
+    sh_puts(o, " rx id=");
+    sh_put_hex2(o, (int)((rxid >> 8) & 0xFFU));
+    sh_put_hex2(o, (int)(rxid & 0xFFU));
+    sh_puts(o, " len=");
+    sh_dec(o, (int)rxlen);
+    sh_puts(o, " data=");
+    for (i = 0; i < (int)rxlen; i++) {
+        sh_put_hex2(o, (int)rx[i]);
+    }
+    return (rxlen == 8U && rxid == (uint32_t)id) ? 1 : 0;
+}
+
+/* uart：往 USART3 发一个字节并报实测耗时。8N1 一帧 10 bit，115200 下 86.8 µs ——
+ * 读数成比例偏就是 BRR 按错时钟算了。收帧要等对端（本板没接），所以这条命令
+ * 只做发送侧；帧状态机由 POST 的 usart 项用注入自证。 */
+static int cmd_uart(int argc, char **argv, sh_out_t *o)
+{
+    int b = 0;
+    uint32_t us = 0U;
+    bsl_err_t rc;
+
+    if ((argc < 2) || (sh_hex(argv[1], &b) != 0) || (b < 0) || (b > 255)) {
+        sh_puts(o, "usage: uart <hex8>");
+        return 0;
+    }
+    if (bsl_devapi_usart3()->ready() == 0) {
+        sh_puts(o, "usart3=not-ready");
+        return 0;
+    }
+    rc = bsl_devapi_usart3()->send_byte((uint8_t)b, &us);
+    if (rc != BSL_OK) {
+        sh_puts(o, "usart3 send FAIL rc=");
+        sh_dec(o, (int)rc);
+        return 0;
+    }
+    sh_puts(o, "usart3 baud=");
+    sh_dec(o, (int)bsl_devapi_usart3()->baud());
+    sh_puts(o, " brr=");
+    sh_dec(o, (int)bsl_devapi_usart3()->brr());
+    sh_puts(o, " tx_us=");
+    sh_dec(o, (int)us);
     return 1;
 }
 

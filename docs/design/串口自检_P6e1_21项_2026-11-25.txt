@@ -1,0 +1,150 @@
+# 串口自检证据 · P6e-1 21 项（2026-11-25）
+
+分支 `feature/full-demo`。本批交付：通信两件 `bsl_can`（CAN1，回环自发自收）与
+`bsl_uart`（USART3，收发 + 空闲判帧），两个 DTB 节点（`can` / `usart3`），
+两个内置 POST 项（`can` / `usart`），`fml_shell` 的两条命令（`can <id>` / `uart <hex8>`）。
+USART2 不做，理由见对照表 §4 P6e-1 行。
+
+## 一、上电自检全文（userdebug 档）
+
+```
+[sai] init: fs=47973 hz mck-div=4 codec=1a cr1=00400240 frcr=00050f1f slotr=00030100
+[codec] wm8978 1a regs=14 ack=14
+[imu] mpu9250 addr=68 who=71 mag=48
+[als] ap3216c addr=1e sys=03
+[eeprom] 24c02 addr=50 bytes=256
+[tpad] default=17 thr=23 tim=20
+[can] init: bitrate=500000 brp=6 tseg=14 loop=1
+[usart] init: baud=115200 brr=365 idle=10ms
+[post] sdram size=32M bad=0 PASS
+[post] lcd w=800 h=480 bad=0 PASS
+[post] touch id=9147 points=0 PASS
+[post] nor id=0xef4019 size=32M PASS
+[post] rtc src=lse 2026-11-25 07:57:48 walk=1s PASS
+[post] adc raw=986 cal=935/1205 t=45.1C PASS
+[post] crc 0x4c40e0d7 expect=0x4c40e0d7 PASS
+[post] rng n=16 distinct=16 degen=0 PASS
+[post] codec 1a regs=14 ack=14 PASS
+[sai] play frames=2048 us=42656 us_start=2 ndtr0=2047 err=0
+[post] sai fs=47973 frames=2048 us=42656 expect=42690 err=0 PASS
+[post] imu who=71 mag=48 acc=283,175,3775 gyr=-29,-9,-23 PASS
+[post] als ir=6 ps=18 als=258 PASS
+[post] eeprom wr=5a rd=5a restore=ff PASS
+[post] tpad default=17 thr=23 PASS
+[post] can bt=500000 brp=6 tseg=14 btr=400b0005 tx=1 rx=1 id=0123 data=0123456789abcdef PASS
+[post] usart baud=115200 brr=365 burst16_us=1398 exp=1388 one_us=92 frame=3/3 idle=10ms PASS
+[post] font c0=48 c1=45 c2=70 c3=46 w=8 h=16 ink=22 blank=0 cjk_min=45 PASS
+[post] fatfs total=25568KB ents=2 [SYSTEM 0B DIR] [??????~1 0B DIR] SYSTEM:n=3 [APP 0B DIR] [SPB 0B DIR] [LWIP 0B DIR] ??????~1:n=16 [ALIENT~1.TXT 2486B] [??????~1.AVI 2534868B] [??????~1.SMS 262144B] [????28~1.BIN 44804B] PASS
+[post] ui win=1 btn=8 hit=8/8 ink=520 ovf=0 PASS
+[post] menu apps=8 enter=1 back=1 leave=8 enter2=2 calc=3 set=2 pic=240x320b24 note=2:d6d0/2:18 cal=20261125 depth=0 PASS
+[post] shell cmd=14 help=1 uptime=0ms PASS
+[post] result 21 pass 21 fail 0
+stm32-freertos: USART1 115200 debug ready
+[beep] on request ignored: buzzer disabled by policy
+[shell] ready cmds=14, type help
+```
+
+## 二、两项判据与读数
+
+| 项 | 判据 | 本条读数 |
+| --- | --- | --- |
+| `can` | 发 8 字节标准帧（ID 0x123），**回环自己收到同一 ID、同一 8 字节** | `bt=500000 brp=6 tseg=14 btr=400b0005 tx=1 rx=1 id=0123 data=0123456789abcdef` |
+| `usart` | **连发 16 字节总时长 == 16×10 bit/baud（±2%）** + 帧状态机注入自证 | `burst16_us=1398 exp=1388`（+0.7%）；`one_us=92`（单字节，仅诊断）；`frame=3/3` |
+
+两条判据的物理含义：
+
+- `can`：一次覆盖四段链路 —— `btr_choose` 的位时序（`42 MHz/(6×14) = 500000` 整除）、
+  邮箱写序（TDTR/TDLR/TDHR 先写、`TIR.TXRQ` 最后置）、过滤器（`FMR &= ~CAN_FMR_FINIT`
+  后才生效；参考工程那行 `&= 0<<0` 是空操作，过滤器停在初始化态会丢帧）、
+  FIFO 释放（`RF0R.RFOM0` 漏写则第二次收的还是同一帧）。
+  **回环（`BTR.LBKM=1`）由 CAN 核内部把 Tx 送进 Rx**，与 P9 跳线、收发器都无关，
+  所以桌面上不接任何东西也能出真结果。`btr=400b0005` 是寄存器回读，逐字段：
+  `SILM=0 / LBKM=1 / SJW=0(1 tq) / TS2=0(1 tq) / TS1=11(12 tq) / BRP=5(6 tq)`。
+- `usart`：`brr=365` 由 `HAL_RCC_GetPCLK1Freq() = 42 MHz` 现算（42000000/365 = 115068，
+  +0.1%），8N1 = 10 bit ⇒ 16 帧 1388 µs。`frame=3/3` 是**注入自证**：
+  往帧状态机喂 A/B/C 三个字节、等超过 DTB 的 `frame-idle-ms(10)` ⇒ 取出一帧 3 字节。
+
+## 三、HIL：两条命令（手敲逐字发送）
+
+```
+[shell] > can 123
+can bt=500000 brp=6 tseg=14 rx id=0123 len=8 data=0123456789abcdef
+[shell] > can 7ff
+can bt=500000 brp=6 tseg=14 rx id=07ff len=8 data=0123456789abcdef
+[shell] > can 800
+usage: can <id 0..0x7ff>
+[shell] > uart 55
+usart3 baud=115200 brr=365 tx_us=92
+[shell] > uart a5
+usart3 baud=115200 brr=365 tx_us=88
+```
+
+`can 123` / `can 7ff` 的 ID 与 8 字节都与发出的完全一致（回环）；`can 800` 被挡在
+命令层（标准帧 ID 只有 11 位，越界写进 `TIR` 会被硬件静默截断、收到的 ID 变成
+`0000` —— 这条是实测抓到的，见第六节）。`uart 55` / `uart a5` 两次读数 92 / 88 µs
+都落在"单字节 ≈ 11 bit（86.9 + 约 1 bit 量化）"的带上，且与 POST 的 `one_us` 一致。
+
+## 四、双档体积与符号
+
+```
+   text	   data	    bss	    dec	    hex	filename
+ 602996	     64	  53456	 656516	  a0484	out\userdebug\objects\target\stm32-freertos.elf
+ 590208	     64	  53448	 643720	  9d288	out\user\objects\target\stm32-freertos.elf
+```
+
+相对 P6d（597508 / 585480，bss 53116 / 53108）：text +5488 / +4728，bss +340
+（`bsl_uart` 的 256 B 接收缓冲 + 若干状态字）。`nm` 复核（两个驱动、两个 api/driver
+与两条命令都在镜像里，没有"头里声明、镜像无符号"的假 API）：
+
+```
+T bsl_uart_init/ready/baud/brr/send/send_byte/recv_frame/inject
+T bsl_can_init/ready/bit_rate/timing/send/recv
+R bsl_api_brd_can @08082dc4 / bsl_driver_brd_can @08082dc0
+R bsl_api_brd_usart @08082fd4 / bsl_driver_brd_usart @08082fd0
+t post_can / post_usart / cmd_can / cmd_uart
+```
+
+## 五、门禁
+
+- `update`：`out/dts/apollo.dtb` 66398 B，零 dtc 诊断（`can` 与 `usart3` 两节点进 DTB；
+  回读 DTB 得 `can-pins = <0x0a 0x1800 0x09>`、`bitrate = <0x7a120>`(=500000)、
+  `usart-pins = <0x07 0xc00 0x07>`、`frame-idle-ms = <0x0a>`(=10)）。
+- 双档 `build`：`-Werror` 零告警（首轮唯一一处是 `-Wmissing-prototypes`：
+  `USART3_IRQHandler` 是启动文件里的弱向量名，在 .c 里加前置声明后通过）。
+- `check`：与 P6d 逐行相同 —— 9 条显示 + "另有 33 条" = **42 条历史遗留，无新增**。
+
+## 六、本批两处"看起来通、其实没验到"的现场
+
+1. **单字节判据把正确分频判成 FAIL**。首轮 `[post] usart ... tx_us=95 exp=86 FAIL`
+   （`first=92` 也一样，所以不是"首字节开销"）。逐层读数排除，每条都是排除法不是猜：
+
+   | 打印 | 读数 | 排除掉什么 |
+   | --- | --- | --- |
+   | `pclk=42000k` | PCLK1 = 42 MHz | "拿 PCLK2（84 MHz）去算 APB1 串口"这类时钟错 |
+   | `core=168M` | 内核 168 MHz（与 P6c 的 SAI 时长判据同源） | CYCCNT 折算基数错 |
+   | `cr2=0000` | 1 个停止位 | 2 停止位（11 bit） |
+   | `cr1=202c` | UE/TE/RE，8 位、无校验 | 校验位把帧拉长 |
+
+   ⇒ 帧确实是 10 bit，BRR=365 由 42 MHz 现算（42000000/365 = 115068，+0.1%），
+   多出的 ~8 µs **只能在测量口径里**：写 DR 到起始位真正上线、帧尾到 `TC` 置位，
+   各是 0..1 bit 的量化。
+   修法：判据换成**连发 16 字节**（`bsl_uart_send()` 按 TXE 排队、最后等一次 TC），
+   量化只发生一次、摊到 16 帧剩 6% ⇒ `1398 vs 1388` 一次通过；单字节读数降级成
+   诊断字段 `one_us`。这套连发同时是业务需要的（一条 AT 指令本来就是多字节连发，
+   逐字节等 TC 只是白等）。
+
+2. **`can 800` 没被挡住**。标准帧 ID 只有 11 位（`CAN_TIR` 的 `STID[10:0]`），
+   0x800 写进去被硬件**静默截断**，回环"成功"但收到的 ID 是 `0000` —— 发的人
+   以为发了 0x800。修法：`bsl_can_send()` 加 `id > 0x7FF ⇒ BSL_ERR_INVAL`，
+   shell 层也挡。同一条顺带暴露：`sh_hex` 只收 2 位十六进制、装不下 3 位 ID，
+   拆出 `sh_hex_max(s, out, digits)`（`sh_hex` 成了上限 2 的封装），`can` 用上限 3。
+
+## 七、没验到的部分（写清，不粉饰）
+
+- **USART3 的 RX 线上接收**：本板没接 GSM/ATK-MODULE，PB11 还与 YT8512C 的 TXEN
+  共用 P8 跳线，无法远程短接。`frame=3/3` 只证"帧状态机对"，**不证物理链路通**。
+- **CAN 的正常总线收发**：只验了回环（核内直连）。真实总线要第二个节点 + 120 Ω
+  终端，P9 跳线也得从 USB 拨到 CAN —— 不在本次范围内。
+- **CAN 的错误处理路径**（错误计数器、Bus-Off 恢复、仲裁丢失）：单节点回环
+  不产生这些事件，未验。
+- **USART3 的噪声/帧错误位**：中断里只清了 `ORE`，`NE`/`FE` 的真实触发未构造。

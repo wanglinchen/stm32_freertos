@@ -73,6 +73,10 @@ config BSL_SRC_BSL_ADC
 	bool "bsl_adc.c"
 	default y
 
+config BSL_SRC_BSL_CAN
+	bool "bsl_can.c"
+	default y
+
 config BSL_SRC_BSL_CRC
 	bool "bsl_crc.c"
 	default y
@@ -123,6 +127,10 @@ config BSL_SRC_BSL_SAI
 
 config BSL_SRC_BSL_SPI
 	bool "bsl_spi.c"
+	default y
+
+config BSL_SRC_BSL_UART
+	bool "bsl_uart.c"
 	default y
 
 endmenu

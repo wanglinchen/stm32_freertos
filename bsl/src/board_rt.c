@@ -105,6 +105,12 @@ typedef struct {
 
     int tpad_ok;
     board_rt_tpad_t tpad;
+
+    int can_ok;
+    board_rt_can_t can;
+
+    int usart_ok;
+    board_rt_usart_t usart;
 } board_rt_t;
 
 static board_rt_t s_rt;
@@ -1044,11 +1050,89 @@ static void parse_tpad(void)
     s_rt.tpad_ok = 1;
 }
 
+/* can / usart3（P6e-1）：引脚属性与 sai-pins 同格式 `<phandle mask af>`。
+ *
+ * 统一在这里把"掩码必须是 N 位"的检查做掉：CAN 要 RX+TX 两位（本板都在 PA），
+ * USART 要 TX+RX 两位。少于两位不是"少一根脚无所谓" —— USART 少 RX 就是
+ * "发得出去、收不回来"，现场表现成"对端没回话"，比节点缺失难查得多。 */
+#define RT_COMPAT_CAN "brd,can"
+#define RT_COMPAT_USART "brd,usart"
+
+static int pin_group(bsl_fdt_node_t node, const char *prop, GPIO_TypeDef **port,
+                     uint16_t *mask, unsigned *af, unsigned bits)
+{
+    uint32_t cells[3];
+    unsigned n = 0U;
+    unsigned i;
+
+    if (node == NULL || prop == NULL) {
+        return 0;
+    }
+    if (bsl_fdt_prop_cells(node, prop, cells, 3U) != 3U) {
+        return 0;
+    }
+    *port = board_rt_port_of_phandle(cells[0]);
+    if (*port == NULL || cells[2] > 15U) {
+        return 0;
+    }
+    *mask = (uint16_t)(cells[1] & 0xFFFFU);
+    *af = cells[2];
+    for (i = 0U; i < 16U; i++) {
+        if ((*mask & (uint16_t)(1U << i)) != 0U) {
+            n++;
+        }
+    }
+    return (n == bits) ? 1 : 0;
+}
+
+static void parse_can(void)
+{
+    bsl_fdt_node_t node = bsl_fdt_find(RT_COMPAT_CAN, 0U);
+    board_rt_can_t c;
+
+    if (pin_group(node, "can-pins", &c.port, &c.mask, &c.af, 2U) == 0) {
+        return;
+    }
+    /* 位率区间按 CAN 的常规档位收：10 kbit/s ~ 1 Mbit/s。超出这个区间先怀疑
+     * DTS 写错了单位（写成 <500000000> 之类），而不是让驱动算出一个
+     * brp 超出 10 位域、寄存器被截断、最后位率变成另一个数的配置。 */
+    if (bsl_fdt_prop_u32(node, "bitrate", &c.bitrate) == 0
+        || c.bitrate < 10000U || c.bitrate > 1000000U) {
+        return;
+    }
+    c.loopback = bsl_fdt_prop_flag(node, "loopback");
+    s_rt.can = c;
+    s_rt.can_ok = 1;
+}
+
+static void parse_usart(void)
+{
+    bsl_fdt_node_t node = bsl_fdt_find(RT_COMPAT_USART, 0U);
+    board_rt_usart_t u;
+
+    if (pin_group(node, "usart-pins", &u.port, &u.mask, &u.af, 2U) == 0) {
+        return;
+    }
+    /* 波特率上限按 PCLK1/16 留余量（本板 45 MHz ⇒ 理论 2.8 Mbit/s 少一点），
+     * 下限取 1200：低于这个数 BRR 会超过 16 位域，写进去的是截断值。 */
+    if (bsl_fdt_prop_u32(node, "baud", &u.baud) == 0
+        || u.baud < 1200U || u.baud > 2000000U) {
+        return;
+    }
+    if (bsl_fdt_prop_u32(node, "frame-idle-ms", &u.frame_idle_ms) == 0
+        || u.frame_idle_ms < 1U || u.frame_idle_ms > 100U) {
+        return;
+    }
+    s_rt.usart = u;
+    s_rt.usart_ok = 1;
+}
+
 static void parse_all(void)
 {
     if (s_rt.parsed) {
         return;
-    }    s_rt.parsed = 1;
+    }
+    s_rt.parsed = 1;
     if (bsl_fdt_init() != 0) {
         return;
     }
@@ -1069,12 +1153,34 @@ static void parse_all(void)
     parse_ap3216c();
     parse_eeprom();
     parse_tpad();
+    parse_can();
+    parse_usart();
 }
 
 uint32_t board_rt_hse_hz(void)
 {
     parse_all();
     return s_rt.hse_hz;
+}
+
+int board_rt_can(board_rt_can_t *out)
+{
+    parse_all();
+    if (!s_rt.can_ok || out == NULL) {
+        return 0;
+    }
+    *out = s_rt.can;
+    return 1;
+}
+
+int board_rt_usart(board_rt_usart_t *out)
+{
+    parse_all();
+    if (!s_rt.usart_ok || out == NULL) {
+        return 0;
+    }
+    *out = s_rt.usart;
+    return 1;
 }
 
 unsigned board_rt_led_count(void)

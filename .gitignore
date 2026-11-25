@@ -16,6 +16,8 @@ check_log*.txt
 flash_log.txt
 stab_log.txt
 out/tmp_*.log
+out/tmp_*.err
+out/tmp_*.ps1
 out/tmp_commit_msg.txt
 out/tmp_*.py
 # 串口抓取与一次性探针的日志：每次覆盖写，证据要留就贴进 docs/design/

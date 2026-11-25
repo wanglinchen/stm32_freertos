@@ -1475,6 +1475,45 @@ _BOARD_NODES = """\
         codec = <&wm8978>;
     };
 
+    /* CAN1（P6e-1）。引脚取自 pinmap：PA11 = CAN_RX、PA12 = CAN_TX，AF9
+     *   （`usb_d_pa11/pa12` 行的 board-net 写的就是 "USB_D- / CAN_RX"、
+     *   "USB_D+ / CAN_TX"，P9 跳线二选一）。掩码 0x1800 = bit11|bit12。
+     *
+     * loopback = 1 是**这块板当前的唯一可验模式**，不是降级：P9 跳线同时是
+     *   USB 的 D-/D+，板上也没有第二台 CAN 节点可以对话，正常模式下发帧只会
+     *   得到"无人应答、错误计数上升"。回环模式（BTR.LBKM=1）在 CAN 核内部
+     *   把 Tx 直接送进 Rx，与跳线、收发器都无关 —— 于是"发一帧、自己收到同一帧"
+     *   就能同时证明 BTR 分频、邮箱、过滤器、FIFO 全链是通的。真有对端时把这里
+     *   改 0，驱动一行不用动。
+     *
+     * bitrate 是使用事实（要和多远的对端对话）；BTR 的 brp/tseg 由驱动按
+     *   HAL_RCC_GetPCLK1Freq() 现场算，不在 DTS 里存第二份时钟常量。 */
+    can: can {
+        compatible = "brd,can";
+        status = "okay";
+        can-pins = <&gpioa 0x1800 9>;
+        bitrate = <500000>;
+        loopback = <1>;
+    };
+
+    /* USART3（P6e-1）。PB10 = TX、PB11 = RX，AF7（pinmap `usart3_tx_pb10` /
+     *   `usart3_rx_pb11`；PB11 还接到 YT8512C 的 TXEN，P8 跳线二选一）。
+     *   掩码 0x0C00 = bit10|bit11。
+     *
+     * 为什么没有 USART2 节点：参考工程 `usart2_init()` 全仓零调用，且 PA2/PA3
+     *   同时是 RS232 COM2 / RS485 / YT8512C MDIO 的脚，没有不破坏他人的可验通道。
+     *   按 §2 规则 3 不为没有消费者的实例造 API（理由写在对照表 P6e-1 行）。
+     *
+     * frame-idle-ms 是判帧口径：参考工程用 TIM7 计 10 ms 空闲切帧；这里不用
+     *   定时器，改用 HAL_GetTick() 与"最后一个字节的时刻"比较，所以阈值留在 DTS。 */
+    usart3: usart3 {
+        compatible = "brd,usart";
+        status = "okay";
+        usart-pins = <&gpiob 0x0c00 7>;
+        baud = <115200>;
+        frame-idle-ms = <10>;
+    };
+
     /* TPAD（电容触摸按键）：PA5 走 TIM2_CH1 输入捕获。
      * 硬件事实来自阿波罗 V2 硬件参考手册 V1.1 表 1.5.1（PA5 备注写「ADC 输入引脚，
      * 同时做 TPAD 检测脚」）与参考工程 `tpad.h`（TPAD_GPIO=PA5、AF1=TIM2_CH1）；

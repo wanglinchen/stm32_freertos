@@ -1,5 +1,7 @@
 #include "board_post.h"
 
+#include <string.h>
+
 #include "board_lcd.h"
 #include "board_sdram.h"
 #include "board_touch.h"
@@ -10,6 +12,7 @@
 #include "bsl_rng.h"
 #include "bsl_rtc.h"
 #include "bsl_sai.h"
+#include "stm32f4xx_hal.h"
 
 #define POST_LOG_MOD "post"
 
@@ -616,6 +619,140 @@ static void post_tpad(void)
 }
 
 /*
+ * can（P6e-1）：回环自发自收。
+ *
+ * 判据 = 发出 8 字节标准帧（ID 0x123），在回环模式下自己收到**同一 ID、同一 8 字节**。
+ * 这一条能抓住的故障：BTR 分频算错（自收的帧位时序错 → 错误计数器涨、收不到）、
+ * 邮箱寄存器写序错（TIR 的 TXRQ 先置位会发出上一帧残留）、过滤器没生效
+ * （参考工程 `FMR &= 0 << 0` 是空操作，过滤器停在初始化态 → 帧全被丢弃）、
+ * FIFO 释放漏写 RFOM（第二次收同一帧）。
+ *
+ * 为什么用回环而不是等对端：本板 PA11/PA12 与 USB 的 D-/D+ 共用 P9 跳线，
+ * 也没有第二个 CAN 节点。回环由 CAN 核内部把 Tx 送进 Rx，**与跳线、收发器无关**，
+ * 所以这一项在"什么都没接"的桌面上也能跑出真结果。
+ */
+static void post_can(void)
+{
+    static const uint8_t tx[8] = {0x01U, 0x23U, 0x45U, 0x67U, 0x89U, 0xABU, 0xCDU, 0xEFU};
+    uint8_t rx[8];
+    uint8_t rxlen = 0U;
+    uint32_t rxid = 0U;
+    uint32_t brp = 0U;
+    uint32_t tseg = 0U;
+    unsigned i;
+    int got = 0;
+    int same = 0;
+
+    if (bsl_device_is_ready(BSL_DEV_CAN) == 0) {
+        post_begin("can dev=not-ready");
+        post_end(0);
+        return;
+    }
+    bsl_devapi_can()->timing(&brp, &tseg);
+    if (bsl_devapi_can()->send(0x123U, tx, 8U) == BSL_OK) {
+        for (i = 0U; i < 20U; i++) {
+            if (bsl_devapi_can()->recv(&rxid, rx, &rxlen) != 0) {
+                got = 1;
+                break;
+            }
+            HAL_Delay(1U);
+        }
+    }
+    if (got != 0 && rxid == 0x123U && rxlen == 8U && memcmp(rx, tx, 8U) == 0) {
+        same = 1;
+    }
+    post_begin("can bt=");
+    bsl_log_put_dec((int)bsl_devapi_can()->bit_rate());
+    BSL_LOG_INF(" brp=");
+    bsl_log_put_dec((int)brp);
+    BSL_LOG_INF(" tseg=");
+    bsl_log_put_dec((int)tseg);
+    BSL_LOG_INF(" btr=");
+    bsl_log_put_hex((uint8_t)((CAN1->BTR >> 24) & 0xFFU), 2U);
+    bsl_log_put_hex((uint8_t)((CAN1->BTR >> 16) & 0xFFU), 2U);
+    bsl_log_put_hex((uint8_t)((CAN1->BTR >> 8) & 0xFFU), 2U);
+    bsl_log_put_hex((uint8_t)(CAN1->BTR & 0xFFU), 2U);
+    BSL_LOG_INF(" tx=1 rx=");
+    bsl_log_put_dec(got);
+    BSL_LOG_INF(" id=");
+    bsl_log_put_hex((uint8_t)((rxid >> 8) & 0xFFU), 2U);
+    bsl_log_put_hex((uint8_t)(rxid & 0xFFU), 2U);
+    BSL_LOG_INF(" data=");
+    for (i = 0U; i < (unsigned)rxlen; i++) {
+        bsl_log_put_hex(rx[i], 2U);
+    }
+    post_end(same);
+}
+
+/*
+ * usart（P6e-1）：两件事。
+ *
+ *   1) 分频对不对：**连发 16 个字节**量总时长。
+ *      为什么不是发一个字节：单字节的测量窗口里含两段各 0..1 bit 的量化 —— 写 DR
+ *      到起始位真正上线（内部波特率时钟对齐）、帧尾到 TC 置位。8N1 一帧是 10 bit，
+ *      115200 下 86.8 µs，但逐字节量出来是 92~95 µs（≈11 bit），拿它去判 ±10%
+ *      会把"分频正确"判成失败（本轮就是这么撞上的）。连发时量化只发生一次，
+ *      摊到 16 帧上只剩 6%，总时长 vs 16*10*bit_time 才是真的在量分频。
+ *   2) 帧状态机对不对：往状态机注入 3 个字节，等超过 DTB 的空闲阈值，应取出 1 帧 3 字节。
+ *      **这一步绕过硬件**（没有对端就收不到真字节），所以判据措辞是"帧状态机"，
+ *      不是"串口能收" —— 线上接收要接 GSM/ATK-MODULE 才能验，这条限制写进证据文件。
+ */
+static void post_usart(void)
+{
+    const bsl_uart_api_t *api = bsl_devapi_usart3();
+    uint8_t tx[16];
+    uint8_t frame[8];
+    unsigned len = 0U;
+    uint32_t us = 0U;
+    uint32_t us1 = 0U;
+    uint32_t expect;
+    uint32_t tol;
+    int tx_ok;
+    int frame_ok = 0;
+    unsigned i;
+
+    if (bsl_device_is_ready(BSL_DEV_USART3) == 0) {
+        post_begin("usart dev=not-ready");
+        post_end(0);
+        return;
+    }
+    for (i = 0U; i < 16U; i++) {
+        tx[i] = (uint8_t)(i + 0x30U);
+    }
+    /* 单字节读数只作诊断打出来（说明"逐字节口径含量化"这件事本身），不参与判据。 */
+    (void)api->send_byte(0x55U, &us1);
+    expect = (160U * 1000000U) / api->baud(); /* 16 帧 × 10 bit */
+    tol = expect / 50U;                      /* ±2%：量化摊薄后只剩 ~1% */
+    tx_ok = (api->send(tx, 16U, &us) == BSL_OK)
+            && (us + tol >= expect) && (us <= expect + tol);
+
+    api->inject('A');
+    HAL_Delay(1U);
+    api->inject('B');
+    HAL_Delay(1U);
+    api->inject('C');
+    HAL_Delay(12U); /* > frame-idle-ms(10) */
+    if (api->recv_frame(frame, (unsigned)sizeof(frame), &len) != 0
+        && len == 3U && frame[0] == 'A' && frame[1] == 'B' && frame[2] == 'C') {
+        frame_ok = 1;
+    }
+    post_begin("usart baud=");
+    bsl_log_put_dec((int)api->baud());
+    BSL_LOG_INF(" brr=");
+    bsl_log_put_dec((int)api->brr());
+    BSL_LOG_INF(" burst16_us=");
+    bsl_log_put_dec((int)us);
+    BSL_LOG_INF(" exp=");
+    bsl_log_put_dec((int)expect);
+    BSL_LOG_INF(" one_us=");
+    bsl_log_put_dec((int)us1);
+    BSL_LOG_INF(" frame=");
+    bsl_log_put_dec((int)((frame_ok != 0) ? len : 0U));
+    BSL_LOG_INF("/3 idle=10ms");
+    post_end((tx_ok != 0 && frame_ok != 0) ? 1 : 0);
+}
+
+/*
  * 外部项（apl 注册）：
  *
  * "屏上有没有文字"必须用 fml 的字库与画布才验得出来，而 bsl 不能反向依赖 fml
@@ -695,6 +832,8 @@ void board_post_run(void)
     post_als();
     post_eeprom();
     post_tpad();
+    post_can();
+    post_usart();
     post_ext();
 
     BSL_LOG_MOD_INF(POST_LOG_MOD, "result ");
