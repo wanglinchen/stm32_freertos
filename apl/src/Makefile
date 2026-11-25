@@ -28,6 +28,7 @@ LOCAL_OBJS :=
 -include $(BUILD_DIR)/apl/src/app_beep.d
 -include $(BUILD_DIR)/apl/src/app_calc.d
 -include $(BUILD_DIR)/apl/src/app_calendar.d
+-include $(BUILD_DIR)/apl/src/app_ebook.d
 -include $(BUILD_DIR)/apl/src/app_imu.d
 -include $(BUILD_DIR)/apl/src/app_key.d
 -include $(BUILD_DIR)/apl/src/app_led.d
@@ -88,6 +89,19 @@ $(BUILD_DIR)/apl/src/app_calendar.o: $(PROJECT_ROOT)/apl/src/app_calendar.c $(FL
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/apl/src/app_calendar.d -c $< -o $@
 	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/apl/src/app_calendar.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_APL),y)
+ifeq ($(CONFIG_APL_SRC),y)
+ifeq ($(CONFIG_APL_SRC_APP_EBOOK),y)
+LOCAL_OBJS += $(BUILD_DIR)/apl/src/app_ebook.o
+$(BUILD_DIR)/apl/src/app_ebook.o: $(PROJECT_ROOT)/apl/src/app_ebook.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/apl/src/app_ebook.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/apl/src/app_ebook.d
 endif
 endif
 endif

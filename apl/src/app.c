@@ -51,6 +51,10 @@ static void app_table_build(void)
     s_apps[s_apps_count++] = app_imu_ops();
     s_apps[s_apps_count++] = app_level_ops();
     s_apps[s_apps_count++] = app_qr_ops();
+    /* P9e-1：电子书。追加在末尾而不是插到看图器之前 —— main.c 的 POST 用
+     * `app_at(N)` 按下标取应用（8=绘画、9=陀螺仪…），插在中间会把已有下标
+     * 整体后移一位，那一串判据就会悄悄变成判别的应用。 */
+    s_apps[s_apps_count++] = app_ebook_ops();
     /* 防御：ops() 返回 NULL 说明该应用没装好。就地压缩、不留空槽 ——
      * 空槽会让桌面图标数与 POST 的 apps 计数对不上。 */
     i = 0U;

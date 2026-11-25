@@ -17,6 +17,10 @@ config APL_SRC_APP_CALENDAR
 	bool "app_calendar.c"
 	default y
 
+config APL_SRC_APP_EBOOK
+	bool "app_ebook.c"
+	default y
+
 config APL_SRC_APP_IMU
 	bool "app_imu.c"
 	default y

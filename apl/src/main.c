@@ -559,6 +559,7 @@ static int app_menu_check(char *buf, unsigned cap)
     int imu_ok = 0;
     int level_ok = 0;
     int qr_ok = 0;
+    int book_ok = 0;
     int view_ok = 1;
     uint32_t vw_p = 0U;
     uint32_t vh_p = 0U;
@@ -929,6 +930,55 @@ static int app_menu_check(char *buf, unsigned cap)
         app_fmt_puts(&ft, " qr=-");
     }
 
+    /* 电子书（第 13 项，P9e-1）。判据不用"文件在不在"代替"阅读器通不通"：
+     *   pages —— 分页算出的总页数（>= 2：太短或折行把整段算成一行都会掉到这）
+     *   chars —— 折行时逐字计出的字形个数（>= 200：防"读到 0 字节"或把所有字节
+     *            都当空白跳过）
+     *   ink1  —— 首页文字区的非黑像素（> 0：行数对而一个像素没落屏也拦得住）
+     *   turn  —— 真翻到第 2 页、第 2 页也见墨、再翻回首页。只读 pages 的话，
+     *            NEXT 按钮接不上、或者翻页后画的是同一页，全部照样绿
+     */
+    if ((apps > 12U) && (menu_enter_app(app_at(12U)) != 0)) {
+        app_ebook_info_t b1;
+        app_ebook_info_t b2;
+        int turn_ok = 0;
+
+        (void)memset(&b1, 0, sizeof(b1));
+        (void)memset(&b2, 0, sizeof(b2));
+        if (app_ebook_info(&b1) != 0) {
+            if (app_ebook_turn(1) == 0) {
+                (void)app_ebook_info(&b2);
+                if ((b2.ink > 0U) && (b2.page == (b1.page + 1U))) {
+                    turn_ok = 1;
+                }
+                (void)app_ebook_turn(-1); /* 回首页，留给后续段一个干净状态 */
+            }
+        }
+        if ((b1.pages >= 2U) && (b1.chars >= 200U) && (b1.ink > 0U) && (turn_ok != 0)) {
+            book_ok = 1;
+        }
+        /* p/c/ink1/ink2/page2/L/B/src：page2 是翻页后的页号（应为 1），
+         * 它大于 1 说明"页号没动"而不是"翻页后画空了"，两种故障分开看。 */
+        app_fmt_puts(&ft, " book=");
+        app_fmt_dec(&ft, (int)b1.pages);
+        app_fmt_puts(&ft, "/");
+        app_fmt_dec(&ft, (int)b1.chars);
+        app_fmt_puts(&ft, "/");
+        app_fmt_dec(&ft, (int)b1.ink);
+        app_fmt_puts(&ft, "/");
+        app_fmt_dec(&ft, (int)b2.ink);
+        app_fmt_puts(&ft, "/");
+        app_fmt_dec(&ft, (int)b2.page);
+        app_fmt_puts(&ft, "/");
+        app_fmt_dec(&ft, (int)b1.lines);
+        app_fmt_puts(&ft, "/");
+        app_fmt_dec(&ft, (int)b1.blank);
+        app_fmt_puts(&ft, ((b1.from_file != 0) ? "/f" : "/s"));
+        (void)menu_back();
+    } else {
+        app_fmt_puts(&ft, " book=-");
+    }
+
     depth = app_menu_depth();
     leave = app_menu_leave_count();    app_fmt_puts(&f, "apps=");
     app_fmt_dec(&f, (int)apps);
@@ -975,7 +1025,8 @@ static int app_menu_check(char *buf, unsigned cap)
             ((leave >= apps) && (depth == 0U)) &&
             (calc_ok != 0) && (set_flips == 2) && (pic_ok != 0) &&
             (note_ok != 0) && (cal_ok != 0) && (view_ok != 0) &&
-            (paint_ok != 0) && (imu_ok != 0) && (level_ok != 0) && (qr_ok != 0)) ? 1 : 0;
+            (paint_ok != 0) && (imu_ok != 0) && (level_ok != 0) && (qr_ok != 0) &&
+            (book_ok != 0)) ? 1 : 0;
 }
 
 /*

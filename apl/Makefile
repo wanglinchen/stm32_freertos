@@ -55,6 +55,13 @@ endif
 endif
 ifeq ($(CONFIG_APL),y)
 ifeq ($(CONFIG_APL_SRC),y)
+ifeq ($(CONFIG_APL_SRC_APP_EBOOK),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/apl/src/app_ebook.o
+endif
+endif
+endif
+ifeq ($(CONFIG_APL),y)
+ifeq ($(CONFIG_APL_SRC),y)
 ifeq ($(CONFIG_APL_SRC_APP_IMU),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/apl/src/app_imu.o
 endif

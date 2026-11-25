@@ -233,4 +233,32 @@ unsigned app_qr_dark(void);
  * 编码算对 ≠ 真的画到屏上。 */
 void app_qr_plate(int *x, int *y, int *w, int *h);
 
+/*
+ * P9e-1：电子书（`book`）。
+ *
+ * 参考工程的 ebook.c 是从 SD 卡读 txt；本工程 SDIO 还没做（§1.4 剩项），所以
+ * 文本源改走已挂载的 NOR 卷 0：扫根目录与一层子目录里的第一个 `.TXT`。找不到
+ * 就退回固件内置的 ASCII 样本文本，并让 `from_file` 如实报 0 —— POST 判的是
+ * "读 → 折行 → 分页 → 落屏"这条链，不是"那个文件还在不在"。
+ *
+ * `pages` / `chars` 是应用自己分页后留下的数，POST 不重新分一遍：重算会让
+ * "应用显示的那一份"和"判据那一份"变成两次计算（同 qr 的理由）。
+ */
+typedef struct {
+    uint32_t pages; /* 分页算出的总页数 */
+    uint32_t chars; /* 折行时逐字计出的字形个数 */
+    uint32_t lines; /* 折行后的总行数 */
+    uint32_t blank; /* 其中空行数 */
+    uint32_t page;  /* 当前页号（0 起） */
+    uint32_t ink;   /* 最近一次绘制后，文字区里数出的非窗口底色像素 */
+    int from_file;  /* 1 = 文本来自卷里的 txt；0 = 内置样本 */
+    int trunc;      /* 1 = 文件被 8 KB 缓冲截断 */
+} app_ebook_info_t;
+
+const app_desc_t *app_ebook_ops(void);
+/* 翻页（dir<0 上一页 / dir>0 下一页）：0 = 页面真的动了且已重画（到头返回 1）。 */
+int app_ebook_turn(int dir);
+/* 返回 0 = 应用本次没被进过（没 enter 过就没有可读的数）。 */
+int app_ebook_info(app_ebook_info_t *out);
+
 #endif
