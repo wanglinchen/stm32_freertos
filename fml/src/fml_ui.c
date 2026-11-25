@@ -18,6 +18,10 @@ static int s_pressed;
 static int s_press_btn = -1;
 static uint16_t s_press_id;
 static int s_hit_id = -1;
+/* 上一次喂进来的坐标。MOVE 只在"按下且坐标变了"时产 —— 静止的手指每 10 ms
+ * 被喂一次同样的坐标，不判变化就会以 100 个/秒灌满 8 深的队列。 */
+static int32_t s_last_x;
+static int32_t s_last_y;
 
 static void ui_push(fml_ui_evt_type_t type, uint16_t id, int32_t x, int32_t y)
 {
@@ -226,20 +230,30 @@ void fml_ui_feed(fml_ui_win_t *win, int32_t x, int32_t y, int pressed)
             if (idx >= 0) {
                 fml_ui_draw_btn(win, (unsigned)idx);
             }
+            s_last_x = x;
+            s_last_y = y;
             ui_push(FML_UI_EVT_DOWN, s_press_id, x, y);
-        } else if (idx != s_press_btn) {
-            /* 手指在按钮之间滑动：只换高亮，不产事件。抬起时若已滑出，就不会
-             * 出现 CLICK —— 与 PC 上"按下后拖走再松开"的语义一致。 */
-            int old = s_press_btn;
+        } else {
+            if (idx != s_press_btn) {
+                /* 手指在按钮之间滑动：换高亮。抬起时若已滑出，就不会出现
+                 * CLICK —— 与 PC 上"按下后拖走再松开"的语义一致。 */
+                int old = s_press_btn;
 
-            s_press_btn = idx;
-            s_press_id = (idx >= 0) ? win->btn[idx].id : 0U;
-            win->hot = idx;
-            if (old >= 0) {
-                fml_ui_draw_btn(win, (unsigned)old);
+                s_press_btn = idx;
+                s_press_id = (idx >= 0) ? win->btn[idx].id : 0U;
+                win->hot = idx;
+                if (old >= 0) {
+                    fml_ui_draw_btn(win, (unsigned)old);
+                }
+                if (idx >= 0) {
+                    fml_ui_draw_btn(win, (unsigned)idx);
+                }
             }
-            if (idx >= 0) {
-                fml_ui_draw_btn(win, (unsigned)idx);
+            /* 坐标动了才产 MOVE：画板的笔迹靠它，静止的手指不该刷新事件。 */
+            if ((x != s_last_x) || (y != s_last_y)) {
+                s_last_x = x;
+                s_last_y = y;
+                ui_push(FML_UI_EVT_MOVE, s_press_id, x, y);
             }
         }
         return;

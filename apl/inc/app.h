@@ -22,7 +22,7 @@
  * app_menu_dispatch 拦截它回桌面，应用自己的 event 收不到这个 id。
  */
 
-#define APP_COUNT_MAX 8U
+#define APP_COUNT_MAX 11U
 #define APP_ID_BACK 0xFFU
 
 /* 双击判定窗口：同一图标两次 CLICK 的间隔不超过这个毫秒数就算进入。
@@ -172,5 +172,31 @@ void app_calendar_now(int *y, int *m, int *d, int *hh, int *mm, int *ss);
 #define APP_NOTE_ID_NEXT 111U
 #define APP_NOTE_ID_ZERO 10U
 #define APP_NOTE_ID_DEL 11U
+
+/*
+ * P8b：绘画（`paint_play`）。画布不是按钮（命中返回 -1、事件 id = 0），笔迹
+ * 靠 `FML_UI_EVT_DOWN/MOVE/UP` 的坐标落点 —— 所以它的"画上了没有"只能看像素：
+ * POST 注入一段 DOWN→MOVE→UP 后读 `app_paint_ink()`，判它从 0 变成 > 0。
+ */
+const app_desc_t *app_paint_ops(void);
+/* 画布矩形（屏幕绝对坐标）。POST 用它做 `bsl_fb_count_nonbg(…, 0x0000)` ——
+ * 判的是"帧缓冲里真有笔迹"，而不是应用自己报的计数器：计数器即使在画之前
+ * 被 +1 也照样能通过，像素数骗不了人。 */
+void app_paint_canvas(int *x, int *y, int *w, int *h);
+
+/*
+ * P8c：陀螺仪与水平仪（`gyro_play` / `grad_play`）。
+ * 两个应用都把 `board_mpu9250_read` 的结果留在模块级 static 里，POST 直接取 —
+ * 不重读一次总线（重读会让"应用读到的那一份"和"POST 判的那一份"变成两次采样，
+ * 板子一晃就不一致）。
+ */
+const app_desc_t *app_imu_ops(void);
+/* 返回 1 = 这个 tick 真的读到了（0 表示 IMU 未 ready 或读失败）。 */
+int app_imu_sample(int16_t acc[3], int16_t gyr[3]);
+
+const app_desc_t *app_level_ops(void);
+/* 倾角，单位 0.1°（-900..900）。没有数学库，用 ax/az 的小角线性近似：
+ * dd ≈ (ax * 573) / |az|，量程内误差随角度增大而变大，只作"准星动了"的判据。 */
+int app_level_angle_dd(void);
 
 #endif

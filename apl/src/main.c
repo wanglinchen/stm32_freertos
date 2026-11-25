@@ -510,7 +510,11 @@ static int app_menu_check(char *buf, unsigned cap)
     /* pic / note / cal 三段的读数先攒进同一条尾巴串：它们是在各自的"进入应用"
      * 段落里算出来的，而输出顺序要按 apps→enter→…→depth 排。把 f 拿在那几段里
      * 直接写，字段就会跑到 apps 前面，读日志的人得来回找。 */
-    char tail_s[48];
+    /* 尾部字段串。P5c 时只有 pic/note/cal 三段、48 字节够；P8a 加 view、
+     * P8b 加 paint 之后已经超过 48 —— 放不下时 app_fmt_puts 直接截断，
+     * 结果是 `[post] menu` 那一行后半段消失、解析器读不到 depth（判 FAIL
+     * 却看不出为什么）。128 是"再多一两个字段也不用改"的余量，栈上 128 B。 */
+    char tail_s[128];
     app_fmt_t ft = APP_FMT_INIT(tail_s, (unsigned)sizeof(tail_s));
     const unsigned apps = app_count();
     const app_desc_t *first = app_at(0U);
@@ -522,6 +526,7 @@ static int app_menu_check(char *buf, unsigned cap)
     int pic_ok = 0;
     int note_ok = 0;
     int cal_ok = 0;
+    int paint_ok = 0;
     int view_ok = 1;
     uint32_t vw_p = 0U;
     uint32_t vh_p = 0U;
@@ -708,10 +713,49 @@ static int app_menu_check(char *buf, unsigned cap)
         app_fmt_puts(&ft, " cal=-");
     }
 
-    depth = app_menu_depth();
-    leave = app_menu_leave_count();
+    /* 绘画（第 9 项）：往画布注入一条 DOWN → MOVE → MOVE → UP 的斜线，
+     * 然后**在帧缓冲里数非黑像素**。判"应用自己记的笔数"是不够的：计数器
+     * 即使在画之前 +1 也照样 PASS，而像素数为 0 说明笔迹根本没落到屏上
+     * （坐标越界、颜色等于底色、被窗口重绘盖掉，都长这样）。 */
+    if ((apps > 8U) && (menu_enter_app(app_at(8U)) != 0)) {
+        int cx = 0;
+        int cy = 0;
+        int cw = 0;
+        int ch = 0;
+        fml_ui_evt_t pev;
+        uint32_t inked;
 
-    app_fmt_puts(&f, "apps=");
+        app_paint_canvas(&cx, &cy, &cw, &ch);
+        pev.type = FML_UI_EVT_DOWN;
+        pev.id = 0U;
+        pev.x = cx + 8;
+        pev.y = cy + 8;
+        (void)app_menu_dispatch(&pev);
+        pev.type = FML_UI_EVT_MOVE;
+        pev.x = cx + (cw / 2);
+        pev.y = cy + (ch / 2);
+        (void)app_menu_dispatch(&pev);
+        pev.type = FML_UI_EVT_MOVE;
+        pev.x = cx + cw - 8;
+        pev.y = cy + ch - 8;
+        (void)app_menu_dispatch(&pev);
+        pev.type = FML_UI_EVT_UP;
+        (void)app_menu_dispatch(&pev);
+        /* 去掉 1 像素边框：边框与画布底色不同，混进判据会让"一笔没画"也 > 0。 */
+        inked = bsl_fb_count_nonbg((uint32_t)(cx + 1), (uint32_t)(cy + 1),
+                                   (uint32_t)(cw - 2), (uint32_t)(ch - 2), 0x0000U);
+        if (inked > 0U) {
+            paint_ok = 1;
+        }
+        app_fmt_puts(&ft, " paint=");
+        app_fmt_dec(&ft, (int)inked);
+        (void)menu_back();
+    } else {
+        app_fmt_puts(&ft, " paint=-");
+    }
+
+    depth = app_menu_depth();
+    leave = app_menu_leave_count();    app_fmt_puts(&f, "apps=");
     app_fmt_dec(&f, (int)apps);
     app_fmt_puts(&f, " enter=");
     app_fmt_dec(&f, enter);
@@ -755,7 +799,8 @@ static int app_menu_check(char *buf, unsigned cap)
     return (((enter != 0) && (back != 0)) &&
             ((leave >= apps) && (depth == 0U)) &&
             (calc_ok != 0) && (set_flips == 2) && (pic_ok != 0) &&
-            (note_ok != 0) && (cal_ok != 0) && (view_ok != 0)) ? 1 : 0;
+            (note_ok != 0) && (cal_ok != 0) && (view_ok != 0) &&
+            (paint_ok != 0)) ? 1 : 0;
 }
 
 /*

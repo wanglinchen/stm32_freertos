@@ -37,12 +37,18 @@
 #define FML_UI_BTN_MAX 20U
 #define FML_UI_EVT_MAX 8U
 
-/* 事件类型。id 为 0 表示"没命中任何按钮"：DOWN/UP 照常产生，但 CLICK 不会。 */
+/* 事件类型。id 为 0 表示"没命中任何按钮"：DOWN/UP/MOVE 照常产生，但 CLICK 不会。
+ *
+ * MOVE（P8b 起）：**按下期间坐标发生变化**才产，静止与抬起不产。加它是因为
+ * 1→1 原来只换高亮、不产事件 —— 于是"画板""滑动条"这类要连续坐标的应用
+ * 在事件模型里根本没有输入。id 仍是按下时命中的那个按钮（画布不是按钮，
+ * 所以是 0），坐标是屏幕绝对坐标。 */
 typedef enum {
     FML_UI_EVT_NONE = 0,
     FML_UI_EVT_DOWN = 1,
     FML_UI_EVT_UP = 2,
-    FML_UI_EVT_CLICK = 3
+    FML_UI_EVT_CLICK = 3,
+    FML_UI_EVT_MOVE = 4
 } fml_ui_evt_type_t;
 
 typedef struct {
@@ -103,7 +109,8 @@ void fml_ui_draw(const fml_ui_win_t *win);
 
 /* 喂一个触点。pressed != 0 表示按下。边沿语义：
  *   0→1：记下按在哪个按钮，高亮它，产 DOWN（id = 命中按钮 id 或 0）
- *   1→1：手指在按钮间滑动时只换高亮，不产事件（拖动留给 P5）
+ *   1→1：手指在按钮间滑动时换高亮；**坐标若发生变化再产 MOVE**（P8b 起，
+ *        给画板这类需要连续坐标的应用；坐标没变就不产，静止的手指不该刷事件）
  *   1→0：产 UP；抬起时高亮仍落在某个按钮上就再产 CLICK（id = 该按钮 id）。
  *        **抬起帧不重算命中**：总线上此刻没有触点，坐标是上一帧残值，拿它
  *        重算会把正常点击判成"滑出"。滑动检测在按下期间逐帧做，抬手只认结果。

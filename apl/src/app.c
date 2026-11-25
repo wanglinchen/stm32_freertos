@@ -47,6 +47,7 @@ static void app_table_build(void)
     s_apps[s_apps_count++] = app_picviewer_ops();
     s_apps[s_apps_count++] = app_notepad_ops();
     s_apps[s_apps_count++] = app_calendar_ops();
+    s_apps[s_apps_count++] = app_paint_ops();
     /* 防御：ops() 返回 NULL 说明该应用没装好。就地压缩、不留空槽 ——
      * 空槽会让桌面图标数与 POST 的 apps 计数对不上。 */
     i = 0U;
@@ -179,32 +180,60 @@ static void desktop_draw(const char *status)
 }
 
 /*
- * 桌面布局：4 列固定，行数按条目数算；图标整体水平居中。
- * 只画一次（app_menu_init），进入应用回来时重画。
+ * 桌面布局：列数与图标宽都按"条目数 + 屏尺寸"算，不写死。
+ *
+ * 演进事实：P5a 时 3 个图标、P5c 8 个、P8b 起 9~11 个。800×480 横屏时 4 列
+ * 正好铺满；换成 480×800 竖屏后 4 列 × 160 = 688 会把 origin_x 变成负（无符号
+ * 下溢，图标全落屏外，P7 实测 `ink=0 hit=6/8`）。竖屏 11 个图标若还按 160 宽
+ * 排 2 列，需要 6 行 × 136 = 816 > 800，底部图标被裁 —— 所以列数要往上取。
+ *
+ * 规则：从 `APP_ICON_MAX_COLS` 往下试，取**第一个同时满足**"图标宽 ≥ 120
+ * （再窄标签就放不下）且整表高度（含起始 120 与行间距）≤ 屏高"的列数；
+ * 都不满足时退回 1 列（宁可窄，不可裁）。
  */
 static void desktop_build(void)
 {
     const uint32_t width = board_lcd_width();
-    const uint32_t pitch = APP_ICON_W + APP_ICON_GAP;
-    /* 列数按屏宽算，并夹在 [1, APP_ICON_MAX_COLS]：竖屏 480 宽 → 2 列，
-     * 横屏 800 宽 → 4 列。先夹再算 total_w，否则夹小之后 origin_x 还会按
-     * 未夹的列数算，仍然是负的。 */
-    uint32_t cols = (width + APP_ICON_GAP) / pitch;
+    const uint32_t height = board_lcd_height();
+    const uint32_t n = app_count();
+    const uint32_t origin_y = 120U;
+    uint32_t cols = 1U;
+    uint32_t icon_w = APP_ICON_W;
+    uint32_t pitch;
     uint32_t total_w;
     uint32_t origin_x;
-    const uint32_t origin_y = 120U;
     unsigned i;
 
-    if (cols == 0U) {
-        cols = 1U;
+    for (i = APP_ICON_MAX_COLS; i >= 1U; i--) {
+        uint32_t cw;
+        uint32_t rows;
+        uint32_t need_h;
+
+        if (i > 1U) {
+            /* 左右各留一个间隙，列间也留一个：i 列共 i+1 个间隙。 */
+            cw = (width - ((i + 1U) * APP_ICON_GAP)) / i;
+        } else {
+            cw = APP_ICON_W;
+        }
+        if (cw > APP_ICON_W) {
+            cw = APP_ICON_W;
+        }
+        if (cw < 120U) {
+            continue;
+        }
+        rows = ((n + i - 1U) / i);
+        need_h = origin_y + (rows * APP_ICON_H) + ((rows - 1U) * APP_ICON_GAP);
+        if ((rows > 0U) && (need_h <= height)) {
+            cols = i;
+            icon_w = cw;
+            break;
+        }
     }
-    if (cols > APP_ICON_MAX_COLS) {
-        cols = APP_ICON_MAX_COLS;
-    }
-    total_w = (cols * APP_ICON_W) + ((cols - 1U) * APP_ICON_GAP);
+    pitch = icon_w + APP_ICON_GAP;
+    total_w = (cols * icon_w) + ((cols - 1U) * APP_ICON_GAP);
     origin_x = (width > total_w) ? ((width - total_w) / 2U) : 0U;
-    fml_ui_win_init(&s_desktop, 0U, 0U, width, board_lcd_height(), MENU_TITLE);
-    for (i = 0U; i < app_count(); i++) {
+    fml_ui_win_init(&s_desktop, 0U, 0U, width, height, MENU_TITLE);
+    for (i = 0U; i < n; i++) {
         const app_desc_t *app = app_at(i);
         const uint32_t col = i % cols;
         const uint32_t row = i / cols;
@@ -212,7 +241,7 @@ static void desktop_build(void)
         (void)fml_ui_btn_add(&s_desktop, app->id, app->name,
                              origin_x + (col * pitch),
                              origin_y + (row * (APP_ICON_H + APP_ICON_GAP)),
-                             APP_ICON_W, APP_ICON_H);
+                             icon_w, APP_ICON_H);
     }
 }
 
@@ -233,7 +262,22 @@ int app_menu_dispatch(const fml_ui_evt_t *ev)
     const app_desc_t *app;
     osl_tick_t now;
 
-    if ((ev == NULL) || (ev->type != FML_UI_EVT_CLICK)) {
+    if (ev == NULL) {
+        return APP_ACTION_NONE;
+    }
+    if (ev->type != FML_UI_EVT_CLICK) {
+        /* 非 CLICK（DOWN / MOVE / UP）不参与桌面状态机：桌面只认"点了哪个图标"，
+         * 按下未抬起不该选中任何东西。应用内则原样转给它的 event —— P8b 的
+         * 画板就是靠这条路径拿到 DOWN/MOVE 的连续坐标，否则 MOVE 永远到不了
+         * 应用（原来这里一律 return，等于把拖动吞掉）。 */
+        if (s_current == 0U) {
+            return APP_ACTION_NONE;
+        }
+        app = app_find(s_current);
+        if ((app != NULL) && (app->event != NULL)) {
+            app->event(ev);
+            return APP_ACTION_APP;
+        }
         return APP_ACTION_NONE;
     }
 
