@@ -2,6 +2,7 @@
 
 #include <string.h>
 
+#include "board_lcd.h"
 #include "bsl_log.h"
 #include "fml_font.h"
 #include "fml_gui.h"
@@ -28,10 +29,8 @@
  * 再多两个候选就得扩上限，而每扩一次所有窗口都跟着涨 bss（§4 P5b 行的账）。
  */
 #define NOTE_LOG_MOD "app_notepad"
-#define NOTE_WIN_W 800U
-#define NOTE_WIN_H 480U
 #define NOTE_TEXT_MAX 64U    /* 字节；一个汉字 2 字节，即最多 32 字 */
-#define NOTE_CAND_PAGE 5U
+/* 候选条一页几个由屏宽决定（note_enter 算），上限 5。 */
 
 #define NOTE_CAND_W 112U
 #define NOTE_CAND_H 44U
@@ -42,11 +41,16 @@
 #define NOTE_KEY_W 96U
 #define NOTE_KEY_H 48U
 #define NOTE_KEY_GAP 8U
-#define NOTE_KEY_X0 ((NOTE_WIN_W - (3U * NOTE_KEY_W + 2U * NOTE_KEY_GAP)) / 2U)
+/* 键盘起始 x 也由屏宽决定（note_enter 算）。 */
 #define NOTE_KEY_Y0 244U
 
 static fml_ui_win_t s_win;
 static int s_built;
+/* 候选条一页几个、键盘起始 x：都由屏宽算（note_enter），不再按 800 写死。 */
+static unsigned s_page_size;
+static uint32_t s_cand_pitch;
+static uint32_t s_cand_w;
+static uint32_t s_key_x0;
 static char s_text[NOTE_TEXT_MAX + 1U];
 static unsigned s_len;
 static char s_digits[FML_T9_MAX_DIGITS + 1U];
@@ -133,8 +137,8 @@ static void note_draw(void)
 
     /* 候选条：按钮底色已由 fml_ui_draw 画好（label 为 NULL 时只填底色），
      * 这里把 GBK 汉字叠上去。GBK 不能用 fml_ui 的 ASCII 标签画。 */
-    for (i = 0U; i < NOTE_CAND_PAGE; i++) {
-        const uint16_t code = note_cand_at(s_page * NOTE_CAND_PAGE + i);
+    for (i = 0U; i < s_page_size; i++) {
+        const uint16_t code = note_cand_at(s_page * s_page_size + i);
 
         if (code == 0U) {
             break;
@@ -145,7 +149,7 @@ static void note_draw(void)
             buf[0] = (char)(code >> 8);
             buf[1] = (char)(code & 0xFFU);
             buf[2] = '\0';
-            fml_gui_text_gbk(s_win.x + NOTE_CAND_X0 + i * (NOTE_CAND_W + NOTE_CAND_GAP),
+            fml_gui_text_gbk(s_win.x + NOTE_CAND_X0 + i * s_cand_pitch,
                              s_win.y + NOTE_CAND_Y + 12U, buf, s_win.btn_fg,
                              s_win.btn_bg);
         }
@@ -167,21 +171,40 @@ static void note_enter(void)
             "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "DEL"
         };
         unsigned i;
+        const uint32_t w = board_lcd_width();
+        const uint32_t h = board_lcd_height();
+        const uint32_t key_total = 3U * NOTE_KEY_W + 2U * NOTE_KEY_GAP;
+        uint32_t pitch;
+        uint32_t gap;
 
-        fml_ui_win_init(&s_win, 0U, 0U, NOTE_WIN_W, NOTE_WIN_H,
+        /* 一页固定 5 个候选（分页语义不随屏变，POST 的 note 判据按
+         * "翻一页 + 第 3 格"定位"中"，改页大小等于改判据）。所以竖屏上不是
+         * 少放几个，而是把每个候选格子压窄：箭头占 40、右留 4，
+         * 480 宽下 pitch=(480-56-44)/5=76 ⇒ 格宽 72、间隔 4。 */
+        s_page_size = 5U;
+        pitch = (w - NOTE_CAND_X0 - 44U) / 5U;
+        if (pitch > (NOTE_CAND_W + NOTE_CAND_GAP)) {
+            pitch = NOTE_CAND_W + NOTE_CAND_GAP;
+        }
+        gap = (pitch >= (NOTE_CAND_W + NOTE_CAND_GAP)) ? NOTE_CAND_GAP : 4U;
+        s_cand_pitch = pitch;
+        s_cand_w = (pitch > gap) ? (pitch - gap) : pitch;
+        s_key_x0 = (w > key_total) ? ((w - key_total) / 2U) : 0U;
+
+        fml_ui_win_init(&s_win, 0U, 0U, w, h,
                         "NOTEPAD - 9-key pinyin, BACK to leave");
-        (void)fml_ui_btn_add(&s_win, APP_ID_BACK, "BACK", NOTE_WIN_W - 96U, 8U, 80U, 32U);
+        (void)fml_ui_btn_add(&s_win, APP_ID_BACK, "BACK", w - 96U, 8U, 80U, 32U);
 
-        for (i = 0U; i < NOTE_CAND_PAGE; i++) {
+        for (i = 0U; i < s_page_size; i++) {
             (void)fml_ui_btn_add(&s_win, (uint16_t)(NOTE_ID_CAND0 + i), NULL,
-                                 NOTE_CAND_X0 + i * (NOTE_CAND_W + NOTE_CAND_GAP),
-                                 NOTE_CAND_Y, NOTE_CAND_W, NOTE_CAND_H);
+                                 NOTE_CAND_X0 + i * s_cand_pitch,
+                                 NOTE_CAND_Y, s_cand_w, NOTE_CAND_H);
         }
         (void)fml_ui_btn_add(&s_win, NOTE_ID_PREV, "<",
-                             NOTE_CAND_X0 + NOTE_CAND_PAGE * (NOTE_CAND_W + NOTE_CAND_GAP),
+                             NOTE_CAND_X0 + s_page_size * s_cand_pitch,
                              NOTE_CAND_Y, 40U, NOTE_CAND_H);
         (void)fml_ui_btn_add(&s_win, NOTE_ID_NEXT, ">",
-                             NOTE_CAND_X0 + NOTE_CAND_PAGE * (NOTE_CAND_W + NOTE_CAND_GAP),
+                             NOTE_CAND_X0 + s_page_size * s_cand_pitch,
                              NOTE_CAND_Y + NOTE_CAND_H + NOTE_CAND_GAP, 40U, NOTE_CAND_H);
 
         /* 11 个数字键：前三行 1..9，第四行 DEL / 0 / 空。 */
@@ -195,7 +218,7 @@ static void note_enter(void)
                 continue;   /* 第三格留给 spacer，不建按钮 */
             }
             (void)fml_ui_btn_add(&s_win, id, key_label[i],
-                                 NOTE_KEY_X0 + col * (NOTE_KEY_W + NOTE_KEY_GAP),
+                                 s_key_x0 + col * (NOTE_KEY_W + NOTE_KEY_GAP),
                                  NOTE_KEY_Y0 + row * (NOTE_KEY_H + NOTE_KEY_GAP),
                                  NOTE_KEY_W, NOTE_KEY_H);
         }
@@ -261,8 +284,8 @@ static void note_event(const fml_ui_evt_t *ev)
         note_refresh();
         return;
     }
-    if ((ev->id >= NOTE_ID_CAND0) && (ev->id < (NOTE_ID_CAND0 + NOTE_CAND_PAGE))) {
-        const unsigned idx = s_page * NOTE_CAND_PAGE + (unsigned)(ev->id - NOTE_ID_CAND0);
+    if ((ev->id >= NOTE_ID_CAND0) && (ev->id < (NOTE_ID_CAND0 + s_page_size))) {
+        const unsigned idx = s_page * s_page_size + (unsigned)(ev->id - NOTE_ID_CAND0);
 
         if (note_insert_han(note_cand_at(idx)) != 0) {
             s_ndigits = 0U;
@@ -272,7 +295,7 @@ static void note_event(const fml_ui_evt_t *ev)
         return;
     }
     if ((ev->id == NOTE_ID_PREV) || (ev->id == NOTE_ID_NEXT)) {
-        const unsigned pages = (s_ntotal + NOTE_CAND_PAGE - 1U) / NOTE_CAND_PAGE;
+        const unsigned pages = (s_ntotal + s_page_size - 1U) / s_page_size;
 
         if (pages == 0U) {
             return;

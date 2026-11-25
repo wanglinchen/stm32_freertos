@@ -448,6 +448,29 @@ static int menu_back(void)
     return (app_menu_dispatch(&ev) == APP_ACTION_BACK) ? 1 : 0;
 }
 
+/* 应用窗口是否整块落在屏幕上。
+ *
+ * 这三个应用（看图 / 记事本 / 日历）的窗口尺寸原来写死 800×480，P8a 改成按屏取。
+ * 写死的后果在 480×800 竖屏上是"右侧 320 像素连同 BACK 按钮一起没了"，而窗口
+ * 本身照样建得出来、按钮照样点得动 —— 光判 "进来 / 退出" 一个都发现不了。
+ * 所以把窗口宽高与 board_lcd_width()/height() 逐项对拍，并把实测值打进串口：
+ * 判据失败时能当场看出是宽不对、高不对，还是两个都不对。 */
+static int menu_win_full(const app_desc_t *app, uint32_t *w, uint32_t *h)
+{
+    fml_ui_win_t *win;
+
+    if ((app == NULL) || (app->win == NULL)) {
+        return 0;
+    }
+    win = app->win();
+    if (win == NULL) {
+        return 0;
+    }
+    *w = win->w;
+    *h = win->h;
+    return ((win->w == board_lcd_width()) && (win->h == board_lcd_height())) ? 1 : 0;
+}
+
 /* 在当前应用的窗口里按标签点一次。返回 1 = 事件确实转交给了应用。 */
 static int menu_click_label(const char *label)
 {
@@ -499,6 +522,13 @@ static int app_menu_check(char *buf, unsigned cap)
     int pic_ok = 0;
     int note_ok = 0;
     int cal_ok = 0;
+    int view_ok = 1;
+    uint32_t vw_p = 0U;
+    uint32_t vh_p = 0U;
+    uint32_t vw_n = 0U;
+    uint32_t vh_n = 0U;
+    uint32_t vw_c = 0U;
+    uint32_t vh_c = 0U;
     unsigned leave;
     unsigned depth;
     unsigned i;
@@ -559,6 +589,10 @@ static int app_menu_check(char *buf, unsigned cap)
         uint32_t ink = 0U;
         fml_picture_info_t pi;
 
+        if (menu_win_full(app_at(5U), &vw_p, &vh_p) == 0) {
+            view_ok = 0;
+        }
+
         if ((app_picviewer_stat(&pw, &ph, &pbpp, &ink) != 0) && (ink > 0U) &&
             (fml_picture_info(app_picviewer_path(), &pi) == BSL_OK)) {
             const uint16_t b = pi.bpp;
@@ -597,6 +631,10 @@ static int app_menu_check(char *buf, unsigned cap)
         unsigned cand;
         const char *t;
         unsigned len;
+
+        if (menu_win_full(app_at(6U), &vw_n, &vh_n) == 0) {
+            view_ok = 0;
+        }
 
         (void)menu_click_label("9");
         (void)menu_click_label("4");
@@ -646,6 +684,9 @@ static int app_menu_check(char *buf, unsigned cap)
         int cmm = 0;
         int css = 0;
 
+        if (menu_win_full(app_at(7U), &vw_c, &vh_c) == 0) {
+            view_ok = 0;
+        }
         app_calendar_now(&cy, &cm, &cd, &chh, &cmm, &css);
         if ((cy >= 2020) && (cy <= 2200) && (cm >= 1) && (cm <= 12) && (cd >= 1) &&
             (cd <= 31) && (chh >= 0) && (chh < 24) && (cmm >= 0) && (cmm < 60) &&
@@ -689,6 +730,21 @@ static int app_menu_check(char *buf, unsigned cap)
      * （P5b 踩过）。 */
     app_fmt_puts(&f, " ");
     app_fmt_puts(&f, tail_s);
+    /* 三个应用窗口的实测尺寸，按 看图/记事本/日历 的顺序打。三者都必须等于
+     * 屏尺寸：P8a 之前它们写死 800×480，竖屏下窗口比屏宽 320 像素，
+     * 右半边（含 BACK）直接落在屏外 —— 而 enter/back/leave 三项照样全绿。 */
+    app_fmt_puts(&f, " view=");
+    app_fmt_dec(&f, (int)vw_p);
+    app_fmt_puts(&f, "x");
+    app_fmt_dec(&f, (int)vh_p);
+    app_fmt_puts(&f, "/");
+    app_fmt_dec(&f, (int)vw_n);
+    app_fmt_puts(&f, "x");
+    app_fmt_dec(&f, (int)vh_n);
+    app_fmt_puts(&f, "/");
+    app_fmt_dec(&f, (int)vw_c);
+    app_fmt_puts(&f, "x");
+    app_fmt_dec(&f, (int)vh_c);
     app_fmt_puts(&f, " depth=");
     app_fmt_dec(&f, (int)depth);
     /* leave 必须等于 apps：POST 把每个应用都走了一遍，每次 BACK 都该经过
@@ -699,7 +755,7 @@ static int app_menu_check(char *buf, unsigned cap)
     return (((enter != 0) && (back != 0)) &&
             ((leave >= apps) && (depth == 0U)) &&
             (calc_ok != 0) && (set_flips == 2) && (pic_ok != 0) &&
-            (note_ok != 0) && (cal_ok != 0)) ? 1 : 0;
+            (note_ok != 0) && (cal_ok != 0) && (view_ok != 0)) ? 1 : 0;
 }
 
 /*

@@ -24,8 +24,9 @@
  */
 #define PIC_LOG_MOD "app_picviewer"
 #define PIC_PATH_MAX 96U
-#define PIC_WIN_W 800U
-#define PIC_WIN_H 480U
+/* 窗口尺寸按屏取：写死 800×480 在 480×800 竖屏上会多出 320 像素宽，
+ * 图片居中用的是 board_lcd_width()，窗口却按 800 建 —— 两者一漂移，
+ * 命中区域就和画出来的图对不上。 */
 #define PIC_BACK_W 96U
 #define PIC_BACK_H 40U
 
@@ -164,7 +165,7 @@ static void pic_enter(void)
     fml_picture_info_t info;
 
     if (s_built == 0) {
-        fml_ui_win_init(&s_win, 0U, 0U, PIC_WIN_W, PIC_WIN_H,
+        fml_ui_win_init(&s_win, 0U, 0U, board_lcd_width(), board_lcd_height(),
                         "PIC - BMP 1:1 view, BACK to leave");
         (void)fml_ui_btn_add(&s_win, APP_ID_BACK, "BACK", 16U, 16U, PIC_BACK_W,
                              PIC_BACK_H);

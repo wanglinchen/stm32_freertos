@@ -2,6 +2,7 @@
 
 #include <string.h>
 
+#include "board_lcd.h"
 #include "bsl_log.h"
 #include "fml_font.h"
 #include "fml_gui.h"
@@ -22,16 +23,21 @@
  * 虽然不是本项目会活到的年份，但错法很难被测试发现。
  */
 #define CAL_LOG_MOD "app_calendar"
-#define CAL_WIN_W 800U
-#define CAL_WIN_H 480U
+/* 窗口尺寸按屏取（原来写死的 800×480 已删）：竖屏 480×800 下 800 宽的窗口
+ * 会被裁掉右侧 320 像素，BACK 按钮与周日那一列一起消失。 */
 #define CAL_CELL_W 40U
 #define CAL_CELL_H 32U
-#define CAL_GRID_X 240U
+/* 日历网格的起始 x 不再写死 240：800×480 时 240+7×40=520 刚好在右侧，
+ * 换到 480 宽竖屏后同样的 240 会把周五到周日的格子推出屏外（整列消失且没有任何
+ * 报错）。改成按屏宽居中，见 calendar_enter 的 s_grid_x。 */
 #define CAL_GRID_Y 140U
 #define CAL_ID_PREV 1U
 #define CAL_ID_NEXT 2U
 
 static fml_ui_win_t s_win;
+static uint32_t s_win_w;
+static uint32_t s_win_h;
+static uint32_t s_grid_x;
 static int s_built;
 static int s_month_shift;   /* 相对"当前月"的偏移：0 = 本月，-1 = 上月 */
 static int s_last_sec = -1;
@@ -255,17 +261,17 @@ static void cal_draw(void)
     buf[5] = (char)('0' + (vm / 10) % 10);
     buf[6] = (char)('0' + vm % 10);
     buf[7] = '\0';
-    fml_gui_text(s_win.x + CAL_GRID_X, s_win.y + 110U, buf, font, s_win.fg, s_win.bg);
+    fml_gui_text(s_win.x +  s_grid_x, s_win.y + 110U, buf, font, s_win.fg, s_win.bg);
 
     for (i = 0U; i < 7U; i++) {
         static const char *const wd[7] = {"S", "M", "T", "W", "T", "F", "S"};
 
-        fml_gui_text(s_win.x + CAL_GRID_X + i * CAL_CELL_W, s_win.y + CAL_GRID_Y - 20U,
+        fml_gui_text(s_win.x +  s_grid_x + i * CAL_CELL_W, s_win.y + CAL_GRID_Y - 20U,
                      wd[i], font, s_win.fg, s_win.bg);
     }
     for (i = 0U; i < (unsigned)ndays; i++) {
         const unsigned cell = (unsigned)first_wd + i;
-        const unsigned cx = s_win.x + CAL_GRID_X + (cell % 7U) * CAL_CELL_W;
+        const unsigned cx = s_win.x +  s_grid_x + (cell % 7U) * CAL_CELL_W;
         const unsigned cy = s_win.y + CAL_GRID_Y + (cell / 7U) * CAL_CELL_H;
         const int daynum = (int)i + 1;
         const uint8_t is_today = ((s_month_shift == 0) && (daynum == d)) ? 1U : 0U;
@@ -287,11 +293,14 @@ static void cal_draw(void)
 static void cal_enter(void)
 {
     if (s_built == 0) {
-        fml_ui_win_init(&s_win, 0U, 0U, CAL_WIN_W, CAL_WIN_H,
+        s_win_w = board_lcd_width();
+        s_win_h = board_lcd_height();
+        s_grid_x = (s_win_w > (7U * CAL_CELL_W)) ? ((s_win_w - (7U * CAL_CELL_W)) / 2U) : 0U;
+        fml_ui_win_init(&s_win, 0U, 0U, s_win_w, s_win_h,
                         "CALENDAR - tick from build time");
-        (void)fml_ui_btn_add(&s_win, APP_ID_BACK, "BACK", CAL_WIN_W - 96U, 8U, 80U, 32U);
-        (void)fml_ui_btn_add(&s_win, CAL_ID_PREV, "<", CAL_GRID_X - 56U, 104U, 40U, 28U);
-        (void)fml_ui_btn_add(&s_win, CAL_ID_NEXT, ">", CAL_GRID_X + 300U, 104U, 40U, 28U);
+        (void)fml_ui_btn_add(&s_win, APP_ID_BACK, "BACK", s_win_w - 96U, 8U, 80U, 32U);
+        (void)fml_ui_btn_add(&s_win, CAL_ID_PREV, "<", s_grid_x - 56U, 104U, 40U, 28U);
+        (void)fml_ui_btn_add(&s_win, CAL_ID_NEXT, ">", s_grid_x + 300U, 104U, 40U, 28U);
         s_built = 1;
     }
     s_last_sec = -1;
