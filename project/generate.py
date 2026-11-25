@@ -1220,6 +1220,24 @@ _BOARD_NODES = """\
         instance = <2>;
         stream = <0>;
     };
+    /* PWM（P9c-2）：TIM3_CH2 → PB5 驱动 LCD 背光。
+     * 与面板的 backlight-gpios 是同一根脚，归属由 board_rt_pwm_is_backlight()
+     * 判定（两边都从 DTB 比，不在代码里假设）；pwm 节点在就绪后接管背光。
+     * frequency 是目标值，PSC/ARR 由驱动按 APB1 定时器时钟（84 MHz）现算。 */
+    pwm: pwm {
+        compatible = "brd,pwm";
+        pwm-pins = <&gpiob 0x0020 2>;
+        timer = "tim3";
+        channel = <2>;
+        frequency = <1000>;
+    };
+    /* EXTI（P9c-2）：EXTI0 ← PA0（WK_UP）。
+     * gpios 口径：第二个 cell 是脚号（不是掩码），总线上线号 = 脚号。 */
+    exti: exti {
+        compatible = "brd,exti";
+        exti-gpios = <&gpioa 0 0>;
+        trigger = "rising";
+    };
     nand: nand@80000000 {
         compatible = "brd,nand";
         reg = <0x80000000 0x00080000>;

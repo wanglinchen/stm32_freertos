@@ -943,6 +943,102 @@ static void post_dma(void)
     post_end((rc == BSL_OK && ok == 256U) ? 1 : 0);
 }
 
+/*
+ * PWM（P9c-2）：TIM3_CH2 / PB5 驱动背光。
+ * 判据：DTS 目标频率与**实测**频率相差 ≤3%，且占空比设 50% 后回读 500‰。
+ * 实测频率是这样拿到的：驱动数 20 个 CC2IF（硬件在 CNT 真走到 CCR 时置位），
+ * 窗口用 DWT->CYCCNT 计时 —— 只把 PSC/ARR 抄回来重算，判不出"定时器到底跑没跑"。
+ * 打完把占空比放回 100%：背光必须保持全亮，不能因为自检把屏调暗。
+ */
+static void post_pwm(void)
+{
+    const bsl_pwm_api_t *api = bsl_devapi_pwm();
+    uint32_t want;
+    uint32_t meas = 0U;
+    uint32_t duty;
+    uint32_t diff;
+    uint32_t psc = 0U;
+    uint32_t arr = 0U;
+    uint32_t ccr = 0U;
+
+    if (bsl_device_is_ready(BSL_DEV_PWM) == 0) {
+        post_begin("pwm dev=not-ready");
+        post_end(0);
+        return;
+    }
+    want = api->frequency();
+    if (api->set_duty(500U) != BSL_OK || api->measure_freq(&meas) != BSL_OK) {
+        post_begin("pwm cfg=bad");
+        post_end(0);
+        (void)api->set_duty(1000U);
+        return;
+    }
+    duty = api->duty();
+    api->timing(&psc, &arr, &ccr);
+    (void)api->set_duty(1000U);
+    diff = (meas > want) ? (meas - want) : (want - meas);
+    post_begin("pwm f=");
+    bsl_log_put_dec((int)want);
+    BSL_LOG_INF(" meas=");
+    bsl_log_put_dec((int)meas);
+    BSL_LOG_INF(" clk=");
+    bsl_log_put_dec((int)(api->clock_hz() / 1000U));
+    BSL_LOG_INF("k psc=");
+    bsl_log_put_dec((int)psc);
+    BSL_LOG_INF(" arr=");
+    bsl_log_put_dec((int)arr);
+    BSL_LOG_INF(" ccr=");
+    bsl_log_put_dec((int)ccr);
+    BSL_LOG_INF(" duty=");
+    bsl_log_put_dec((int)duty);
+    post_end((want != 0U && meas != 0U
+              && (diff * 100U) <= (want * 3U)
+              && duty >= 490U && duty <= 510U) ? 1 : 0);
+}
+
+/*
+ * EXTI（P9c-2）：EXTI0 ← PA0。
+ * 两段激励分开报数，哪一段断了一眼看得出：
+ *   pin=：把 PA0 临时改成推挽输出打 2 个高脉冲 —— 走的是真引脚与真 EXTI 线；
+ *   sw= ：EXTI->SWIER0 软件置挂起 2 次 —— 只验"PR → NVIC → ISR"后半段。
+ * 两段都要求 ISR 计数与打进去的边沿数相等，且最后 PR 已清。
+ */
+static void post_exti(void)
+{
+    static const char *const src_name[5] = { "A", "B", "C", "D", "E" };
+    const bsl_exti_api_t *api = bsl_devapi_exti();
+    unsigned line = 0U;
+    unsigned src = 0U;
+    int rising = 1;
+    unsigned pin_edges;
+    unsigned sw_edges;
+    unsigned pend;
+
+    if (bsl_device_is_ready(BSL_DEV_EXTI) == 0) {
+        post_begin("exti dev=not-ready");
+        post_end(0);
+        return;
+    }
+    api->info(&line, &src, &rising);
+    api->clear();
+    pin_edges = api->pulse_pin(2U);
+    api->clear();
+    sw_edges = api->trigger_sw(2U);
+    pend = api->pending();
+
+    post_begin("exti line=");
+    bsl_log_put_dec((int)line);
+    BSL_LOG_INF(" src=");
+    BSL_LOG_INF((src < 5U) ? src_name[src] : "?");
+    BSL_LOG_INF((rising != 0) ? " edge=r pin=" : " edge=f pin=");
+    bsl_log_put_dec((int)pin_edges);
+    BSL_LOG_INF("/2 sw=");
+    bsl_log_put_dec((int)sw_edges);
+    BSL_LOG_INF("/2 pr=");
+    bsl_log_put_dec((int)pend);
+    post_end((pin_edges == 2U && sw_edges == 2U && pend == 0U) ? 1 : 0);
+}
+
 void board_post_run(void)
 {
     s_total = 0U;
@@ -955,6 +1051,8 @@ void board_post_run(void)
     post_nor();
     post_nand();
     post_dma();
+    post_pwm();
+    post_exti();
     post_rtc();
     post_adc();
     post_crc();

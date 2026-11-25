@@ -120,6 +120,10 @@ typedef struct {
     board_rt_nand_t nand;
     int dma_ok;
     board_rt_dma_t dma;
+    int pwm_ok;
+    board_rt_pwm_t pwm;
+    int exti_ok;
+    board_rt_exti_t exti;
 } board_rt_t;
 
 static board_rt_t s_rt;
@@ -1146,6 +1150,8 @@ static void parse_tpad(void)
  * "发得出去、收不回来"，现场表现成"对端没回话"，比节点缺失难查得多。 */
 #define RT_COMPAT_CAN "brd,can"
 #define RT_COMPAT_DMA "brd,dma"
+#define RT_COMPAT_PWM "brd,pwm"
+#define RT_COMPAT_EXTI "brd,exti"
 #define RT_COMPAT_NAND "brd,nand"
 #define RT_COMPAT_USART "brd,usart"
 
@@ -1279,6 +1285,120 @@ static void parse_dma(void)
     s_rt.dma_ok = 1;
 }
 
+/* 端口序号（写进 SYSCFG EXTICR 的值）：A=0 … E=4。用真实的 GPIO 指针反查，
+ * 不接受 DTS 里另写一个"端口字母"——两份拷贝迟早漂移，而现象是"中断永远不来"。 */
+static unsigned port_index(GPIO_TypeDef *port)
+{
+    switch ((uintptr_t)port) {
+    case GPIOA_BASE: return 0U;
+    case GPIOB_BASE: return 1U;
+    case GPIOC_BASE: return 2U;
+    case GPIOD_BASE: return 3U;
+    case GPIOE_BASE: return 4U;
+    default: return 0xFFU;
+    }
+}
+
+/* pwm：`pwm-pins = <&gpiob 0x0020 2>` + `timer = "tim3"` + `channel` + `frequency`。
+ * 第二个 cell 是**掩码**（与 tpad-pins / sai-pins 同口径），必须恰好一位：
+ * 给两根脚说明 DTS 写错了，此时"取最低位"会悄悄配到另一根脚上。 */
+static void parse_pwm(void)
+{
+    bsl_fdt_node_t node = bsl_fdt_find(RT_COMPAT_PWM, 0U);
+    board_rt_pwm_t p;
+    uint32_t cells[3];
+    const char *tim;
+    uint32_t ch = 0U;
+    uint32_t freq = 0U;
+    uint16_t mask;
+    unsigned pin;
+
+    if (node == NULL) {
+        return;
+    }
+    if (bsl_fdt_prop_cells(node, "pwm-pins", cells, 3U) != 3U) {
+        return;
+    }
+    p.port = board_rt_port_of_phandle(cells[0]);
+    if (p.port == NULL || cells[2] > 15U) {
+        return;
+    }
+    mask = (uint16_t)(cells[1] & 0xFFFFU);
+    if (mask == 0U || (mask & (uint16_t)(mask - 1U)) != 0U) {
+        return;
+    }
+    for (pin = 0U; pin < 16U; pin++) {
+        if ((mask & (uint16_t)(1U << pin)) != 0U) {
+            break;
+        }
+    }
+    p.pin = pin;
+    p.af = cells[2];
+    tim = bsl_fdt_prop_string(node, "timer");
+    p.inst = timer_of_name(tim);
+    if (p.inst == NULL) {
+        return;
+    }
+    if (bsl_fdt_prop_u32(node, "channel", &ch) == 0 || ch < 1U || ch > 2U) {
+        return;
+    }
+    p.channel = (unsigned)ch;
+    if (bsl_fdt_prop_u32(node, "frequency", &freq) == 0
+        || freq < 100U || freq > 20000U) {
+        /* 100 Hz..20 kHz：低于 100 Hz 背光可见闪烁，高于 20 kHz 已超出
+         * 本板背光使能回路的响应，两个方向都没有意义。 */
+        return;
+    }
+    p.frequency = freq;
+    s_rt.pwm = p;
+    s_rt.pwm_ok = 1;
+}
+
+/* exti：`exti-gpios = <&gpioa 0 0>`（gpios 口径：第二个 cell 是**脚号**，
+ * 不是掩码）+ `trigger = "rising"|"falling"`。line 按脚号映射是芯片固定事实。 */
+static void parse_exti(void)
+{
+    bsl_fdt_node_t node = bsl_fdt_find(RT_COMPAT_EXTI, 0U);
+    board_rt_exti_t e;
+    uint32_t cells[3];
+    const char *trig;
+
+    if (node == NULL) {
+        return;
+    }
+    if (bsl_fdt_prop_cells(node, "exti-gpios", cells, 3U) != 3U) {
+        return;
+    }
+    e.port = board_rt_port_of_phandle(cells[0]);
+    if (e.port == NULL || cells[1] > 15U) {
+        return;
+    }
+    e.pin = (unsigned)cells[1];
+    e.line = e.pin;
+    if (e.line > 4U) {
+        /* 5..15 共用 EXTI9_5 / EXTI15_10 两条向量，驱动没做；DTB 指到那里
+         * 就整节点拒收，避免"注册了但永远进不来中断"。 */
+        return;
+    }
+    e.src = port_index(e.port);
+    if (e.src > 4U) {
+        return;
+    }
+    trig = bsl_fdt_prop_string(node, "trigger");
+    if (trig == NULL) {
+        return;
+    }
+    if (strcmp(trig, "rising") == 0) {
+        e.rising = 1;
+    } else if (strcmp(trig, "falling") == 0) {
+        e.rising = 0;
+    } else {
+        return;
+    }
+    s_rt.exti = e;
+    s_rt.exti_ok = 1;
+}
+
 static void parse_all(void)
 {
     if (s_rt.parsed) {
@@ -1309,6 +1429,8 @@ static void parse_all(void)
     parse_usart();
     parse_nand();
     parse_dma();
+    parse_pwm();
+    parse_exti();
 }
 
 uint32_t board_rt_hse_hz(void)
@@ -1344,6 +1466,38 @@ int board_rt_dma(board_rt_dma_t *out)
         return 0;
     }
     *out = s_rt.dma;
+    return 1;
+}
+
+int board_rt_pwm(board_rt_pwm_t *out)
+{
+    parse_all();
+    if (!s_rt.pwm_ok || out == NULL) {
+        return 0;
+    }
+    *out = s_rt.pwm;
+    return 1;
+}
+
+int board_rt_pwm_is_backlight(void)
+{
+    parse_all();
+    if (!s_rt.pwm_ok || !s_rt.panel_ok) {
+        return 0;
+    }
+    /* 端口指针与脚号都来自 DTB；面板没写 backlight-gpios 时 s_rt.panel_bl_port
+     * 是 NULL，比较自然失败 → 背光留在 PWM 自己的默认占空比上。 */
+    return (s_rt.pwm.port == s_rt.panel_bl_port
+            && s_rt.pwm.pin == s_rt.panel_bl_pin) ? 1 : 0;
+}
+
+int board_rt_exti(board_rt_exti_t *out)
+{
+    parse_all();
+    if (!s_rt.exti_ok || out == NULL) {
+        return 0;
+    }
+    *out = s_rt.exti;
     return 1;
 }
 

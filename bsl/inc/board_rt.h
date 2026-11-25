@@ -299,4 +299,38 @@ typedef struct {
 
 int board_rt_dma(board_rt_dma_t *out);
 
+/* PWM（P9c-2）：TIM3_CH2 驱动 LCD 背光（PB5，AF2）。
+ *
+ * frequency 是**目标值**，PSC/ARR 由驱动按当前 APB1 定时器时钟现算 ——
+ * 参考工程把 arr/psc 写死是因为它跑 192 MHz；本板 168 MHz，抄常量会让
+ * 频率整体偏 33%，屏上只表现为"背光有点闪"，读数上什么都不指向时钟树。 */
+typedef struct {
+    TIM_TypeDef *inst;
+    unsigned channel;   /* 1..2（都落在 CCMR1，驱动只做这两路） */
+    GPIO_TypeDef *port;
+    unsigned pin;
+    unsigned af;
+    uint32_t frequency;
+} board_rt_pwm_t;
+
+int board_rt_pwm(board_rt_pwm_t *out);
+
+/* pwm 节点控制的引脚是否就是 panel 的背光脚。
+ * 返回 1 = 背光由 PWM 控制（board_lcd_backlight 走占空比），0 = 仍走 GPIO。
+ * 这是"一根脚不能有两个主人"的唯一判据：两边都从 DTB 取，不在代码里假设。 */
+int board_rt_pwm_is_backlight(void);
+
+/* EXTI（P9c-2）：EXTI0 ← PA0（WK_UP）。
+ * line 就是引脚号（EXTI 线按脚号映射），src 是端口序号（A=0，写进 SYSCFG EXTICR）。
+ * 两者都从 DTB 取，不在驱动里假设"PA0 就是 line0/A"。 */
+typedef struct {
+    GPIO_TypeDef *port;
+    unsigned pin;
+    unsigned line;
+    unsigned src;
+    int rising; /* 1 = 上升沿，0 = 下降沿 */
+} board_rt_exti_t;
+
+int board_rt_exti(board_rt_exti_t *out);
+
 #endif /* BOARD_RT_H */

@@ -191,4 +191,35 @@ typedef struct {
                          unsigned *done_words);
 } bsl_dma_api_t;
 
+/* PWM（P9c-2）：TIM3_CH2 背光。
+ *
+ * clock_hz 是定时器**计数时钟**（APB1×2 = 84 MHz），frequency 是 DTS 声明的目标，
+ * 这两个必须一起看：只看 frequency 无法判断"是按 42 MHz 还是 84 MHz 算的 PSC"。
+ * measure_freq 数的是 CCxIF 硬件标志，不是把 PSC/ARR 抄回来重算。 */
+typedef struct {
+    int (*ready)(void);
+    uint32_t (*clock_hz)(void);
+    uint32_t (*frequency)(void);
+    bsl_err_t (*set_duty)(uint32_t permille);
+    uint32_t (*duty)(void);
+    bsl_err_t (*measure_freq)(uint32_t *hz);
+    void (*timing)(uint32_t *psc, uint32_t *arr, uint32_t *ccr);
+} bsl_pwm_api_t;
+
+/* EXTI（P9c-2）：EXTI0 ← PA0。
+ *
+ * count 是"边沿总数"的唯一读数；pulse_pin / trigger_sw 两个激励函数都返回
+ * 本阶段结束时的计数，"打进去几个边沿、中断进来几次"必须在同一个数上对齐，
+ * 否则"硬件来了、ISR 没进"与"根本没发生边沿"分不开。
+ * info 把 line/src/edge 三项回给上层打日志，省得 POST 里再造一遍常量。 */
+typedef struct {
+    int (*ready)(void);
+    unsigned (*count)(void);
+    void (*clear)(void);
+    unsigned (*pending)(void);
+    void (*info)(unsigned *line, unsigned *src, int *rising);
+    unsigned (*pulse_pin)(unsigned n);
+    unsigned (*trigger_sw)(unsigned n);
+} bsl_exti_api_t;
+
 #endif

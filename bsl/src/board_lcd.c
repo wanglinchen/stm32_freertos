@@ -312,6 +312,14 @@ void board_lcd_backlight(int on)
 {
     GPIO_PinState level;
 
+    /* P9c-2 起背光有第二个主人：TIM3_CH2 PWM（PB5）。
+     * 归属判据是"pwm 节点控制的脚 == panel 的背光脚"（两边都读 DTB）。
+     * 匹配时走占空比（on=100%、off=0%），不再写 BSRR —— PB5 在 AF 模式下
+     * BSRR 是空操作，照旧写会得到"函数执行了、屏不亮"的假成功。 */
+    if (bsl_device_is_ready(BSL_DEV_PWM) != 0 && board_rt_pwm_is_backlight() != 0) {
+        (void)bsl_devapi_pwm()->set_duty((on != 0) ? 1000U : 0U);
+        return;
+    }
     if (s_bl_port == NULL) {
         return;
     }

@@ -18,9 +18,11 @@ typedef enum {
     BSL_DEV_NOR,
     BSL_DEV_NAND,
     BSL_DEV_DMA,
+    BSL_DEV_PWM,
     BSL_DEV_LEDS,
     BSL_DEV_I2C_GPIO,
     BSL_DEV_KEYS,
+    BSL_DEV_EXTI,
     BSL_DEV_PCF8574,
     BSL_DEV_BEEP,
     BSL_DEV_RTC,
@@ -43,6 +45,8 @@ typedef enum {
 /* 节点 leds: compatible = "brd,gpio-leds" → bsl_driver_brd_gpio_leds */
 /* 节点 i2c: compatible = "brd,i2c-gpio" → bsl_driver_brd_i2c_gpio */
 /* 节点 keys: compatible = "brd,gpio-keys" → bsl_driver_brd_gpio_keys */
+/* 节点 exti: compatible = "brd,exti" → bsl_driver_brd_exti */
+/* 节点 pwm: compatible = "brd,pwm" → bsl_driver_brd_pwm */
 /* 节点 pcf8574: compatible = "nxp,pcf8574" → bsl_driver_nxp_pcf8574 */
 /* 节点 beep: compatible = "brd,pcf8574-beep" → bsl_driver_brd_pcf8574_beep */
 /* 节点 rtc: compatible = "brd,rtc" → bsl_driver_brd_rtc */
@@ -79,6 +83,8 @@ extern const struct bsl_device_driver bsl_driver_brd_can;
 extern const struct bsl_device_driver bsl_driver_brd_usart;
 extern const struct bsl_device_driver bsl_driver_brd_nand;
 extern const struct bsl_device_driver bsl_driver_brd_dma;
+extern const struct bsl_device_driver bsl_driver_brd_pwm;
+extern const struct bsl_device_driver bsl_driver_brd_exti;
 
 extern const bsl_gpio_leds_api_t bsl_api_brd_gpio_leds;
 extern const bsl_gpio_keys_api_t bsl_api_brd_gpio_keys;
@@ -98,6 +104,8 @@ extern const bsl_can_api_t bsl_api_brd_can;
 extern const bsl_uart_api_t bsl_api_brd_usart;
 extern const bsl_nand_api_t bsl_api_brd_nand;
 extern const bsl_dma_api_t bsl_api_brd_dma;
+extern const bsl_pwm_api_t bsl_api_brd_pwm;
+extern const bsl_exti_api_t bsl_api_brd_exti;
 
 /* BSL_DEV_LEDS: brd,gpio-leds 的 api，类型在编译期确定 */
 static inline const bsl_gpio_leds_api_t *bsl_devapi_leds(void)
@@ -208,15 +216,30 @@ static inline const bsl_dma_api_t *bsl_devapi_dma(void)
     return &bsl_api_brd_dma;
 }
 
+/* BSL_DEV_PWM: brd,pwm 的 api。消费者：board_post 的 pwm 项 +
+ * board_lcd 的 board_lcd_backlight()（PB5 背光归它管）。 */
+static inline const bsl_pwm_api_t *bsl_devapi_pwm(void)
+{
+    return &bsl_api_brd_pwm;
+}
+
+/* BSL_DEV_EXTI: brd,exti 的 api。消费者：board_post 的 exti 项。 */
+static inline const bsl_exti_api_t *bsl_devapi_exti(void)
+{
+    return &bsl_api_brd_exti;
+}
+
 #define BOARD_DEVICE_REGISTRY_APPLY(M) \
     M(BSL_DEV_DEBUG_UART, "debug_uart", BSL_INIT_LEVEL_POST_CLOCK, bsl_driver_debug_uart, 0) \
     M(BSL_DEV_SDRAM, "sdram", BSL_INIT_LEVEL_BOARD, bsl_driver_brd_fmc_sdram, 0) \
     M(BSL_DEV_PANEL, "panel", BSL_INIT_LEVEL_BOARD, bsl_driver_brd_panel, 0) \
+    M(BSL_DEV_PWM, "pwm", BSL_INIT_LEVEL_BOARD, bsl_driver_brd_pwm, 0) \
     M(BSL_DEV_TOUCH, "touch", BSL_INIT_LEVEL_BOARD, bsl_driver_goodix_gt9147, 0) \
     M(BSL_DEV_NOR, "nor", BSL_INIT_LEVEL_BOARD, bsl_driver_winbond_w25q256, 0) \
     M(BSL_DEV_LEDS, "leds", BSL_INIT_LEVEL_BOARD, bsl_driver_brd_gpio_leds, 1) \
     M(BSL_DEV_I2C_GPIO, "i2c_gpio", BSL_INIT_LEVEL_BOARD, bsl_driver_brd_i2c_gpio, 1) \
     M(BSL_DEV_KEYS, "keys", BSL_INIT_LEVEL_BOARD, bsl_driver_brd_gpio_keys, 1) \
+    M(BSL_DEV_EXTI, "exti", BSL_INIT_LEVEL_BOARD, bsl_driver_brd_exti, 1) \
     M(BSL_DEV_PCF8574, "pcf8574", BSL_INIT_LEVEL_BOARD, bsl_driver_nxp_pcf8574, 1) \
     M(BSL_DEV_BEEP, "beep", BSL_INIT_LEVEL_BOARD, bsl_driver_brd_pcf8574_beep, 1) \
     M(BSL_DEV_RTC, "rtc", BSL_INIT_LEVEL_BOARD, bsl_driver_brd_rtc, 1) \

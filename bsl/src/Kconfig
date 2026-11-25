@@ -97,6 +97,10 @@ config BSL_SRC_BSL_DMA
 	bool "bsl_dma.c"
 	default y
 
+config BSL_SRC_BSL_EXTI
+	bool "bsl_exti.c"
+	default y
+
 config BSL_SRC_BSL_FB
 	bool "bsl_fb.c"
 	default y
@@ -127,6 +131,10 @@ config BSL_SRC_BSL_LOG
 
 config BSL_SRC_BSL_PCF8574
 	bool "bsl_pcf8574.c"
+	default y
+
+config BSL_SRC_BSL_PWM
+	bool "bsl_pwm.c"
 	default y
 
 config BSL_SRC_BSL_RNG
