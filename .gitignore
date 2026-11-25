@@ -30,3 +30,5 @@ out/sdram_post.log
 out/*.zip
 # FatFs 原始包解压目录（临时）
 out/ff15_x/
+# 采集/诊断日志（openocd + 串口抓包）：证据落在 docs/design，过程日志不进库
+out/*.log
