@@ -25,6 +25,9 @@ int bsl_gpio_init_output_od(
     uint32_t pull,
     uint32_t speed);
 int bsl_gpio_init_input(GPIO_TypeDef *port, uint16_t pin, uint32_t pull, uint32_t speed);
+/* 模拟态（MODER=11）：数字输入/输出缓冲全关，引脚直接交给 ADC / DAC / 比较器。
+ * 只有拉不了电平时才需要它 —— 引脚上真正的主人是谁，由调用方的 DTS 节点决定。 */
+int bsl_gpio_init_analog(GPIO_TypeDef *port, uint16_t pin);
 /* 复用功能输出（SDRAM/LTDC 这类 FMC/LCD 控制器引脚）：af 必须是 0..15。
  * 返回 0 表示端口认不出或 af 越界，此时一个寄存器都没写。 */
 int bsl_gpio_init_af(

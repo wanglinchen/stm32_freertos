@@ -89,6 +89,10 @@ config BSL_SRC_BSL_CRC
 	bool "bsl_crc.c"
 	default y
 
+config BSL_SRC_BSL_DAC
+	bool "bsl_dac.c"
+	default y
+
 config BSL_SRC_BSL_DEVICE
 	bool "bsl_device.c"
 	default y

@@ -31,4 +31,15 @@ bsl_err_t bsl_adc_temp_init(void);
 /* 采一次并换算。返回 BSL_ERR_NOINIT（没 init）/ TIMEOUT（EOC 没来）/ INVAL（标定点不可信）。 */
 bsl_err_t bsl_adc_temp_read(bsl_adc_temp_t *out);
 
+/* 读任意一路 ADC1 通道（0..18）的 12 位原始码。
+ *
+ * 存在的理由：DAC1_OUT1 就是 PA4，而 PA4 同时是 ADC1_IN4 —— 同一根脚既是
+ * DAC 的输出又是 ADC 的输入，于是"DAC 到底有没有出电压"可以在片内闭环验证，
+ * 不需要跳线也不需要外接件（P9d 的判据）。
+ *
+ * 每次调用自己重设 SMPR 与 SQR3，所以与温度读**互不干扰**：先读温度再读
+ * 通道 4，或反过来，结果都一样。采样时间统一 480 周期。
+ */
+bsl_err_t bsl_adc_read_channel(uint8_t ch, uint16_t *raw);
+
 #endif /* BSL_ADC_H */

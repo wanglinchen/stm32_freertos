@@ -124,6 +124,8 @@ typedef struct {
     board_rt_pwm_t pwm;
     int exti_ok;
     board_rt_exti_t exti;
+    int dac_ok;
+    board_rt_dac_t dac;
 } board_rt_t;
 
 static board_rt_t s_rt;
@@ -1154,6 +1156,7 @@ static void parse_tpad(void)
 #define RT_COMPAT_EXTI "brd,exti"
 #define RT_COMPAT_NAND "brd,nand"
 #define RT_COMPAT_USART "brd,usart"
+#define RT_COMPAT_DAC "brd,dac"
 
 static int pin_group(bsl_fdt_node_t node, const char *prop, GPIO_TypeDef **port,
                      uint16_t *mask, unsigned *af, unsigned bits)
@@ -1399,6 +1402,46 @@ static void parse_exti(void)
     s_rt.exti_ok = 1;
 }
 
+/* dac：`dac-pins = <&gpioa 0x0010>`（掩码口径，与 pwm-pins 同）+ `channel = <1>`。
+ * 掩码必须恰好一位：给两根脚说明 DTS 写错了，"取最低位"会静默配到另一根脚上。
+ * channel 只认 1 —— DAC1_OUT2 是 PA5，本板 PA5 归 TPAD 的 TIM2_CH1，写 2 就撞脚。 */
+static void parse_dac(void)
+{
+    bsl_fdt_node_t node = bsl_fdt_find(RT_COMPAT_DAC, 0U);
+    board_rt_dac_t d;
+    uint32_t cells[2];
+    uint32_t ch = 0U;
+    uint16_t mask;
+    unsigned pin;
+
+    if (node == NULL) {
+        return;
+    }
+    if (bsl_fdt_prop_cells(node, "dac-pins", cells, 2U) != 2U) {
+        return;
+    }
+    d.port = board_rt_port_of_phandle(cells[0]);
+    if (d.port == NULL) {
+        return;
+    }
+    mask = (uint16_t)(cells[1] & 0xFFFFU);
+    if (mask == 0U || (mask & (uint16_t)(mask - 1U)) != 0U) {
+        return;
+    }
+    for (pin = 0U; pin < 16U; pin++) {
+        if ((mask & (uint16_t)(1U << pin)) != 0U) {
+            break;
+        }
+    }
+    d.pin = pin;
+    if (bsl_fdt_prop_u32(node, "channel", &ch) == 0 || ch != 1U) {
+        return;
+    }
+    d.channel = (unsigned)ch;
+    s_rt.dac = d;
+    s_rt.dac_ok = 1;
+}
+
 static void parse_all(void)
 {
     if (s_rt.parsed) {
@@ -1431,6 +1474,7 @@ static void parse_all(void)
     parse_dma();
     parse_pwm();
     parse_exti();
+    parse_dac();
 }
 
 uint32_t board_rt_hse_hz(void)
@@ -1845,5 +1889,15 @@ int board_rt_panel_ctrl(unsigned index, GPIO_TypeDef **port, unsigned *pin, uint
     if (af != NULL) {
         *af = s_rt.panel_ctrl_af[index];
     }
+    return 1;
+}
+
+int board_rt_dac(board_rt_dac_t *out)
+{
+    parse_all();
+    if (!s_rt.dac_ok || out == NULL) {
+        return 0;
+    }
+    *out = s_rt.dac;
     return 1;
 }

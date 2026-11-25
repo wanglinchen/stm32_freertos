@@ -4,10 +4,12 @@
 
 #include "board_lcd.h"
 #include "board_nt35510.h"
+#include "board_rt.h"
 #include "board_sdram.h"
 #include "board_touch.h"
 #include "bsl_adc.h"
 #include "bsl_crc.h"
+#include "bsl_dac.h"
 #include "bsl_device.h"
 #include "bsl_log.h"
 #include "bsl_rng.h"
@@ -314,6 +316,126 @@ static void post_adc(void)
     }
     post_end((err == BSL_OK) && s.cal_valid
              && (s.celsius_x10 >= -400) && (s.celsius_x10 <= 1250));
+}
+
+/*
+ * dac：DAC1_OUT1（PA4）+ PA4 自身的 ADC1_IN4 闭环。
+ *
+ * 判据分两段，缺一不可：
+ *   1) 写 DHR12R1 → 读 DOR1：三个码 512 / 2048 / 3584 必须原样回来 ——
+ *      证"码真进了转换器"（只看这一段，寄存器自洽也能过，所以不够）；
+ *   2) PA4 既是 DAC 输出又是 ADC1_IN4 输入，读回 12 位码与按同一个 VREF 折算的
+ *      期望值（= 写入码）相差 ≤ 64 LSB 且三点单调 —— 证"引脚上真有电压"。
+ *
+ * 为什么取 512 / 2048 / 3584 而不取 0 / 4095：输出缓冲开着时两端各有一段
+ * 非线性区（靠近轨的几十毫伏），用满量程端点判误差会得到一个和驱动无关的 FAIL。
+ * 64 LSB ≈ 51 mV，覆盖缓冲失调 + ADC 偏置 + 噪声，又不至于放过"写 3584 出 2048"
+ * 这类真错。
+ */
+#define POST_DAC_CODES 3U
+#define POST_DAC_ERR_LSB 64
+
+static void post_dac(void)
+{
+    static const uint16_t codes[POST_DAC_CODES] = { 512U, 2048U, 3584U };
+    uint16_t dor[POST_DAC_CODES];
+    uint16_t adc[POST_DAC_CODES];
+    unsigned i;
+    int dor_ok = 1;
+    int adc_ok = 1;
+    int mono_ok = 1;
+    int worst = 0;
+
+    post_begin("dac ch=1 ");
+    if (bsl_dac_init() != BSL_OK) {
+        board_rt_dac_t probe;
+        int rt = board_rt_dac(&probe);
+
+        BSL_LOG_INF("init=fail rt=");
+        bsl_log_put_dec(rt);
+        if (rt != 0) {
+            BSL_LOG_INF(" port=");
+            bsl_log_put_hex((uint32_t)(uintptr_t)probe.port, 8U);
+            BSL_LOG_INF(" pin=");
+            bsl_log_put_dec((int)probe.pin);
+            BSL_LOG_INF(" ch=");
+            bsl_log_put_dec((int)probe.channel);
+        }
+        post_end(0);
+        return;
+    }
+    /* 温度通道与 DAC 闭环共用 ADC1：init 幂等，这里再叫一次是为了顺序无关。 */
+    if (bsl_adc_temp_init() != BSL_OK) {
+        BSL_LOG_INF("adc=fail");
+        post_end(0);
+        return;
+    }
+
+    for (i = 0U; i < POST_DAC_CODES; i++) {
+        if (bsl_dac_set_code(codes[i]) != BSL_OK) {
+            dor_ok = 0;
+            adc_ok = 0;
+            dor[i] = 0U;
+            adc[i] = 0U;
+            continue;
+        }
+        dor[i] = bsl_dac_code();
+        if (dor[i] != codes[i]) {
+            dor_ok = 0;
+        }
+        if (bsl_adc_read_channel(4U, &adc[i]) != BSL_OK) {
+            adc_ok = 0;
+            continue;
+        }
+        /* 期望值就是写入码：DAC 与 ADC 同一颗 VREF，转移函数理想为 1:1 */
+        if ((int)adc[i] - (int)codes[i] > POST_DAC_ERR_LSB
+            || (int)codes[i] - (int)adc[i] > POST_DAC_ERR_LSB) {
+            adc_ok = 0;
+        }
+        if ((int)adc[i] - (int)codes[i] > worst) {
+            worst = (int)adc[i] - (int)codes[i];
+        } else if ((int)codes[i] - (int)adc[i] > worst) {
+            worst = (int)codes[i] - (int)adc[i];
+        }
+    }
+    /* 相邻两点至少要拉开 1024 码；DAC 真在变，ADC 才会跟着变 */
+    for (i = 1U; i < POST_DAC_CODES; i++) {
+        if ((int)adc[i] - (int)adc[i - 1] < 1024) {
+            mono_ok = 0;
+        }
+    }
+
+    BSL_LOG_INF("clk=");
+    bsl_log_put_dec((int)(bsl_dac_clock_hz() / 1000U));
+    BSL_LOG_INF("k");
+    BSL_LOG_INF(" code=");
+    for (i = 0U; i < POST_DAC_CODES; i++) {
+        if (i != 0U) {
+            BSL_LOG_INF("/");
+        }
+        bsl_log_put_dec((int)codes[i]);
+    }
+    BSL_LOG_INF(" dor=");
+    for (i = 0U; i < POST_DAC_CODES; i++) {
+        if (i != 0U) {
+            BSL_LOG_INF("/");
+        }
+        bsl_log_put_dec((int)dor[i]);
+    }
+    BSL_LOG_INF(" adc=");
+    for (i = 0U; i < POST_DAC_CODES; i++) {
+        if (i != 0U) {
+            BSL_LOG_INF("/");
+        }
+        bsl_log_put_dec((int)adc[i]);
+    }
+    BSL_LOG_INF(" err=");
+    bsl_log_put_dec(worst);
+
+    /* 收尾把输出回到 0，不给后续应用留一个悬着的 1.4 V */
+    (void)bsl_dac_set_code(0U);
+
+    post_end(dor_ok && adc_ok && mono_ok);
 }
 
 /*
@@ -1055,6 +1177,7 @@ void board_post_run(void)
     post_exti();
     post_rtc();
     post_adc();
+    post_dac();
     post_crc();
     post_rng();
     post_codec();

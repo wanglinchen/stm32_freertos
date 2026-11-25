@@ -333,4 +333,18 @@ typedef struct {
 
 int board_rt_exti(board_rt_exti_t *out);
 
+/* DAC（P9d）：只做 DAC1_OUT1 = PA4。PA5 是 DAC1_OUT2，但本板的 PA5 归 TPAD 的
+ * TIM2_CH1 输入捕获，两路都开就撞脚 —— 所以 `channel` 由 DTS 声明、驱动只认 1。
+ *
+ * 为什么只需要"端口 + 脚 + 通道"三个事实：DAC 的输出是芯片内部模拟通路，
+ * 没有分频/时序参数可配（触发、波形、DMA 全在这批范围外）；一根脚是谁的，
+ * 才是板级事实。 */
+typedef struct {
+    GPIO_TypeDef *port;
+    unsigned pin;
+    unsigned channel;
+} board_rt_dac_t;
+
+int board_rt_dac(board_rt_dac_t *out);
+
 #endif /* BOARD_RT_H */

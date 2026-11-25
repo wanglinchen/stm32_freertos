@@ -1238,6 +1238,14 @@ _BOARD_NODES = """\
         exti-gpios = <&gpioa 0 0>;
         trigger = "rising";
     };
+    /* DAC（P9d）：只做 DAC1_OUT1 = PA4。PA5 是 DAC1_OUT2，但本板 PA5 归 TPAD 的
+     * TIM2_CH1 输入捕获，两路一起开就撞脚 —— 所以 channel 由这里声明，驱动只认 1。
+     * PA4 同时是 ADC1_IN4：POST 用同一颗 ADC 把输出电压读回来，片内闭环，不需要跳线。 */
+    dac: dac {
+        compatible = "brd,dac";
+        dac-pins = <&gpioa 0x0010>;
+        channel = <1>;
+    };
     nand: nand@80000000 {
         compatible = "brd,nand";
         reg = <0x80000000 0x00080000>;

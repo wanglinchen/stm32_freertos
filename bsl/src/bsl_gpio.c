@@ -87,6 +87,14 @@ int bsl_gpio_init_input(GPIO_TypeDef *port, uint16_t pin, uint32_t pull, uint32_
     return gpio_init(port, pin, pull, speed, GPIO_MODE_INPUT);
 }
 
+/* 模拟态。HAL 的 GPIO_MODE_ANALOG 会把 MODER 置 11 并清掉上下拉；
+ * 这里显式传 NOPULL，避免调用方以为"模拟态还能拉"。
+ * 端口认不出返回 0（与其余 init 同口径：不留半套配置）。 */
+int bsl_gpio_init_analog(GPIO_TypeDef *port, uint16_t pin)
+{
+    return gpio_init(port, pin, GPIO_NOPULL, GPIO_SPEED_FREQ_LOW, GPIO_MODE_ANALOG);
+}
+
 /* 复用功能输出。与上面三个 init 同口径：端口认不出就返回 0，不留半套配置。
  * af 越界也返回 0 —— HAL 对 Alternate 是直接写 AFR 位域，越界值会静默截断。 */
 int bsl_gpio_init_af(
