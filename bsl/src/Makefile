@@ -27,6 +27,7 @@ LOCAL_OBJS :=
 -include $(BUILD_DIR)/bsl/src/board_lcd.d
 -include $(BUILD_DIR)/bsl/src/board_led.d
 -include $(BUILD_DIR)/bsl/src/board_mpu9250.d
+-include $(BUILD_DIR)/bsl/src/board_nand.d
 -include $(BUILD_DIR)/bsl/src/board_nor.d
 -include $(BUILD_DIR)/bsl/src/board_nt35510.d
 -include $(BUILD_DIR)/bsl/src/board_post.d
@@ -167,6 +168,19 @@ $(BUILD_DIR)/bsl/src/board_mpu9250.o: $(PROJECT_ROOT)/bsl/src/board_mpu9250.c $(
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_mpu9250.d -c $< -o $@
 	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_mpu9250.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BOARD_NAND),y)
+LOCAL_OBJS += $(BUILD_DIR)/bsl/src/board_nand.o
+$(BUILD_DIR)/bsl/src/board_nand.o: $(PROJECT_ROOT)/bsl/src/board_nand.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/bsl/src/board_nand.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/bsl/src/board_nand.d
 endif
 endif
 endif

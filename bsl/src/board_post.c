@@ -823,6 +823,78 @@ static void post_ext(void)
     }
 }
 
+/*
+ * NAND（P9a）：只读判据 —— ID / 几何 / 读 page0 的 main + spare。
+ * 不擦不写：原厂固件在这片 NAND 上放着系统文件，检验性擦写会毁数据。
+ * 判据 = ID 合法（首字节非 0x00/0xFF）+ 几何自洽（页 = main+spare、
+ * 总容量 = blocks×block_pages×page）+ 两段读都不超时。
+ * sum/ff 是"数据真的被时钟搬进来了"的读数：整片擦净时 ff == 总字节数，
+ * 有内容时 ff 会小；两个极端都能从这一行看出来，不必靠猜。
+ */
+static void post_nand(void)
+{
+    static uint8_t page[2048U + 64U];
+    uint8_t id[5];
+    uint16_t page_main = 0U;
+    uint16_t page_spare = 0U;
+    uint32_t block_pages = 0U;
+    uint32_t blocks = 0U;
+    unsigned bank = 0U;
+    uint32_t sum = 0U;
+    unsigned ff = 0U;
+    unsigned i;
+    int ok = 0;
+
+    if (bsl_device_is_ready(BSL_DEV_NAND) == 0) {
+        post_begin("nand dev=not-ready");
+        post_end(0);
+        return;
+    }
+    bsl_devapi_nand()->info(id, &page_main, &page_spare, &block_pages, &blocks,
+                            &bank);
+    if (bsl_devapi_nand()->read_page(0U, 0U, page, page_main) == BSL_OK
+        && bsl_devapi_nand()->read_page(0U, page_main, page, 8U) == BSL_OK) {
+        ok = 1;
+    }
+    if (page_main != 0U) {
+        if (bsl_devapi_nand()->read_page(0U, 0U, page, page_main) == BSL_OK) {
+            for (i = 0U; i < page_main; i++) {
+                sum += page[i];
+                if (page[i] == 0xFFU) {
+                    ff++;
+                }
+            }
+        } else {
+            ok = 0;
+        }
+    }
+    if (id[0] == 0x00U || id[0] == 0xFFU || page_main == 0U || page_spare == 0U
+        || block_pages == 0U || blocks == 0U) {
+        ok = 0;
+    }
+    post_begin("nand id=");
+    for (i = 0U; i < 5U; i++) {
+        if (i != 0U) {
+            BSL_LOG_INF(":");
+        }
+        bsl_log_put_hex(id[i], 2U);
+    }
+    BSL_LOG_INF(" page=");
+    bsl_log_put_dec((int)page_main);
+    BSL_LOG_INF("/");
+    bsl_log_put_dec((int)page_spare);
+    BSL_LOG_INF(" blk=");
+    bsl_log_put_dec((int)block_pages);
+    BSL_LOG_INF("/");
+    bsl_log_put_dec((int)blocks);
+    BSL_LOG_INF(" bank=");
+    bsl_log_put_dec((int)bank);
+    BSL_LOG_INF(" sum=");
+    bsl_log_put_hex(sum, 8U);
+    BSL_LOG_INF(" ff=");
+    bsl_log_put_dec((int)ff);
+    post_end(ok);
+}
 void board_post_run(void)
 {
     s_total = 0U;
@@ -833,6 +905,7 @@ void board_post_run(void)
     post_lcd();
     post_touch();
     post_nor();
+    post_nand();
     post_rtc();
     post_adc();
     post_crc();

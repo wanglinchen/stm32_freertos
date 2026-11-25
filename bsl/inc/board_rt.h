@@ -279,4 +279,16 @@ int board_rt_uart(uintptr_t *reg, uint32_t *baud, char *tx_port,
 /* phandle（gpios 首 cell）→ GPIO 端口；找不到返回 NULL。 */
 GPIO_TypeDef *board_rt_port_of_phandle(uint32_t phandle);
 
+/* NAND（P9a）：页/块几何 + R/B 脚。几何来自 DTB，不写死在驱动里 ——
+ * 擦写粒度错了的后果是"读得到、写进去再读变 0xFF"，比读不到更难查。 */
+typedef struct {
+    uint16_t page_main;
+    uint16_t page_spare;
+    uint32_t block_pages;
+    uint32_t blocks;
+    GPIO_TypeDef *rb_port;
+    uint16_t rb_mask;
+} board_rt_nand_t;
+
+int board_rt_nand(board_rt_nand_t *out);
 #endif /* BOARD_RT_H */

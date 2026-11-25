@@ -37,6 +37,10 @@ config BSL_SRC_BOARD_MPU9250
 	bool "board_mpu9250.c"
 	default y
 
+config BSL_SRC_BOARD_NAND
+	bool "board_nand.c"
+	default y
+
 config BSL_SRC_BOARD_NOR
 	bool "board_nor.c"
 	default y

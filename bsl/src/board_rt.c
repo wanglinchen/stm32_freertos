@@ -116,6 +116,8 @@ typedef struct {
 
     int usart_ok;
     board_rt_usart_t usart;
+    int nand_ok;
+    board_rt_nand_t nand;
 } board_rt_t;
 
 static board_rt_t s_rt;
@@ -1141,6 +1143,7 @@ static void parse_tpad(void)
  * USART 要 TX+RX 两位。少于两位不是"少一根脚无所谓" —— USART 少 RX 就是
  * "发得出去、收不回来"，现场表现成"对端没回话"，比节点缺失难查得多。 */
 #define RT_COMPAT_CAN "brd,can"
+#define RT_COMPAT_NAND "brd,nand"
 #define RT_COMPAT_USART "brd,usart"
 
 static int pin_group(bsl_fdt_node_t node, const char *prop, GPIO_TypeDef **port,
@@ -1212,6 +1215,47 @@ static void parse_usart(void)
     s_rt.usart_ok = 1;
 }
 
+/* nand（P9a）：几何全部从 DTB 读；R/B 脚只作事实登记（本批读通道走状态
+ * 寄存器，不依赖 R/B 电平 —— 见 board_nand.c 的注释）。 */
+static void parse_nand(void)
+{
+    bsl_fdt_node_t node = bsl_fdt_find(RT_COMPAT_NAND, 0U);
+    board_rt_nand_t n;
+    uint32_t page_main = 0U;
+    uint32_t page_spare = 0U;
+    uint32_t block_pages = 0U;
+    uint32_t blocks = 0U;
+    uint32_t rb[3];
+
+    if (node == NULL) {
+        return;
+    }
+    if (bsl_fdt_prop_u32(node, "page-size", &page_main) == 0
+        || bsl_fdt_prop_u32(node, "spare-size", &page_spare) == 0
+        || bsl_fdt_prop_u32(node, "block-pages", &block_pages) == 0
+        || bsl_fdt_prop_u32(node, "blocks", &blocks) == 0) {
+        return;
+    }
+    if (page_main == 0U || page_main > 0xFFFFU
+        || page_spare == 0U || page_spare > 0xFFFFU
+        || block_pages == 0U || blocks == 0U) {
+        return;
+    }
+    n.page_main = (uint16_t)page_main;
+    n.page_spare = (uint16_t)page_spare;
+    n.block_pages = block_pages;
+    n.blocks = blocks;
+    n.rb_port = NULL;
+    n.rb_mask = 0U;
+    if (bsl_fdt_prop_cells(node, "rb-gpios", rb, 3U) == 3U) {
+        n.rb_port = board_rt_port_of_phandle(rb[0]);
+        if (n.rb_port != NULL && rb[1] <= 15U) {
+            n.rb_mask = (uint16_t)(1U << rb[1]);
+        }
+    }
+    s_rt.nand = n;
+    s_rt.nand_ok = 1;
+}
 static void parse_all(void)
 {
     if (s_rt.parsed) {
@@ -1240,6 +1284,7 @@ static void parse_all(void)
     parse_tpad();
     parse_can();
     parse_usart();
+    parse_nand();
 }
 
 uint32_t board_rt_hse_hz(void)
@@ -1268,6 +1313,15 @@ int board_rt_usart(board_rt_usart_t *out)
     return 1;
 }
 
+int board_rt_nand(board_rt_nand_t *out)
+{
+    parse_all();
+    if (!s_rt.nand_ok || out == NULL) {
+        return 0;
+    }
+    *out = s_rt.nand;
+    return 1;
+}
 unsigned board_rt_led_count(void)
 {
     parse_all();

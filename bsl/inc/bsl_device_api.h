@@ -172,4 +172,15 @@ typedef struct {
     void (*inject)(uint8_t b);
 } bsl_uart_api_t;
 
+/* NAND（P9a）：只读通道。info 一次给全 —— ID 5 字节 + 页/块几何 + 实际
+ * 走通的 bank 号（参考工程写 Bank3/PG9，而 F429 的 PG9 多数封装是 NCE2，
+ * 驱动两个 bank 都配、谁能读出 ID 用谁，这个数就是现场事实）。 */
+typedef struct {
+    int (*ready)(void);
+    void (*info)(uint8_t id[5], uint16_t *page_main, uint16_t *page_spare,
+                 uint32_t *block_pages, uint32_t *blocks, unsigned *bank);
+    bsl_err_t (*read_page)(uint32_t page, uint16_t col, uint8_t *buf,
+                           uint16_t len);
+} bsl_nand_api_t;
+
 #endif

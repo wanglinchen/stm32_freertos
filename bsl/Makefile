@@ -84,6 +84,13 @@ endif
 endif
 ifeq ($(CONFIG_BSL),y)
 ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BOARD_NAND),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/board_nand.o
+endif
+endif
+endif
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
 ifeq ($(CONFIG_BSL_SRC_BOARD_NOR),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/board_nor.o
 endif

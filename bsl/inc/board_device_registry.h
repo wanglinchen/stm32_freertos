@@ -16,6 +16,7 @@ typedef enum {
     BSL_DEV_PANEL,
     BSL_DEV_TOUCH,
     BSL_DEV_NOR,
+    BSL_DEV_NAND,
     BSL_DEV_LEDS,
     BSL_DEV_I2C_GPIO,
     BSL_DEV_KEYS,
@@ -51,6 +52,7 @@ typedef enum {
 /* 节点 eeprom: compatible = "atmel,24c02" → bsl_driver_atmel_24c02 */
 /* 节点 tpad: compatible = "brd,tpad" → bsl_driver_brd_tpad */
 /* 节点 can: compatible = "brd,can" → bsl_driver_brd_can（P6e-1） */
+/* 节点 nand: compatible = "brd,nand" → bsl_driver_brd_nand（P9a，只读） */
 /* 节点 usart3: compatible = "brd,usart" → bsl_driver_brd_usart（P6e-1；USART2 不做） */
 
 struct bsl_device_driver;
@@ -73,6 +75,7 @@ extern const struct bsl_device_driver bsl_driver_atmel_24c02;
 extern const struct bsl_device_driver bsl_driver_brd_tpad;
 extern const struct bsl_device_driver bsl_driver_brd_can;
 extern const struct bsl_device_driver bsl_driver_brd_usart;
+extern const struct bsl_device_driver bsl_driver_brd_nand;
 
 extern const bsl_gpio_leds_api_t bsl_api_brd_gpio_leds;
 extern const bsl_gpio_keys_api_t bsl_api_brd_gpio_keys;
@@ -90,6 +93,7 @@ extern const bsl_eeprom_api_t bsl_api_atmel_24c02;
 extern const bsl_tpad_api_t bsl_api_brd_tpad;
 extern const bsl_can_api_t bsl_api_brd_can;
 extern const bsl_uart_api_t bsl_api_brd_usart;
+extern const bsl_nand_api_t bsl_api_brd_nand;
 
 /* BSL_DEV_LEDS: brd,gpio-leds 的 api，类型在编译期确定 */
 static inline const bsl_gpio_leds_api_t *bsl_devapi_leds(void)
@@ -188,6 +192,12 @@ static inline const bsl_uart_api_t *bsl_devapi_usart3(void)
     return &bsl_api_brd_usart;
 }
 
+/* BSL_DEV_NAND: brd,nand 的 api。消费者：board_post 的 nand 项。 */
+static inline const bsl_nand_api_t *bsl_devapi_nand(void)
+{
+    return &bsl_api_brd_nand;
+}
+
 #define BOARD_DEVICE_REGISTRY_APPLY(M) \
     M(BSL_DEV_DEBUG_UART, "debug_uart", BSL_INIT_LEVEL_POST_CLOCK, bsl_driver_debug_uart, 0) \
     M(BSL_DEV_SDRAM, "sdram", BSL_INIT_LEVEL_BOARD, bsl_driver_brd_fmc_sdram, 0) \
@@ -207,6 +217,7 @@ static inline const bsl_uart_api_t *bsl_devapi_usart3(void)
     M(BSL_DEV_EEPROM, "eeprom", BSL_INIT_LEVEL_BOARD, bsl_driver_atmel_24c02, 0) \
     M(BSL_DEV_TPAD, "tpad", BSL_INIT_LEVEL_BOARD, bsl_driver_brd_tpad, 0) \
     M(BSL_DEV_CAN, "can", BSL_INIT_LEVEL_BOARD, bsl_driver_brd_can, 0) \
+    M(BSL_DEV_NAND, "nand", BSL_INIT_LEVEL_BOARD, bsl_driver_brd_nand, 1) \
     M(BSL_DEV_USART3, "usart3", BSL_INIT_LEVEL_BOARD, bsl_driver_brd_usart, 0)
 
 #endif /* BOARD_DEVICE_REGISTRY_H */

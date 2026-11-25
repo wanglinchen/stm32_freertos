@@ -1208,6 +1208,20 @@ _BOARD_NODES = """\
      * 参考工程是 192 MHz（SDCLK 96 MHz）→ 730；直接抄 730 会让刷新偏慢。
      * fmc-pins 的第三个 cell 是 AF 号（FMC 全在 AF12），第二个 cell 是端口引脚掩码：
      *   PC0/2/3、PD0/1/8/9/10/14/15、PE0/1/7..15、PF0..5/11..15、PG0/1/2/4/5/8/15。 */
+    /* NAND（MT29F4G08ABADA，512 MB）：页 2048+64、块 64 页、4096 块。
+     * 几何由本节点提供，驱动不写死 —— 页/块粒度错了会表现为
+     * "读得到、写进去再读变 0xFF"，这类故障最难查。
+     * 命令/地址线固定为 FMC 的 A16/A17（CLE/ALE），不是板级可选项，
+     * 因此不进 DTB；引脚见 bsl/src/board_nand.c 顶部注释（AF12 共用 FMC）。 */
+    nand: nand@80000000 {
+        compatible = "brd,nand";
+        reg = <0x80000000 0x00080000>;
+        page-size = <2048>;
+        spare-size = <64>;
+        block-pages = <64>;
+        blocks = <4096>;
+        rb-gpios = <&gpiod 0x0040 0>;
+    };
     sdram: sdram@c0000000 {
         compatible = "brd,fmc-sdram";
         reg = <0xc0000000 0x02000000>;
