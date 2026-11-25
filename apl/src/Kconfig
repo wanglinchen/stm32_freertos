@@ -45,6 +45,10 @@ config APL_SRC_APP_PICVIEWER
 	bool "app_picviewer.c"
 	default y
 
+config APL_SRC_APP_QR
+	bool "app_qr.c"
+	default y
+
 config APL_SRC_APP_SAMPLE
 	bool "app_sample.c"
 	default y

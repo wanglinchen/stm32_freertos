@@ -35,6 +35,7 @@ LOCAL_OBJS :=
 -include $(BUILD_DIR)/apl/src/app_notepad.d
 -include $(BUILD_DIR)/apl/src/app_paint.d
 -include $(BUILD_DIR)/apl/src/app_picviewer.d
+-include $(BUILD_DIR)/apl/src/app_qr.d
 -include $(BUILD_DIR)/apl/src/app_sample.d
 -include $(BUILD_DIR)/apl/src/app_settings.d
 -include $(BUILD_DIR)/apl/src/main.d
@@ -178,6 +179,19 @@ $(BUILD_DIR)/apl/src/app_picviewer.o: $(PROJECT_ROOT)/apl/src/app_picviewer.c $(
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/apl/src/app_picviewer.d -c $< -o $@
 	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/apl/src/app_picviewer.d
+endif
+endif
+endif
+
+ifeq ($(CONFIG_APL),y)
+ifeq ($(CONFIG_APL_SRC),y)
+ifeq ($(CONFIG_APL_SRC_APP_QR),y)
+LOCAL_OBJS += $(BUILD_DIR)/apl/src/app_qr.o
+$(BUILD_DIR)/apl/src/app_qr.o: $(PROJECT_ROOT)/apl/src/app_qr.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/apl/src/app_qr.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/apl/src/app_qr.d
 endif
 endif
 endif

@@ -12,6 +12,7 @@
 #include "fml_gui.h"
 #include "fml_picture.h"
 #include "fml_panic.h"
+#include "fml_qr.h"
 #include "fml_shell.h"
 #include "fml_ui.h"
 #include "osl_boot.h"
@@ -505,6 +506,33 @@ static int menu_click_id(uint16_t id)
     return (app_menu_dispatch(&ev) == APP_ACTION_APP) ? 1 : 0;
 }
 
+/*
+ * 二维码的三个定位图案：左上 / 右上 / 左下各一个 7×7 的"回"字。
+ *
+ * 判据为什么挑它：编码器把位流、纠错码、掩码都算完之后，最后一定要把这三个
+ * 图案盖回去（任何合法的 QR 符号都有）。若挖 "1/3/4 位越界" 这类 bug ——
+ * 矩阵错位、掩码盖到角上、行列转置 —— 第一个坏的就是这三块；而"黑模块
+ * 占比在 25%~75%"这种统计判据，错位后往往照样落在区间里。
+ */
+static int menu_qr_finder(unsigned x0, unsigned y0)
+{
+    unsigned r;
+    unsigned c;
+
+    for (r = 0U; r < 7U; r++) {
+        for (c = 0U; c < 7U; c++) {
+            const int ring = ((r == 0U) || (r == 6U) || (c == 0U) || (c == 6U)) ? 1 : 0;
+            const int core = ((r >= 2U) && (r <= 4U) && (c >= 2U) && (c <= 4U)) ? 1 : 0;
+            const int want = (ring != 0 || core != 0) ? 1 : 0;
+
+            if (fml_qr_module(x0 + c, y0 + r) != want) {
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
 static int app_menu_check(char *buf, unsigned cap)
 {
     app_fmt_t f = APP_FMT_INIT(buf, cap);
@@ -515,7 +543,7 @@ static int app_menu_check(char *buf, unsigned cap)
      * P8b 加 paint 之后已经超过 48 —— 放不下时 app_fmt_puts 直接截断，
      * 结果是 `[post] menu` 那一行后半段消失、解析器读不到 depth（判 FAIL
      * 却看不出为什么）。128 是"再多一两个字段也不用改"的余量，栈上 128 B。 */
-    char tail_s[192];
+    char tail_s[256];
     app_fmt_t ft = APP_FMT_INIT(tail_s, (unsigned)sizeof(tail_s));
     const unsigned apps = app_count();
     const app_desc_t *first = app_at(0U);
@@ -530,6 +558,7 @@ static int app_menu_check(char *buf, unsigned cap)
     int paint_ok = 0;
     int imu_ok = 0;
     int level_ok = 0;
+    int qr_ok = 0;
     int view_ok = 1;
     uint32_t vw_p = 0U;
     uint32_t vh_p = 0U;
@@ -834,6 +863,72 @@ static int app_menu_check(char *buf, unsigned cap)
         app_fmt_puts(&ft, " level=-");
     }
 
+    /* 二维码（第 12 项）。四项判据，各挡一类错：
+     *   1. 边长 = 21 + 4×(版本-1)：版本表/符号尺寸算错时这里第一枪；
+     *   2. 黑模块占比 25%~75%：全黑/全白/大半张空（编码只写了一半位流）都过不去；
+     *   3. 三个 7×7 定位图案原样：挡矩阵错位、转置、掩码盖角；
+     *   4. 换一条串重编码，黑模块数必须变：挡"不管输入什么都画同一张图"
+     *      （矩阵没写全、编码结果被上一次的 static 覆盖都会长这样）。
+     * 另加一条自洽：应用缓存的 dark 与 fml_qr 现算的必须相等 —— 应用若在
+     * 编码失败后还报旧值，这里当场露馅。 */
+    if ((apps > 11U) && (menu_enter_app(app_at(11U)) != 0)) {
+        unsigned v1 = app_qr_version();
+        unsigned s1 = app_qr_size();
+        unsigned d1 = app_qr_dark();
+        unsigned d2 = 0U;
+        int qx = 0;
+        int qy = 0;
+        int qw = 0;
+        int qh = 0;
+        uint32_t plate_ink = 0U;
+        int ok = 0;
+
+        if ((v1 >= 1U) && (v1 <= 40U) && (s1 == (21U + (4U * (v1 - 1U)))) &&
+            (s1 <= FML_QR_MAX_MODULES)) {
+            ok++;
+        }
+        if ((s1 > 0U) && (d1 <= (s1 * s1)) && (d1 == fml_qr_dark())) {
+            const unsigned pct = (d1 * 100U) / (s1 * s1);
+
+            if ((pct >= 25U) && (pct <= 75U)) {
+                ok++;
+            }
+        }
+        if ((s1 >= 7U) && (menu_qr_finder(0U, 0U) != 0) &&
+            (menu_qr_finder(s1 - 7U, 0U) != 0) && (menu_qr_finder(0U, s1 - 7U) != 0)) {
+            ok++;
+        }
+        /* 第五项：白底板里的非白像素必须 > 0。这一步不看编码结果，只看帧缓冲：
+         * 底板坐标算错、被文字行盖掉、颜色写反，前四项都照样绿。 */
+        app_qr_plate(&qx, &qy, &qw, &qh);
+        if ((qw > 0) && (qh > 0)) {
+            plate_ink = bsl_fb_count_nonbg((uint32_t)qx, (uint32_t)qy,
+                                           (uint32_t)qw, (uint32_t)qh, 0xFFFFU);
+            if (plate_ink > 0U) {
+                ok++;
+            }
+        }
+        if ((app_qr_inject("https://openedv.com") == 0) &&
+            (app_qr_dark() != d1) && (app_qr_dark() == fml_qr_dark())) {
+            d2 = app_qr_dark();
+            ok++;
+        }
+        qr_ok = (ok == 5) ? 1 : 0;
+        app_fmt_puts(&ft, " qr=");
+        app_fmt_dec(&ft, (int)v1);
+        app_fmt_puts(&ft, "/");
+        app_fmt_dec(&ft, (int)s1);
+        app_fmt_puts(&ft, "/");
+        app_fmt_dec(&ft, (int)d1);
+        app_fmt_puts(&ft, "/");
+        app_fmt_dec(&ft, (int)d2);
+        app_fmt_puts(&ft, "/");
+        app_fmt_dec(&ft, (int)plate_ink);
+        (void)menu_back();
+    } else {
+        app_fmt_puts(&ft, " qr=-");
+    }
+
     depth = app_menu_depth();
     leave = app_menu_leave_count();    app_fmt_puts(&f, "apps=");
     app_fmt_dec(&f, (int)apps);
@@ -880,7 +975,7 @@ static int app_menu_check(char *buf, unsigned cap)
             ((leave >= apps) && (depth == 0U)) &&
             (calc_ok != 0) && (set_flips == 2) && (pic_ok != 0) &&
             (note_ok != 0) && (cal_ok != 0) && (view_ok != 0) &&
-            (paint_ok != 0) && (imu_ok != 0) && (level_ok != 0)) ? 1 : 0;
+            (paint_ok != 0) && (imu_ok != 0) && (level_ok != 0) && (qr_ok != 0)) ? 1 : 0;
 }
 
 /*

@@ -22,7 +22,13 @@
  * app_menu_dispatch 拦截它回桌面，应用自己的 event 收不到这个 id。
  */
 
-#define APP_COUNT_MAX 11U
+/*
+ * 上限从 11 扩到 13：P6e-2 的 QR 占第 12 项，P6e-3 的 NES 预留第 13 项。
+ * 为什么不一次只扩到 12 再等下一批扩到 13：这张表每个空槽只多 24 B（一个
+ * app_desc_t），而"每加一个应用就改一次上限"会让每次改动的 diff 都碰同一个
+ * 常量 —— 一次扩到位，P6e-3 落地时不必再动它。
+ */
+#define APP_COUNT_MAX 13U
 #define APP_ID_BACK 0xFFU
 
 /* 双击判定窗口：同一图标两次 CLICK 的间隔不超过这个毫秒数就算进入。
@@ -203,5 +209,28 @@ int app_level_angle_dd(void);
  * static，陀螺仪应用 BACK 时会在 leave 里清零，这里取到的就是 0，
  * 于是"倾角 3.9° vs 期望 0°"被判不自洽（P8c 首版就撞在这上面）。 */
 int app_level_acc(int16_t acc[3]);
+
+/*
+ * P6e-2：二维码（`qr_play`）。
+ *
+ * 参考工程用 T9 九宫格输入任意文本；本工程没有通用文本输入控件，所以应用内
+ * 是三条预设串轮换（数字 / 网址 / 大写字母，正好三条编码路径各走一遍），
+ * POST 可用 `app_qr_inject` 注入任意短串。
+ *
+ * 编码结果的三个数（版本 / 边长 / 黑模块数）由应用保存 `fml_qr` 最近一次的
+ * 结果 —— POST 不重新编码一遍再读，否则"应用画的那一份"和"判据读的那一份"
+ * 会变成两次编码。
+ */
+const app_desc_t *app_qr_ops(void);
+/* 编码一段文本并重画（0 成功）。`app_qr_inject` 先把串拷进应用自己的缓冲：
+ * POST 的字符串可能在栈上，应用要留着它在换串时重编码。 */
+int app_qr_show(const char *text);
+int app_qr_inject(const char *text);
+unsigned app_qr_version(void);
+unsigned app_qr_size(void);
+unsigned app_qr_dark(void);
+/* 点阵白底板矩形（屏幕绝对坐标，含静区）。POST 用它数"板上的黑模块像素"：
+ * 编码算对 ≠ 真的画到屏上。 */
+void app_qr_plate(int *x, int *y, int *w, int *h);
 
 #endif

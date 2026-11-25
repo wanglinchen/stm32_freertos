@@ -104,6 +104,13 @@ endif
 endif
 ifeq ($(CONFIG_APL),y)
 ifeq ($(CONFIG_APL_SRC),y)
+ifeq ($(CONFIG_APL_SRC_APP_QR),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/apl/src/app_qr.o
+endif
+endif
+endif
+ifeq ($(CONFIG_APL),y)
+ifeq ($(CONFIG_APL_SRC),y)
 ifeq ($(CONFIG_APL_SRC_APP_SAMPLE),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/apl/src/app_sample.o
 endif
