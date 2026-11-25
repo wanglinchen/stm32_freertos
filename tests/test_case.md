@@ -30,7 +30,7 @@
 
 | ID | 目标功能 | 前置 | 步骤 | 期望 | 判据 | 现状 |
 |----|----------|------|------|------|------|------|
-| TC-S01 | 正常上电启动 | 板子 + 电源 | 上电，串口 115200 8N1 | 约 1 s 内打印 `stm32-freertos: USART1 115200 debug ready`；红绿交替闪（banner 由 `app_sample` 的 led_blink 任务调 `bsl_log_startup_banner()`，文案与实例名/波特率在 `bsl_log.c` 运行期从 DTB 读） | B/M | 手工 |
+| TC-S01 | 正常上电启动 | 板子 + 电源 | 上电，串口 115200 8N1 | POST 21 项跑完后（数秒内）打印 `stm32-freertos: USART1 115200 debug ready`（banner 在 POST 之后，由 `app_sample` 的按键任务触发）；LED 运行期不再 1 Hz 翻转（P5a 起归 `app_led` 独占）（banner 由 `app_sample` 的 led_blink 任务调 `bsl_log_startup_banner()`，文案与实例名/波特率在 `bsl_log.c` 运行期从 DTB 读） | B/M | 手工 |
 | TC-S02 | 启动阶段标记 | 同上 | `capture.py boot-stage` 读 `g_boot_stage` | `g_boot_stage == 0`（`board_system_init` 全程成功）；`1` = HAL_Init 失败，`2` = 时钟失败，`3` = DTB 的 `hse-frequency` 与 `HSE_VALUE` 不一致（`bsl/src/board_system.c:15/33/38`） | B | 手工 |
 | TC-S03 | 复位原因判定 | 分别制造：按 NRST、`NVIC_SystemReset`、喂狗停摆 | 每次复位后 `capture.py` 看 `g_reset_cause`、`g_reset_csr` | 引脚复位 → 5；软件复位 → 4；IWDG 超时 → 3；上电 → 7（优先级：低功耗 > WWDG > IWDG > 软件 > 引脚 > BOR > 上电，`osl/inc/osl_boot.h:16-24`） | B | 手工 |
 | TC-S04 | 系统时钟 168 MHz | — | `capture.py` 读 `RCC->PLLCFGR`/`SystemCoreClock` | 168 MHz、PLLQ = 7（48 MHz 给 USB/SDIO，`board_system.c:17-20`）；`g_clock_fail_sub == 0` | B | 手工 |

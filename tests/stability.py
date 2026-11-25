@@ -253,21 +253,33 @@ def open_port(port: str):
 
 
 def capture_boot(port: str, window: float) -> bytes:
-    """复位一次并抓启动串口。端口先开再复位：banner 在复位后几毫秒就发完，
-    端口晚开就只剩驱动缓冲区里的残缺尾巴。"""
+    """复位一次并抓启动串口。
+
+    **判据起点已改（2026-11-25）**：P5a 起 banner 由 `app_sample` 的按键任务在
+    调度器启动后打印，POST 的 21 项全排在它前面。所以不能再"读到 0.8 s 静默就
+    收工"——POST 项之间本就有停顿，那样会在中途返回，banner 永远抓不到
+    （stability 首跑 3 轮全 FAIL 就是这么来的）。
+    现在：一直读到 **BANNER 完整出现**，再等 0.8 s 静默收工；超时才算失败。
+    """
     ser = open_port(port)
     try:
         ser.reset_input_buffer()                       # 清掉复位前残留
-        cap.run_openocd(["init", "reset", "shutdown"])  # 复位后放行
+        # reset 之后必须 resume：openocd 的 reset 会把核停在复位向量上，
+        # 不 resume 就没有任何 POST/banner 输出（首跑抓到的 512 B 是上一轮
+        # 残在下行缓冲里的 [sai] 行，s_banner_done 自然还是 0）。
+        cap.run_openocd(["init", "reset", "resume", "shutdown"])  # 复位后放行
         buf = bytearray()
         t0 = last = time.monotonic()
+        seen_banner = False
         while time.monotonic() - t0 < window:
             chunk = ser.read(64)
             if chunk:
                 buf.extend(chunk)
                 last = time.monotonic()
-            elif buf and time.monotonic() - last > 0.8:
-                break          # banner 发完且静了 0.8 s，提前收工
+                if BANNER in buf:
+                    seen_banner = True
+            elif seen_banner and time.monotonic() - last > 0.8:
+                break          # banner 已发完且静了 0.8 s
         return bytes(buf)
     finally:
         ser.close()
@@ -341,6 +353,7 @@ def check_reset(port: str, elf: Path, cycles: int, window: float) -> None:
     names = list(SYMS)
 
     baselines: list[bytes] = []
+    post_bits: list[bytes] = []
     snaps: list[dict[str, object]] = []
     for i in range(1, cycles + 1):
         boot = capture_boot(port, window)
@@ -348,25 +361,36 @@ def check_reset(port: str, elf: Path, cycles: int, window: float) -> None:
         snap = snapshot(read_syms(addrs, names))
 
         tag = f"第 {i}/{cycles} 轮"
-        if boot.startswith(BANNER):
-            # banner 之后允许运行期日志（LED 翻转 1 Hz、按键、故障）：
-            # 现在每行必须以 `[模块] ` 开头且以 \r\n 收尾，不能出现裸字节或半行。
-            tail = boot[len(BANNER):]
+        # banner 现在排在 POST 之后（见 capture_boot 的注释），判据改成：
+        #   1) 完整 banner 必须出现；
+        #   2) banner 之前必须有一行 `[post] result N pass N fail 0`（N>0）；
+        #   3) banner 之后的运行日志每行必须是 `[模块] ASCII` 且 \r\n 收尾。
+        idx = boot.find(BANNER)
+        post = re.search(rb"\[post\] result (\d+) pass \1 fail 0", boot)
+        if idx < 0:
+            n = min(len(boot), len(BANNER))
+            first = next((k for k in range(n) if boot[k] != BANNER[k]), n)
+            add(f"reset-banner {tag}", "FAIL",
+                f"抓不到完整 banner（收到 {len(boot)} 字节，首 {n} 字节与黄金串首个差异在 "
+                f"偏移 {first}）；实收={hexdump(boot)[:160]}")
+        elif post is None:
+            add(f"reset-banner {tag}", "FAIL",
+                "banner 之前没有 `[post] result N pass N fail 0`（POST 未跑完或全部失败）")
+        else:
+            tail = boot[idx + len(BANNER):]
             bad_lines = [
                 ln for ln in tail.split(b"\r\n")
-                if ln and not re.match(rb"^\[[a-z]{2,4}\] [\x20-\x7e]*$", ln)
+                if ln and not re.match(rb"^\[[a-z][a-z0-9_]{0,7}\] [\x20-\x7e]*$", ln)
             ]
+            post_bits.append(post.group(0))
             if bad_lines:
                 add(f"reset-banner {tag}", "FAIL",
                     "banner 之后的运行日志不合格式：" + " / ".join(
                         ln.decode("ascii", "replace")[:40] for ln in bad_lines[:3]))
-        else:
-            n = min(len(boot), len(BANNER))
-            first = next((k for k in range(n) if boot[k] != BANNER[k]), n)
-            add(f"reset-banner {tag}", "FAIL",
-                f"抓到 {len(boot)} 字节（banner 应 {len(BANNER)} 字节且在最前），"
-                f"首个差异在偏移 {first}；实收={hexdump(boot)[:160]}")
-        baselines.append(boot[: len(BANNER)] if boot.startswith(BANNER) else boot)
+            else:
+                add(f"reset-banner {tag}", "PASS",
+                    f"POST `{post.group(1).decode()} 项` 全过，banner 出现且其后日志格式合规")
+        baselines.append(BANNER if idx >= 0 else boot)
 
         bad = invariants(snap)
         if bad:
@@ -395,17 +419,29 @@ def check_reset(port: str, elf: Path, cycles: int, window: float) -> None:
             add("reset-轮间一致", "PASS", f"{cycles} 轮 {len(keys)} 个字段完全一致")
     if baselines:
         if len(set(baselines)) == 1 and baselines[0] == BANNER:
-            add("reset-banner稳定", "PASS",
-                f"{cycles} 轮 banner 均为 {len(BANNER)} 字节同内容，其后运行日志格式合规")
+            if post_bits and len(set(post_bits)) == 1:
+                add("reset-banner稳定", "PASS",
+                    f"{cycles} 轮 banner 均为 {len(BANNER)} 字节同内容，"
+                    f"且每轮 POST 同一条 `{post_bits[0].decode()}`")
+            else:
+                add("reset-banner稳定", "FAIL",
+                    f"{cycles} 轮里 POST 结果不一致：{[b.decode() for b in post_bits]}")
         else:
             add("reset-banner稳定", "FAIL",
                 f"{cycles} 轮里 banner 出现 {len(set(baselines))} 种内容/长度，不满足逐字节稳定")
 
 
 def check_soak(port: str, elf: Path, seconds: float) -> None:
-    """长跑：串口全程盯重启 + tick 漂移 + LED 仍在翻转 + 健康计数归零。"""
+    """长跑：串口全程盯重启 + tick 漂移 + 健康计数归零。
+
+    **起点改（2026-11-25）**：先完整启动一次（读到 banner + 1 s），再开长跑窗口。
+    首跑时 soak 紧接 reset 的最后一次"半截启动"开始，于是 POST 的 `[app_qr]` 行
+    被当成"意外重启"，tick 起点也早于调度器 —— 比值与重启两项同时误判。
+    """
     addrs = resolve_syms(elf)
     names = list(SYMS)
+    _boot = capture_boot(port, 20.0)   # 完整启动一次（端口由它自己开关）
+    time.sleep(1.0)                    # 等 banner 之后的运行期日志落定
     ser = open_port(port)
     stray = bytearray()
     try:
@@ -466,26 +502,21 @@ def check_soak(port: str, elf: Path, seconds: float) -> None:
             if bad_mid:
                 add("soak-中点", "FAIL", "；".join(bad_mid))
 
-        # 期间串口只要冒出 banner 片段，就是意外重启（IWDG 咬 / panic 复位）。
-        # 注意运行期本来就有 LED/按键日志，所以判据是"有没有 banner"，不是"静不静默"。
-        if b"stm32-freertos" in stray or b"debug ready" in stray:
+        # 期间串口只要冒出**完整 banner**，就是意外重启（IWDG 咬 / panic 复位）。
+        # 用完整串而不是片段：POST 的项名里没有 "stm32-freertos"，但 `[app_qr]`
+        # 这类运行日志不该被判成 banner（首跑就误判在这）。
+        if BANNER in stray or b"stm32-freertos" in stray:
             add("soak-无意外重启", "FAIL",
-                f"长跑中收到 {len(stray)} 字节串口输出，含 banner 片段（说明复位过）：{hexdump(stray)[:120]}")
+                f"长跑中收到 {len(stray)} 字节串口输出，含 banner（说明复位过）：{hexdump(stray)[:120]}")
         else:
             add("soak-无意外重启", "PASS",
-                f"期间无 banner 片段（收到 {len(stray)} 字节运行日志）")
+                f"期间无 banner（收到 {len(stray)} 字节运行日志）")
 
-        # LED 仍在翻转：PB0/PB1 的 ODR 至少出现两种取值
-        odr = sample_odr(3, gap_ms=900)
-        if len(odr) < 2:
-            add("soak-LED翻转", "SKIP", "ODR 采样不足（openocd 会话失败）")
-        elif len(set(odr)) >= 2:
-            add("soak-LED翻转", "PASS",
-                "GPIOB ODR 采样 " + " ".join(f"0x{v:02X}" for v in odr))
-        else:
-            add("soak-LED翻转", "FAIL",
-                "GPIOB ODR 三次采样恒为 " + " ".join(f"0x{v:02X}" for v in odr)
-                + "，LED 停止翻转（采样任务卡死？）")
+        # LED 心跳：P5a 起 app_sample 的 1 Hz 翻转已删（LED 归 app_led 独占，
+        # 否则"屏上状态"与"灯的实际状态"会在 1 s 内对不上，见 app_sample.c 第 15-20 行）。
+        # 这一项不再适用；活性由 tick 漂移 + 不变量判。
+        add("soak-LED翻转", "SKIP",
+            "P5a 起运行期无 1 Hz LED 心跳（app_sample.c 注释），该项已不适用")
     finally:
         ser.close()
 
@@ -511,7 +542,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--elf", default=None, help="直接指定 ELF（覆盖 --variant）")
     ap.add_argument("--port", default=None, help="串口设备，默认自动按 CH340/STLink 挑")
     ap.add_argument("--cycles", type=int, default=3, help="复位轮数（默认 3）")
-    ap.add_argument("--window", type=float, default=3.0, help="每轮抓 banner 的窗口秒数")
+    ap.add_argument("--window", type=float, default=20.0,
+                    help="每轮抓启动（POST + banner）的窗口秒数；POST 21 项在 8080 屏上要数秒")
     ap.add_argument("--soak", type=float, default=30.0, help="长跑秒数（默认 30）")
     ap.add_argument("--only", default="all", choices=["all", "dtb", "reset", "soak"])
     args = ap.parse_args(argv)
