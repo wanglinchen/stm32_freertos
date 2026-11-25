@@ -182,6 +182,13 @@ endif
 endif
 ifeq ($(CONFIG_BSL),y)
 ifeq ($(CONFIG_BSL_SRC),y)
+ifeq ($(CONFIG_BSL_SRC_BSL_DMA),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/bsl_dma.o
+endif
+endif
+endif
+ifeq ($(CONFIG_BSL),y)
+ifeq ($(CONFIG_BSL_SRC),y)
 ifeq ($(CONFIG_BSL_SRC_BSL_FB),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/bsl/src/bsl_fb.o
 endif

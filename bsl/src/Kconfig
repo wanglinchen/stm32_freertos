@@ -93,6 +93,10 @@ config BSL_SRC_BSL_DEVICE
 	bool "bsl_device.c"
 	default y
 
+config BSL_SRC_BSL_DMA
+	bool "bsl_dma.c"
+	default y
+
 config BSL_SRC_BSL_FB
 	bool "bsl_fb.c"
 	default y

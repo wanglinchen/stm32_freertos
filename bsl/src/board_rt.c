@@ -118,6 +118,8 @@ typedef struct {
     board_rt_usart_t usart;
     int nand_ok;
     board_rt_nand_t nand;
+    int dma_ok;
+    board_rt_dma_t dma;
 } board_rt_t;
 
 static board_rt_t s_rt;
@@ -1143,6 +1145,7 @@ static void parse_tpad(void)
  * USART 要 TX+RX 两位。少于两位不是"少一根脚无所谓" —— USART 少 RX 就是
  * "发得出去、收不回来"，现场表现成"对端没回话"，比节点缺失难查得多。 */
 #define RT_COMPAT_CAN "brd,can"
+#define RT_COMPAT_DMA "brd,dma"
 #define RT_COMPAT_NAND "brd,nand"
 #define RT_COMPAT_USART "brd,usart"
 
@@ -1256,6 +1259,26 @@ static void parse_nand(void)
     s_rt.nand = n;
     s_rt.nand_ok = 1;
 }
+static void parse_dma(void)
+{
+    bsl_fdt_node_t node = bsl_fdt_find(RT_COMPAT_DMA, 0U);
+    board_rt_dma_t d;
+    uint32_t inst = 0U;
+    uint32_t stream = 0U;
+
+    if (node == NULL) {
+        return;
+    }
+    if (bsl_fdt_prop_u32(node, "instance", &inst) == 0
+        || bsl_fdt_prop_u32(node, "stream", &stream) == 0) {
+        return;
+    }
+    d.instance = inst;
+    d.stream = stream;
+    s_rt.dma = d;
+    s_rt.dma_ok = 1;
+}
+
 static void parse_all(void)
 {
     if (s_rt.parsed) {
@@ -1285,6 +1308,7 @@ static void parse_all(void)
     parse_can();
     parse_usart();
     parse_nand();
+    parse_dma();
 }
 
 uint32_t board_rt_hse_hz(void)
@@ -1310,6 +1334,16 @@ int board_rt_usart(board_rt_usart_t *out)
         return 0;
     }
     *out = s_rt.usart;
+    return 1;
+}
+
+int board_rt_dma(board_rt_dma_t *out)
+{
+    parse_all();
+    if (!s_rt.dma_ok || out == NULL) {
+        return 0;
+    }
+    *out = s_rt.dma;
     return 1;
 }
 

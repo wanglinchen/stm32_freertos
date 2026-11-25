@@ -1213,6 +1213,13 @@ _BOARD_NODES = """\
      * "读得到、写进去再读变 0xFF"，这类故障最难查。
      * 命令/地址线固定为 FMC 的 A16/A17（CLE/ALE），不是板级可选项，
      * 因此不进 DTB；引脚见 bsl/src/board_nand.c 顶部注释（AF12 共用 FMC）。 */
+    /* DMA（P9c-1）：DMA2 Stream0 做内存→内存。DMA1 不支持 M2M，
+     * 所以实例写死为 2；驱动对别的实例返回 NOSUPPORT 而不是假装能跑。 */
+    dma: dma {
+        compatible = "brd,dma";
+        instance = <2>;
+        stream = <0>;
+    };
     nand: nand@80000000 {
         compatible = "brd,nand";
         reg = <0x80000000 0x00080000>;

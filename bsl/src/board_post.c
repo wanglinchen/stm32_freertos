@@ -245,6 +245,16 @@ static void post_rtc(void)
         post_end(0);
         return;
     }
+    /* 冷启动时 LSE 起振要 1~2 s，第一次 1.1 s 窗口内可能一秒都没走（delta=0），
+     * 复位后同一项就 PASS。POST 必须每次复位同结果（stability 要求三轮一致），
+     * 所以 delta=0 时再测一次，而不是把一次偶发当成"RTC 坏"。 */
+    if (delta < 1) {
+        if (bsl_rtc_measure(1100U, &t, &delta) != BSL_OK) {
+            BSL_LOG_INF("read=err");
+            post_end(0);
+            return;
+        }
+    }
 
     BSL_LOG_INF("src=");
     bsl_log_puts((rtc->clock_source() == BSL_RTC_SRC_LSE) ? "lse" : "lsi");
@@ -895,6 +905,44 @@ static void post_nand(void)
     bsl_log_put_dec((int)ff);
     post_end(ok);
 }
+/*
+ * DMA（P9c-1）：DMA2 内存→内存搬 256 个字，逐字比对。
+ * 判据三件：返回值 OK、done==256（NDTR 真的走到 0）、dst[i]==i 逐字相同。
+ * 只判"函数返回成功"是不够的 —— 传输没完成时也可能返回 OK（早停会留下半份数据）。
+ * 放在 bss 而不是栈：POST 任务栈 512 字，两份 1 KB 缓冲装不下。
+ */
+static void post_dma(void)
+{
+    static uint32_t src[256];
+    static uint32_t dst[256];
+    unsigned done = 0U;
+    unsigned ok = 0U;
+    unsigned i;
+
+    if (bsl_device_is_ready(BSL_DEV_DMA) == 0) {
+        post_begin("dma dev=not-ready");
+        post_end(0);
+        return;
+    }
+    for (i = 0U; i < 256U; i++) {
+        src[i] = i;
+        dst[i] = 0xDEADBEEFUL;
+    }
+    bsl_err_t rc = bsl_devapi_dma()->memcopy(src, dst, 256U, &done);
+    if (rc == BSL_OK && done == 256U) {
+        for (i = 0U; i < 256U; i++) {
+            if (dst[i] == i) {
+                ok++;
+            }
+        }
+    }
+    post_begin("dma n=256 done=");
+    bsl_log_put_dec((int)done);
+    BSL_LOG_INF(" ok=");
+    bsl_log_put_dec((int)ok);
+    post_end((rc == BSL_OK && ok == 256U) ? 1 : 0);
+}
+
 void board_post_run(void)
 {
     s_total = 0U;
@@ -906,6 +954,7 @@ void board_post_run(void)
     post_touch();
     post_nor();
     post_nand();
+    post_dma();
     post_rtc();
     post_adc();
     post_crc();

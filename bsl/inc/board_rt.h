@@ -291,4 +291,12 @@ typedef struct {
 } board_rt_nand_t;
 
 int board_rt_nand(board_rt_nand_t *out);
+/* DMA（P9c-1）：只登记实例/流号。M2M 不需要引脚，能力由芯片固定。 */
+typedef struct {
+    unsigned instance;
+    unsigned stream;
+} board_rt_dma_t;
+
+int board_rt_dma(board_rt_dma_t *out);
+
 #endif /* BOARD_RT_H */

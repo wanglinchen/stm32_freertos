@@ -183,4 +183,12 @@ typedef struct {
                            uint16_t len);
 } bsl_nand_api_t;
 
+/* DMA（P9c-1）：DMA2 内存→内存。done_words 是"实际搬了多少字"的读数，
+ * 判据用它，而不是只看函数返回值。 */
+typedef struct {
+    int (*ready)(void);
+    bsl_err_t (*memcopy)(const void *src, void *dst, unsigned words,
+                         unsigned *done_words);
+} bsl_dma_api_t;
+
 #endif
