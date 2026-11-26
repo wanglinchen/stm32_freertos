@@ -61,4 +61,48 @@ bsl_err_t bsl_sai_stop(void);
 uint32_t bsl_sai_last_us(void);
 uint32_t bsl_sai_last_error(void);
 
+/*
+ * ---- 录音侧：Block B 从接收（P9e-3 勘探）----
+ *
+ * Block B 用 internal sync 跟 Block A（主机）同步：SCK/FS 由 A 产生，B 只把
+ * SD_B(PE3) 上的数据收回来。所以**录之前必须让 A 先跑**（`bsl_sai_rx_capture`
+ * 自己会把 A 起成循环静音，不用调用方操心）。
+ *
+ * 收到的帧和播放帧同一布局：32 位字 = 高 16 左 + 低 16 右。样本率就是 A 的 FS
+ * （本板 47973 Hz），所以录下来的数据可以原样交给 `bsl_sai_buffer` 回放，
+ * 不需要重采样。
+ */
+#define BSL_SAI_RX_BUF_FRAMES BSL_SAI_BUF_FRAMES
+
+typedef struct {
+    uint32_t frames;    /* 实际收到的 32 位字数（正常应等于请求的 n_frames） */
+    /* 每个 32 位字里只有低 16 位是当前槽的样本（DS=16、SLOTSZ=16 时数据右对齐，
+     * 高 16 位恒 0 —— 上板首测把高半当左声道，读出来全是 0，就是这个原因）。
+     * 槽在 L/R 之间交替：偶数下标 = 左槽、奇数下标 = 右槽。 */
+    uint32_t nz;        /* 非零样本数（两槽合计）—— 0 就说明 ADCDAT 一直是 0 */
+    int32_t lmin;       /* 左槽 最小/最大/均值 */
+    int32_t lmax;
+    int32_t lmean;
+    int32_t rmin;       /* 右槽 最小/最大/均值 */
+    int32_t rmax;
+    int32_t rmean;
+    uint32_t pp;        /* 峰峰值 max(all) - min(all)：静音时只有直流，pp≈0 */
+    uint32_t err;       /* Block B 的 SR 错误位（OVRUDR/WCKCFG/AFSDET/LFSDET） */
+} bsl_sai_rx_stat_t;
+
+/* 配置 Block B（可重复调用；采样率/帧形态取自 Block A，不另算）。 */
+bsl_err_t bsl_sai_rx_init(void);
+
+/* 采集选项：两个沿各收一趟就能分辨"数据对不上"是边沿选错还是器件没在驱动；
+ * 一边放音一边收，则能回答"咪头到底收不收得到声音"（声耦合）。
+ *   ALT_EDGE：CKSTR=0（默认用 =1，与 Block A 同沿）
+ *   TONE    ：Block A 播 440 Hz 量级的方波（802 Hz，48 帧一个周期）而不是静音
+ * 录一趟：Block A 起循环 → Block B + DMA2 Stream5 收 n_frames → 停两侧 → 统计。
+ * 返回 BSL_OK 仅当 DMA 传输完成标志真的置起来（帧数不够返回 TIMEOUT）。 */
+#define BSL_SAI_RX_ALT_EDGE 0x1U
+#define BSL_SAI_RX_TONE 0x2U
+
+bsl_err_t bsl_sai_rx_capture(uint32_t n_frames, unsigned flags,
+                             bsl_sai_rx_stat_t *stat, uint32_t *elapsed_us);
+
 #endif /* BSL_SAI_H */

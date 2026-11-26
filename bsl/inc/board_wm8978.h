@@ -35,4 +35,23 @@ unsigned board_wm8978_reg_count(void);
  * 越界返回 BSL_ERR_INVAL；这两个寄存器不进 POST 计数（初始化后单独可调）。 */
 bsl_err_t board_wm8978_set_volume(uint8_t vol);
 
+/*
+ * ---- 录音侧（P9e-3 勘探）----
+ *
+ * P6c 的播放序列里 ADCENL/R（R2 bit0/1）与 BOOSTENL/R（bit4/5）**本来就是开的**
+ * （R2=0x1B3），所以录音只差三件事：输入 PGA（R2 bit2/3）、输入路由（R44）、
+ * 与 PGA/boost 的增益（R45/R46/R47/R48）。
+ *
+ * 口径来源：[参考] 野火《WM8978 录音》页的位说明 + 正点原子论坛的
+ * `WM8978_Input_Cfg` 值（R2 |= 3<<2 开 INPPGA、R44 |= 3<<4|3<<0 走 LIN/LIP/
+ * RIN/RIP）。本地无 WM8978 手册，所以这些值标 [参考] 而不是 [数据手册]。
+ *
+ * 写序列共 7 条（R1 的 MICBEN + R2/R44/R45/R46/R47/R48），逐条算 ACK；
+ * `..._adc_ack()` 给 POST 打出来。`..._adc_disable()` 把 R1/R2/R44 还原成播放口径
+ * —— 不为录音把咪头偏置留在喇叭通路上。
+ */
+bsl_err_t board_wm8978_adc_enable(void);
+bsl_err_t board_wm8978_adc_disable(void);
+unsigned board_wm8978_adc_ack(void);
+
 #endif /* BOARD_WM8978_H */

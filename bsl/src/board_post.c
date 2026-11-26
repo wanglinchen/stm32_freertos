@@ -7,6 +7,7 @@
 #include "board_rt.h"
 #include "board_sdram.h"
 #include "board_touch.h"
+#include "board_wm8978.h"
 #include "bsl_adc.h"
 #include "bsl_crc.h"
 #include "bsl_dac.h"
@@ -566,6 +567,12 @@ static void post_sai(void)
     uint32_t tol_us;
     bsl_err_t rc;
     unsigned i;
+    bsl_sai_rx_stat_t rx;
+    bsl_sai_rx_stat_t rx2;
+    uint32_t rx_us = 0U;
+    uint32_t rx2_us = 0U;
+    bsl_err_t rx_rc;
+    unsigned adc_ack = 0U;
 
     if (bsl_device_is_ready(BSL_DEV_SAI) == 0) {
         post_begin("sai dev=not-ready");
@@ -586,6 +593,29 @@ static void post_sai(void)
     }
 
     rc = api->play_blocking(frames, &us);
+
+    /* ---- 录音侧能力测量（P9e-3）：不建应用，只问"这条路通不通"。
+     * 顺序有讲究：先把 codec 的输入 PGA 打开，再让 SAI 收；收完立刻还原播放口径，
+     * 否则剩下的 POST 项都在 ADC 通路上跑。 */
+    (void)memset(&rx, 0, sizeof(rx));
+    (void)memset(&rx2, 0, sizeof(rx2));
+    if (board_wm8978_adc_enable() == BSL_OK) {
+        /* 两趟：先 CKSTR=1（与 Block A 同沿），再 CKSTR=0。两趟都收满 2048 说明
+         * 时钟与 SD_B 都在动；两趟的读数差别说明"采到的东西"对边沿敏不敏感。 */
+        /* 上板实测：CKSTR=1（与 Block A 同沿）收上来全是 0x0000，CKSTR=0 才拿到
+         * 可解释的样本 —— 所以两趟都用 ALT 沿，把"静音基线"和"边放边录"放在同一
+         * 个边沿下比较。第一趟静音 = 底噪；第二趟喇叭放方波 = 声耦合。 */
+        /* 顺序上让"放音 + 录音"当第一趟：它的上一手是刚结束的 play_blocking，状态最干净；
+         * 静音底噪放第二趟（上一轮里同一个第二趟位置用静音是通的）。 */
+        rx_rc = bsl_sai_rx_capture(frames, BSL_SAI_RX_ALT_EDGE | BSL_SAI_RX_TONE,
+                                   &rx, &rx_us);
+        (void)bsl_sai_rx_capture(frames, BSL_SAI_RX_ALT_EDGE, &rx2, &rx2_us);
+        adc_ack = board_wm8978_adc_ack();
+        (void)board_wm8978_adc_disable();
+    } else {
+        rx_rc = BSL_ERR_IO;
+        adc_ack = board_wm8978_adc_ack();
+    }
     expect_us = (frames * 1000000U) / fs;
     /* 5% + 200 µs：CYCCNT 折算成 µs 后仍有 ±1 µs 量化，再给总线抖动一点余量。 */
     tol_us = (expect_us / 20U) + 200U;
@@ -599,8 +629,53 @@ static void post_sai(void)
     bsl_log_put_dec((int)expect_us);
     BSL_LOG_INF(" err=");
     bsl_log_put_dec((int)api->last_error());
+    BSL_LOG_INF(" rxt=");
+    bsl_log_put_dec((int)rx.frames);
+    BSL_LOG_INF("/l");
+    bsl_log_put_dec((int)rx.lmin);
+    BSL_LOG_INF("..");
+    bsl_log_put_dec((int)rx.lmax);
+    BSL_LOG_INF("@");
+    bsl_log_put_dec((int)rx.lmean);
+    BSL_LOG_INF("/r");
+    bsl_log_put_dec((int)rx.rmin);
+    BSL_LOG_INF("..");
+    bsl_log_put_dec((int)rx.rmax);
+    BSL_LOG_INF("@");
+    bsl_log_put_dec((int)rx.rmean);
+    BSL_LOG_INF("/pp");
+    bsl_log_put_dec((int)rx.pp);
+    BSL_LOG_INF("/nz");
+    bsl_log_put_dec((int)rx.nz);
+    BSL_LOG_INF(" rxs=");
+    bsl_log_put_dec((int)rx2.frames);
+    BSL_LOG_INF("/l");
+    bsl_log_put_dec((int)rx2.lmin);
+    BSL_LOG_INF("..");
+    bsl_log_put_dec((int)rx2.lmax);
+    BSL_LOG_INF("@");
+    bsl_log_put_dec((int)rx2.lmean);
+    BSL_LOG_INF("/r");
+    bsl_log_put_dec((int)rx2.rmin);
+    BSL_LOG_INF("..");
+    bsl_log_put_dec((int)rx2.rmax);
+    BSL_LOG_INF("@");
+    bsl_log_put_dec((int)rx2.rmean);
+    BSL_LOG_INF("/pp");
+    bsl_log_put_dec((int)rx2.pp);
+    BSL_LOG_INF("/nz");
+    bsl_log_put_dec((int)rx2.nz);
+    BSL_LOG_INF(" rxus=");
+    bsl_log_put_dec((int)rx_us);
+    BSL_LOG_INF(" adc=");
+    bsl_log_put_dec((int)adc_ack);
+    /* 判据只加"帧数到了"这一条：两趟各 2048 字说明 SCK/FS 在跑、SD_B 的数据被
+     * DMA 收满。**不判有没有声音** —— 板上咪头有没有、增益够不够，是这个测量
+     * 要回答的问题本身，不是它的前提。l/r 的 min..max@mean 与 pp 照原样打出来供人读。 */
     post_end((rc == BSL_OK && api->last_error() == 0U
-              && us + tol_us >= expect_us && us <= expect_us + tol_us) ? 1 : 0);
+              && us + tol_us >= expect_us && us <= expect_us + tol_us
+              && rx_rc == BSL_OK && rx.frames == frames
+              && rx2.frames == frames) ? 1 : 0);
 }
 
 /*

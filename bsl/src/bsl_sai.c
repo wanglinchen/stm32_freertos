@@ -398,6 +398,283 @@ bsl_err_t bsl_sai_play_blocking(uint32_t n_frames, uint32_t *elapsed_us)
     return BSL_OK;
 }
 
+/* ======================================================================
+ * 录音侧：Block B 从接收（P9e-3 勘探）
+ *
+ * 为什么必须"Block A 先响、Block B 再收"：SAI 的 SCK/FS/MCLK 只有一个来源。
+ * Block A 配成主机（P6c 的播放口径），Block B 用 SYNCEN=internal 跟它同步 ——
+ * 这样录和放共用同一条位时钟与帧时钟，采到的样本率天然就是那个 47973 Hz，
+ * 不需要第二套时钟，也不需要重采样就能直接回放。
+ *
+ * 数据布局与发送完全对称：每帧一个 32 位字，高 16 位是左声道、低 16 位是右。
+ * DMA 走 DMA2 Stream 5 Channel 0（参考工程 sai.h 的 SAI1_RX_DMASx 同一映射，
+ * 那块板子用的也是这颗芯片，映射不是我推的）。
+ * ==================================================================== */
+
+#define SAI_RX_BLK SAI1_Block_B
+#define SAI_RX_STREAM DMA2_Stream5
+
+#define SAI_RX_DMA_CLR (DMA_HIFCR_CFEIF5 | DMA_HIFCR_CDMEIF5 | DMA_HIFCR_CTEIF5 \
+                        | DMA_HIFCR_CTCIF5)
+
+static uint32_t s_rx_buf[BSL_SAI_RX_BUF_FRAMES];
+
+bsl_err_t bsl_sai_rx_init(void)
+{
+    if (s_ready == 0) {
+        return BSL_ERR_NOINIT;
+    }
+    __HAL_RCC_DMA2_CLK_ENABLE();
+    /* CR1：从接收（MODE=11）+ **内部同步（SYNCEN=01）** + 16 位数据（DS=010）+ CKSTR=1。
+     *
+     * SYNCEN 的编码按 hal/periph/inc/stm32f4xx_hal_sai.h 的枚举：
+     *   0=异步、1=与同一 SAI 的另一个 block 同步（内部）、2=与 SAI1 外部同步、
+     *   3=与 SAI2 外部同步。所以"内部同步"是 0b01 = SYNCEN_0。
+     * 首版按寄存器位序的直觉写成 0b10（= 外部 SAI1 同步），Block B 去等一个不存在的
+     * 外部触发，SCK/FS 一个都没来 —— 上板现场：`rx frames=0 tc=0 err=0`，NDTR 一动不动。
+     * CKSTR=1 与 Block A 一致：接收侧在 SCK 上升沿采样，发送侧在下降沿换数据。
+     * CR2 的 FSL=01（1/4 FIFO，即两个 16 位槽）与参考工程同一口径。
+     * 位而不是 HAL 的 SAI_MODESLAVE_RX：那个宏在 hal_sai 模块头里，本驱动只用寄存器口径。 */
+    SAI_RX_BLK->CR1 = SAI_xCR1_DS_1
+                    | SAI_xCR1_MODE_1 | SAI_xCR1_MODE_0
+                    | SAI_xCR1_CKSTR | SAI_xCR1_SYNCEN_0;
+    SAI_RX_BLK->CR2 = 1U;
+    /* 帧形态逐位照抄 Block A（同一个 SCK/FS 里的两个 16 位槽）；不自己再算一遍，
+     * 两处各算一次就有"改一处忘另一处"的空间。 */
+    SAI_RX_BLK->FRCR = SAI_BLK->FRCR;
+    SAI_RX_BLK->SLOTR = SAI_BLK->SLOTR;
+    SAI_RX_BLK->CLRFR = SAI_ERR_MASK;
+    return BSL_OK;
+}
+
+bsl_err_t bsl_sai_rx_capture(uint32_t n_frames, unsigned flags,
+                             bsl_sai_rx_stat_t *stat, uint32_t *elapsed_us)
+{
+    bsl_err_t rc;
+    uint32_t i;
+    uint32_t t0;
+    uint32_t c0;
+    uint32_t timeout;
+    uint32_t expect_ms;
+    uint32_t got;
+    uint32_t bcr1;
+    uint32_t bsr;
+    uint32_t w[8];
+    uint32_t scr;
+    uint32_t hisr;
+    uint32_t ndtr0;
+    int64_t sum_l = 0;
+    int64_t sum_r = 0;
+    int32_t lmin = 0;
+    int32_t lmax = 0;
+    int32_t rmin = 0;
+    int32_t rmax = 0;
+    int32_t gmin = 0;
+    int32_t gmax = 0;
+    uint32_t nl = 0U;
+    uint32_t nr = 0U;
+    uint32_t nz = 0U;
+    int tc;
+
+    if ((stat == NULL) || (n_frames == 0U) || (n_frames > BSL_SAI_RX_BUF_FRAMES)) {
+        return BSL_ERR_INVAL;
+    }
+    if (s_ready == 0) {
+        return BSL_ERR_NOINIT;
+    }
+    if (bsl_sai_rx_init() != BSL_OK) {
+        return BSL_ERR_NOINIT;
+    }
+    if ((flags & BSL_SAI_RX_ALT_EDGE) != 0U) {
+        /* 只在"还没使能"的时候改采样沿：SAIEN=1 后 CR1 的 CKSTR 是写保护的。 */
+        SAI_RX_BLK->CR1 &= ~SAI_xCR1_CKSTR;
+    }
+    if (elapsed_us != NULL) {
+        *elapsed_us = 0U;
+    }
+
+    /* 1) Block A 先播静音（循环）。它是主机：停着的时候 Block B 收不到任何位时钟，
+     *    NDTR 一动不动，现场看起来像"RX DMA 坏了"，其实是"没人发时钟"。 */
+    /* 默认静音；TONE 时填方波，让喇叭真的出声 —— 此时收上来的样本里若出现
+     * 大幅起伏，就是"咪头 → PGA → ADC → SD_B"整条路在动，而不是只有直流。 */
+    for (i = 0U; i < BSL_SAI_BUF_FRAMES; i++) {
+        if ((flags & BSL_SAI_RX_TONE) != 0U) {
+            int16_t v = (((i % 48U) < 24U) ? 0x1800 : -0x1800);
+            s_buf[i] = ((uint32_t)(uint16_t)v << 16) | (uint32_t)(uint16_t)v;
+        } else {
+            s_buf[i] = 0U;
+        }
+    }
+    rc = sai_play_start(BSL_SAI_BUF_FRAMES, 1);
+    if (rc != BSL_OK) {
+        return rc;
+    }
+    /* A 刚起的那一个帧周期里 FS 的相位还没稳定，此时开 B 会被判成 WCKCFG（错时钟
+     * 配置）并就此停收 —— 上一轮第二趟 `rx frames=0` + `bsr=0x10020`（WCKCFG 且
+     * FIFO 停在 4 字）就是这个现场。等 1 ms（≈48 帧）再清掉错误位、开 B。 */
+    HAL_Delay(1U);
+    SAI_RX_BLK->CLRFR = SAI_ERR_MASK;
+
+    /* 2) 先把上一趟留下的状态彻底停干净：SAIEN/DMAEN 先关，等 stream 的 EN 真的
+     *    落下（只等两个循环不够 —— 第三次连采时 EN 还在，后面写 PAR/NDTR 会被忽略，
+     *    现场是 `rx frames=2` 之后 FIFO 停在 4 个字不动），再刷掉 RX FIFO 的残留字。 */
+    SAI_RX_BLK->CR1 &= ~(SAI_xCR1_SAIEN | SAI_xCR1_DMAEN);
+    SAI_RX_STREAM->CR &= ~DMA_SxCR_EN;
+    {
+        uint32_t t_end = HAL_GetTick() + 5U;
+
+        while (((SAI_RX_STREAM->CR & DMA_SxCR_EN) != 0U)
+               && (HAL_GetTick() < t_end)) {
+            /* 等 EN 自清 */
+        }
+    }
+    SAI_RX_BLK->CR2 |= SAI_xCR2_FFLUSH;
+    DMA2->HIFCR = SAI_RX_DMA_CLR;
+    SAI_RX_STREAM->PAR = (uint32_t)&SAI_RX_BLK->DR;
+    SAI_RX_STREAM->M0AR = (uint32_t)&s_rx_buf[0];
+    SAI_RX_STREAM->NDTR = n_frames;
+    SAI_RX_STREAM->FCR = DMA_SxFCR_DMDIS;
+    SAI_RX_STREAM->CR = DMA_SxCR_MSIZE_1 | DMA_SxCR_PSIZE_1 | DMA_SxCR_MINC
+                      | DMA_SxCR_PL_1;
+    SAI_RX_STREAM->CR |= DMA_SxCR_EN;
+    SAI_RX_BLK->CR1 |= SAI_xCR1_DMAEN;
+    SAI_RX_BLK->CR1 |= SAI_xCR1_SAIEN;
+
+    expect_ms = ((n_frames * 1000U) / s_fs) + 1U;
+    timeout = (expect_ms * 3U) + 200U;
+    c0 = cyc_u32();
+    t0 = HAL_GetTick();
+    while ((DMA2->HISR & DMA_HISR_TCIF5) == 0U) {
+        if ((HAL_GetTick() - t0) > timeout) {
+            break;
+        }
+    }
+    tc = ((DMA2->HISR & DMA_HISR_TCIF5) != 0U) ? 1 : 0;
+    got = n_frames - SAI_RX_STREAM->NDTR;
+    /* 在关 SAIEN 之前抓 Block B 的 CR1/SR：失败时"没使能 / 时钟没来 / 帧格式对不上"
+     * 全靠这两个数分辨。CR1 里 SAIEN 在位而 SR 干净、NDTR 不动 ⇒ 时钟根本没到。 */
+    bcr1 = SAI_RX_BLK->CR1;
+    bsr = SAI_RX_BLK->SR;
+    scr = SAI_RX_STREAM->CR;
+    hisr = DMA2->HISR;
+    ndtr0 = SAI_RX_STREAM->NDTR;
+    /* 前 8 个原始字：位序/对齐/边沿这类问题看十六进制最快（首版就是靠它看出
+     * 数据全在低半字）。 */
+    for (i = 0U; (i < 8U) && (i < got); i++) {
+        w[i] = s_rx_buf[i];
+    }
+
+    /* 3) 收完先关接收侧，再停 Block A（反过来的话最后几个字会跟着时钟一起没了）。 */
+    SAI_RX_BLK->CR1 &= ~(SAI_xCR1_SAIEN | SAI_xCR1_DMAEN);
+    SAI_RX_STREAM->CR &= ~DMA_SxCR_EN;
+    (void)wait_clear(&SAI_RX_STREAM->CR, DMA_SxCR_EN, 2U);
+    (void)bsl_sai_stop();
+
+    /* 逐字取低 16 位，按下标奇偶分左右槽；同时记全局峰峰值（分不出"有信号"和
+     * "只有直流"的时候，pp 是最快的判据）。 */
+    for (i = 0U; i < got; i++) {
+        int32_t v = (int32_t)(int16_t)(s_rx_buf[i] & 0xFFFFU);
+        int left = ((i & 1U) == 0U) ? 1 : 0;
+
+        if (i == 0U) {
+            gmin = v;
+            gmax = v;
+        } else {
+            if (v < gmin) {
+                gmin = v;
+            }
+            if (v > gmax) {
+                gmax = v;
+            }
+        }
+        if (left) {
+            if (nl == 0U || v < lmin) {
+                lmin = v;
+            }
+            if (nl == 0U || v > lmax) {
+                lmax = v;
+            }
+            if (v != 0) {
+                nz++;
+            }
+            nl++;
+            sum_l += v;
+        } else {
+            if (nr == 0U || v < rmin) {
+                rmin = v;
+            }
+            if (nr == 0U || v > rmax) {
+                rmax = v;
+            }
+            if (v != 0) {
+                nz++;
+            }
+            nr++;
+            sum_r += v;
+        }
+    }
+    stat->frames = got;
+    stat->nz = nz;
+    stat->lmin = lmin;
+    stat->lmax = lmax;
+    stat->rmin = rmin;
+    stat->rmax = rmax;
+    stat->pp = (uint32_t)(gmax - gmin);
+    stat->lmean = (nl != 0U) ? (int32_t)(sum_l / (int64_t)nl) : 0;
+    stat->rmean = (nr != 0U) ? (int32_t)(sum_r / (int64_t)nr) : 0;
+    stat->err = SAI_RX_BLK->SR & SAI_ERR_MASK;
+
+    if (elapsed_us != NULL) {
+        /* 只作诊断（含启动段），不参与判据：判据是 TC 与帧数。 */
+        *elapsed_us = cyc_to_us(cyc_u32() - c0);
+    }
+    BSL_LOG_MOD_INF("sai", "rx frames=");
+    bsl_log_put_dec((int)stat->frames);
+    BSL_LOG_INF(" tc=");
+    bsl_log_put_dec(tc);
+    BSL_LOG_INF(" l=");
+    bsl_log_put_dec((int)stat->lmin);
+    BSL_LOG_INF("..");
+    bsl_log_put_dec((int)stat->lmax);
+    BSL_LOG_INF("@");
+    bsl_log_put_dec((int)stat->lmean);
+    BSL_LOG_INF(" r=");
+    bsl_log_put_dec((int)stat->rmin);
+    BSL_LOG_INF("..");
+    bsl_log_put_dec((int)stat->rmax);
+    BSL_LOG_INF("@");
+    bsl_log_put_dec((int)stat->rmean);
+    BSL_LOG_INF(" pp=");
+    bsl_log_put_dec((int)stat->pp);
+    BSL_LOG_INF(" nz=");
+    bsl_log_put_dec((int)stat->nz);
+    BSL_LOG_INF(" err=");
+    bsl_log_put_dec((int)stat->err);
+    BSL_LOG_INF(" bcr1=");
+    bsl_log_put_hex(bcr1, 8U);
+    BSL_LOG_INF(" bsr=");
+    bsl_log_put_hex(bsr, 8U);
+    BSL_LOG_INF(" scr=");
+    bsl_log_put_hex(scr, 8U);
+    BSL_LOG_INF(" hisr=");
+    bsl_log_put_hex(hisr, 8U);
+    BSL_LOG_INF(" ndtr=");
+    bsl_log_put_dec((int)ndtr0);
+    BSL_LOG_INF(" w=");
+    for (i = 0U; i < 8U; i++) {
+        if (i < got) {
+            bsl_log_put_hex(w[i], 4U);
+        } else {
+            BSL_LOG_INF("----");
+        }
+        if (i != 7U) {
+            BSL_LOG_INF(",");
+        }
+    }
+    BSL_LOG_INF("\r\n");
+    return (tc != 0) ? BSL_OK : BSL_ERR_TIMEOUT;
+}
+
 /* ---- 设备注册（registry 的 bsl_driver_brd_sai / bsl_api_brd_sai） ---- */
 
 const bsl_sai_api_t bsl_api_brd_sai = {

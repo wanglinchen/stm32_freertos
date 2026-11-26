@@ -137,6 +137,76 @@ bsl_err_t board_wm8978_set_volume(uint8_t vol)
     return BSL_OK;
 }
 
+/* ---- 录音侧：ADC / 输入 PGA 使能（P9e-3 勘探） ---- */
+
+/* 播放口径的两个值，disable 时还原用（与 k_init[] 里 R2/R44 相同；R44 播放时是 0） */
+#define WM8978_R1_PLAY 0x012FU
+#define WM8978_R2_PLAY 0x01B3U
+#define WM8978_R44_PLAY 0x0000U
+
+static unsigned s_adc_ack;
+
+/* 六条写事务的语义（[参考]，见头文件的出处说明）：
+ *   R2  0x1BF  = 播放值 0x1B3 | INPPGAENL/R(bit2/3)：把输入 PGA 打开
+ *   R44 0x0033 = LIN/LIP/RIN/RIP 四路进 PGA（MIC 是伪差分接法，板载咪头就在这两对脚上）
+ *   R45 0x1BF = 0x180（更新位）| 0x3F（左 PGA 增益最大，约 0.9 dB/step）
+ *   R46 0x1BF = 同上，右声道
+ *   R47 0x170 = bit8 + bits[6:4]=111：左输入 boost（[参考] 约 +6 dB，位 8 为更新/使能）
+ *   R48 0x170 = 同上，右声道
+ */
+bsl_err_t board_wm8978_adc_enable(void)
+{
+    const bsl_i2c_gpio_bus_t *bus;
+    static const wm8978_reg_t k_adc[] = {
+        {0x01U, 0x013FU},   /* R1：播放口径 0x12F | MICBEN(bit4) —— 不给咪头偏置，
+                             * 它输出就是一条直流。上板首测：不写这条时两槽恒在
+                             * 0x00FF / 0x0000，pp 只有 255，正是"有器件在驱动
+                             * 但没有信号"的样子。 */
+        {0x02U, 0x01BFU},
+        {0x2CU, 0x0033U},
+        {0x2DU, 0x01BFU},
+        {0x2EU, 0x01BFU},
+        {0x2FU, 0x0170U},
+        {0x30U, 0x0170U},
+    };
+    unsigned i;
+
+    s_adc_ack = 0U;
+    if (!s_ready) {
+        return BSL_ERR_NOINIT;
+    }
+    bus = bsl_board_i2c_gpio_bus();
+    for (i = 0U; i < (unsigned)(sizeof(k_adc) / sizeof(k_adc[0])); i++) {
+        if (bsl_i2c_gpio_write_reg7_word9(bus, s_addr7, k_adc[i].reg, k_adc[i].val)
+            != BSL_OK) {
+            return BSL_ERR_IO;
+        }
+        s_adc_ack++;
+    }
+    return BSL_OK;
+}
+
+bsl_err_t board_wm8978_adc_disable(void)
+{
+    const bsl_i2c_gpio_bus_t *bus;
+
+    if (!s_ready) {
+        return BSL_ERR_NOINIT;
+    }
+    bus = bsl_board_i2c_gpio_bus();
+    if (bsl_i2c_gpio_write_reg7_word9(bus, s_addr7, 0x2CU, WM8978_R44_PLAY) != BSL_OK
+        || bsl_i2c_gpio_write_reg7_word9(bus, s_addr7, 0x02U, WM8978_R2_PLAY) != BSL_OK
+        || bsl_i2c_gpio_write_reg7_word9(bus, s_addr7, 0x01U, WM8978_R1_PLAY) != BSL_OK) {
+        return BSL_ERR_IO;
+    }
+    return BSL_OK;
+}
+
+unsigned board_wm8978_adc_ack(void)
+{
+    return s_adc_ack;
+}
+
 /* ---- 设备注册（registry 的 bsl_driver_wolfson_wm8978 / bsl_api_wolfson_wm8978） ---- */
 
 const bsl_codec_api_t bsl_api_wolfson_wm8978 = {
