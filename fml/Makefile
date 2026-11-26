@@ -31,6 +31,11 @@ endif
 endif
 ifeq ($(CONFIG_FML),y)
 ifeq ($(CONFIG_FML_SRC),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/fml/src/fml_audio_sample.o
+endif
+endif
+ifeq ($(CONFIG_FML),y)
+ifeq ($(CONFIG_FML_SRC),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/fml/src/fml_fatfs.o
 endif
 endif

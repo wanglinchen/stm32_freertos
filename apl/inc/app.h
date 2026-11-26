@@ -27,8 +27,9 @@
  * 为什么不一次只扩到 12 再等下一批扩到 13：这张表每个空槽只多 24 B（一个
  * app_desc_t），而"每加一个应用就改一次上限"会让每次改动的 diff 都碰同一个
  * 常量 —— 一次扩到位，P6e-3 落地时不必再动它。
+ * 14：P9e-2 的音乐播放器占第 14 项（ebook 用了第 13 项，NES 已结案不做）。
  */
-#define APP_COUNT_MAX 13U
+#define APP_COUNT_MAX 14U
 #define APP_ID_BACK 0xFFU
 
 /* 双击判定窗口：同一图标两次 CLICK 的间隔不超过这个毫秒数就算进入。
@@ -260,5 +261,27 @@ const app_desc_t *app_ebook_ops(void);
 int app_ebook_turn(int dir);
 /* 返回 0 = 应用本次没被进过（没 enter 过就没有可读的数）。 */
 int app_ebook_info(app_ebook_info_t *out);
+
+/*
+ * 音乐播放器（P9e-2）。走 fml_audio 的 wav 流播放：素材先找卷内 `.WAV`，找不到
+ * 用构建期内置样本（`from_file` 如实区分两者）。采样率由 SAI 固定 47973 Hz，
+ * 素材一律重采样过来（见 fml_audio.h 的说明）。
+ */
+typedef struct {
+    uint32_t rate;      /* 源采样率 Hz */
+    uint32_t channels;  /* 1 / 2 */
+    uint32_t bits;      /* 16 / 24 / 32 */
+    uint32_t frames;    /* 源帧数 */
+    uint32_t ms_total;  /* 源时长（毫秒） */
+    uint32_t played;    /* 本次自检发出的输出帧数（重采样后） */
+    uint32_t elapsed_us;/* SAI 数据流累计时长（不含块间启动缝） */
+    int from_file;      /* 1 = 卷内文件，0 = 内置样本 */
+    int ok;             /* 1 = 自检判据全过 */
+    int err;            /* 非 0 时是 BSL 错误码（负值取反打印，0 = 没出错） */
+} app_music_report_t;
+
+const app_desc_t *app_music_ops(void);
+/* POST 用：打开素材 → 播两块 → 按表内判据判定。返回 1 = 通过（rep 可空但建议给）。 */
+int app_music_selftest(app_music_report_t *rep);
 
 #endif

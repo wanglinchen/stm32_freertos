@@ -90,6 +90,13 @@ endif
 endif
 ifeq ($(CONFIG_APL),y)
 ifeq ($(CONFIG_APL_SRC),y)
+ifeq ($(CONFIG_APL_SRC_APP_MUSIC),y)
+ARCHIVE_OBJS += $(BUILD_DIR)/apl/src/app_music.o
+endif
+endif
+endif
+ifeq ($(CONFIG_APL),y)
+ifeq ($(CONFIG_APL_SRC),y)
 ifeq ($(CONFIG_APL_SRC_APP_NOTEPAD),y)
 ARCHIVE_OBJS += $(BUILD_DIR)/apl/src/app_notepad.o
 endif

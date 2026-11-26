@@ -560,6 +560,7 @@ static int app_menu_check(char *buf, unsigned cap)
     int level_ok = 0;
     int qr_ok = 0;
     int book_ok = 0;
+    int music_ok = 0;
     int view_ok = 1;
     uint32_t vw_p = 0U;
     uint32_t vh_p = 0U;
@@ -979,6 +980,43 @@ static int app_menu_check(char *buf, unsigned cap)
         app_fmt_puts(&ft, " book=-");
     }
 
+    /* 音乐播放（第 14 项，P9e-2）。判据不在这里复制一份：参数合法性、两块是否真
+     * 发完、SAI 有没有报错、数据流时长与 fs 的 ±5%，全在 app_music_selftest 里
+     * （那是"知道 fs 与要发多少帧"的那一层）。这里只做"进门 → 取报告 → 拼字段"。
+     *   rate/ch/bps —— 解析出来的素材参数（合法范围由 selftest 判）
+     *   frames      —— 源帧数（0 说明头解析失败或 data 块空）
+     *   played      —— 自检实际发出的输出帧（< 4096 说明第二块没发完）
+     *   ms          —— SAI 侧数据流毫秒（2 块应 ≈ 85）
+     *   err         —— BSL 错误码取正打印（0 = 没出错）
+     *   f/s         —— 素材来自卷里文件还是内置样本
+     */
+    if ((apps > 13U) && (menu_enter_app(app_at(13U)) != 0)) {
+        app_music_report_t mr;
+
+        (void)memset(&mr, 0, sizeof(mr));
+        if (app_music_selftest(&mr) != 0) {
+            music_ok = 1;
+        }
+        app_fmt_puts(&ft, " music=");
+        app_fmt_dec(&ft, (int)mr.rate);
+        app_fmt_puts(&ft, "/");
+        app_fmt_dec(&ft, (int)mr.channels);
+        app_fmt_puts(&ft, "/");
+        app_fmt_dec(&ft, (int)mr.bits);
+        app_fmt_puts(&ft, "/");
+        app_fmt_dec(&ft, (int)mr.frames);
+        app_fmt_puts(&ft, "/");
+        app_fmt_dec(&ft, (int)mr.played);
+        app_fmt_puts(&ft, "/");
+        app_fmt_dec(&ft, (int)(mr.elapsed_us / 1000U));
+        app_fmt_puts(&ft, "/");
+        app_fmt_dec(&ft, (int)((mr.err < 0) ? -mr.err : mr.err));
+        app_fmt_puts(&ft, ((mr.from_file != 0) ? "/f" : "/s"));
+        (void)menu_back();
+    } else {
+        app_fmt_puts(&ft, " music=-");
+    }
+
     depth = app_menu_depth();
     leave = app_menu_leave_count();    app_fmt_puts(&f, "apps=");
     app_fmt_dec(&f, (int)apps);
@@ -1026,7 +1064,7 @@ static int app_menu_check(char *buf, unsigned cap)
             (calc_ok != 0) && (set_flips == 2) && (pic_ok != 0) &&
             (note_ok != 0) && (cal_ok != 0) && (view_ok != 0) &&
             (paint_ok != 0) && (imu_ok != 0) && (level_ok != 0) && (qr_ok != 0) &&
-            (book_ok != 0)) ? 1 : 0;
+            (book_ok != 0) && (music_ok != 0)) ? 1 : 0;
 }
 
 /*

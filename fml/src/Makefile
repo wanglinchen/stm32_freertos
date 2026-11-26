@@ -24,6 +24,7 @@ FLAG_DEPS := $(wildcard $(PROJECT_ROOT)/toolchain.make) $(wildcard $(PROJECT_ROO
 
 LOCAL_OBJS :=
 -include $(BUILD_DIR)/fml/src/fml_audio.d
+-include $(BUILD_DIR)/fml/src/fml_audio_sample.d
 -include $(BUILD_DIR)/fml/src/fml_fatfs.d
 -include $(BUILD_DIR)/fml/src/fml_font.d
 -include $(BUILD_DIR)/fml/src/fml_font_ascii8x16.d
@@ -45,6 +46,17 @@ $(BUILD_DIR)/fml/src/fml_audio.o: $(PROJECT_ROOT)/fml/src/fml_audio.c $(FLAG_DEP
 	@echo "CC $<"
 	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/fml/src/fml_audio.d -c $< -o $@
 	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/fml/src/fml_audio.d
+endif
+endif
+
+ifeq ($(CONFIG_FML),y)
+ifeq ($(CONFIG_FML_SRC),y)
+LOCAL_OBJS += $(BUILD_DIR)/fml/src/fml_audio_sample.o
+$(BUILD_DIR)/fml/src/fml_audio_sample.o: $(PROJECT_ROOT)/fml/src/fml_audio_sample.c $(FLAG_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "CC $<"
+	$(CC) $(CFLAGS) -MMD -MP -MF $(BUILD_DIR)/fml/src/fml_audio_sample.d -c $< -o $@
+	@"$(PYTHON)" -c 'import os,sys,time; t=time.time(); [os.utime(p,(t,t)) for p in sys.argv[1:]]' $@ $(BUILD_DIR)/fml/src/fml_audio_sample.d
 endif
 endif
 

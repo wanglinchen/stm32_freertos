@@ -55,6 +55,8 @@ static void app_table_build(void)
      * `app_at(N)` 按下标取应用（8=绘画、9=陀螺仪…），插在中间会把已有下标
      * 整体后移一位，那一串判据就会悄悄变成判别的应用。 */
     s_apps[s_apps_count++] = app_ebook_ops();
+    /* P9e-2：音乐播放器。同样追加在末尾（理由同上：POST 的 app_at(N) 下标是硬的）。 */
+    s_apps[s_apps_count++] = app_music_ops();
     /* 防御：ops() 返回 NULL 说明该应用没装好。就地压缩、不留空槽 ——
      * 空槽会让桌面图标数与 POST 的 apps 计数对不上。 */
     i = 0U;

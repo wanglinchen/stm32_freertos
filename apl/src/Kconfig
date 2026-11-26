@@ -37,6 +37,10 @@ config APL_SRC_APP_LEVEL
 	bool "app_level.c"
 	default y
 
+config APL_SRC_APP_MUSIC
+	bool "app_music.c"
+	default y
+
 config APL_SRC_APP_NOTEPAD
 	bool "app_notepad.c"
 	default y
