@@ -108,6 +108,27 @@ static int nand_wait_ready(void)
     return 0;
 }
 
+/* 等 R/B 回到高电平（就绪）。用 DTB 给的 R/B 脚（本板 GPIOD.6），**不碰状态寄存器**。
+ *
+ * 这一条是 P9a-2 挖出来的现场：0x30（真读）之后如果再用 0x70 查状态，
+ * 器件输出就被切成"状态字节"，之后从数据口读到的是 2048 个 0xE0 ——
+ * 也就是"就绪态的状态字节"，不是页数据。P9a 记的 sum=00070000/ff=0 正是
+ * 2048 × 0xE0，说明那一批的"读页"读的是状态而不是页；判据没过是因为
+ * 判据本身就没在验内容。所以数据路径一律改走 R/B 脚，状态寄存器只在
+ * 擦/写这类"一次性查 I/O0"的场合用。 */
+static int nand_wait_rb(void)
+{
+    if ((s_cfg.rb_port == NULL) || (s_cfg.rb_mask == 0U)) {
+        return 0;
+    }
+    for (uint32_t n = 0U; n < NAND_POLL_LIMIT; n++) {
+        if (bsl_gpio_read(s_cfg.rb_port, s_cfg.rb_mask) == GPIO_PIN_SET) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 static int nand_read_id(uint8_t id[5])
 {
     nand_cmd(NAND_CMD_READID);
@@ -152,13 +173,156 @@ static bsl_err_t nand_read_page(uint32_t page, uint16_t col, uint8_t *buf,
     nand_cmd(NAND_CMD_READ_TRUE);
     nand_delay(NAND_TRHW);
 
-    if (nand_wait_ready() == 0) {
-        return BSL_ERR_TIMEOUT;
+    if ((s_cfg.rb_port != NULL) && (s_cfg.rb_mask != 0U)) {
+        if (nand_wait_rb() == 0) {
+            return BSL_ERR_TIMEOUT;
+        }
+    } else {
+        /* 没有 R/B 脚时只能查状态 —— 但查完状态器件输出的是状态字节，
+         * 必须把 0x00/地址/0x30 再走一遍才能读到页数据（tR 已经过去，不再等）。 */
+        if (nand_wait_ready() == 0) {
+            return BSL_ERR_TIMEOUT;
+        }
+        nand_cmd(NAND_CMD_READ);
+        nand_addr((uint8_t)col);
+        nand_addr((uint8_t)(col >> 8));
+        nand_addr((uint8_t)page);
+        nand_addr((uint8_t)(page >> 8));
+        nand_addr((uint8_t)(page >> 16));
+        nand_cmd(NAND_CMD_READ_TRUE);
+        nand_delay(NAND_TRHW);
     }
     for (uint16_t i = 0U; i < len; i++) {
         buf[i] = rd8(s_base);
     }
     return BSL_OK;
+}
+
+/* ======================================================================
+ * 写通道（P9a-2）：擦一块 / 写一页 / 判坏块
+ *
+ * 三条命令序列照 MT29F4G08 的 8 位器件口径（[数据手册]）：
+ *   写：0x80 → 列地址 2 拍 → 行地址 3 拍 → 数据 → 0x10 → 等 R/B → 读状态
+ *   擦：0x60 → 行地址 3 拍 → 0xD0 → 等 R/B → 读状态
+ *   状态：0x70，I/O0 = 1 表示这一步失败，I/O6 = 1 表示就绪
+ * 行地址就是页号本身（A12.. 起），与 read_page 里那三拍完全一致 —— 不另算一套。
+ *
+ * 刻意**不做**的事：不写 spare（擦除会把它自然回 0xFF）、不开硬件 ECC
+ * （FMC PCR 的 ECCEN=0，写进去的就是写进去的）、不建坏块 LUT、不做 FTL。
+ * 写通道在这批里只是"能写、能判"的原料，FTL 是另一批的事。
+ * ==================================================================== */
+
+#define NAND_CMD_WRITE 0x80U
+#define NAND_CMD_WRITE_TRUE 0x10U
+#define NAND_CMD_ERASE1 0x60U
+#define NAND_CMD_ERASE2 0xD0U
+#define NAND_STATUS_FAIL 0x01U
+#define NAND_SPARE_BAD_MARK 0xFFU
+
+/* 等一次"忙 → 就绪"：先等 R/B 真的落下（擦/编程的忙期是 ms 级，窗口够宽），
+ * 再等它回到高。**不能只查状态寄存器**——0x70 在器件还没开始忙之前读到的是
+ * "就绪"，会提前返回，于是"写成功但读回全不一样"。没有 R/B 脚时退回状态轮询。 */
+static int nand_wait_rb_busy(void)
+{
+    if ((s_cfg.rb_port == NULL) || (s_cfg.rb_mask == 0U)) {
+        return nand_wait_ready();
+    }
+    for (uint32_t n = 0U; n < 20000U; n++) {
+        if (bsl_gpio_read(s_cfg.rb_port, s_cfg.rb_mask) == GPIO_PIN_RESET) {
+            break;
+        }
+    }
+    return nand_wait_rb();
+}
+
+/* 擦一个块：block 是块号。忙等先等 R/B 落下再等它回高（理由见 nand_wait_rb_busy：
+ * 只查状态寄存器会在器件还没开始忙时读到"就绪"，那是"写成功但读回全不一样"的真因）。 */
+static bsl_err_t nand_erase_block(uint32_t block)
+{
+    uint32_t page;
+
+    if (s_ready == 0) {
+        return BSL_ERR_NOINIT;
+    }
+    if (block >= s_cfg.blocks) {
+        return BSL_ERR_INVAL;
+    }
+    if (nand_wait_ready() == 0) {
+        return BSL_ERR_TIMEOUT;
+    }
+    page = block * s_cfg.block_pages;
+    nand_cmd(NAND_CMD_ERASE1);
+    /* 行地址 3 拍，低位在前 —— 与 read_page 里那三拍同序（首版写成高位在前，
+     * 上板 wr_er=0 就是这个：擦命令落到别的块地址上，状态寄存器自然报失败）。 */
+    nand_addr((uint8_t)page);
+    nand_addr((uint8_t)(page >> 8));
+    nand_addr((uint8_t)(page >> 16));
+    nand_cmd(NAND_CMD_ERASE2);
+    nand_delay(NAND_TRHW);
+    if (nand_wait_rb_busy() == 0) {
+        return BSL_ERR_TIMEOUT;
+    }
+    if ((nand_status() & NAND_STATUS_FAIL) != 0U) {
+        return BSL_ERR_IO;
+    }
+    return BSL_OK;
+}
+
+/* 写一页的一段：只写主区/或含 spare，按 col+len 给，地址拍与读一致。 */
+static bsl_err_t nand_write_page(uint32_t page, uint16_t col,
+                                 const uint8_t *buf, uint16_t len)
+{
+    uint16_t i;
+
+    if (s_ready == 0) {
+        return BSL_ERR_NOINIT;
+    }
+    if ((buf == NULL) || (len == 0U)) {
+        return BSL_ERR_INVAL;
+    }
+    if ((uint32_t)len + col > s_cfg.page_main + s_cfg.page_spare) {
+        return BSL_ERR_INVAL;
+    }
+    if (page >= (s_cfg.blocks * s_cfg.block_pages)) {
+        return BSL_ERR_INVAL;
+    }
+    if (nand_wait_ready() == 0) {
+        return BSL_ERR_TIMEOUT;
+    }
+    nand_cmd(NAND_CMD_WRITE);
+    nand_addr((uint8_t)col);
+    nand_addr((uint8_t)(col >> 8));
+    nand_addr((uint8_t)page);
+    nand_addr((uint8_t)(page >> 8));
+    nand_addr((uint8_t)(page >> 16));
+    for (i = 0U; i < len; i++) {
+        wr8(s_base, buf[i]);
+    }
+    nand_cmd(NAND_CMD_WRITE_TRUE);
+    nand_delay(NAND_TRHW);
+    if (nand_wait_rb_busy() == 0) {
+        return BSL_ERR_TIMEOUT;
+    }
+    if ((nand_status() & NAND_STATUS_FAIL) != 0U) {
+        return BSL_ERR_IO;
+    }
+    return BSL_OK;
+}
+
+/* 坏块判定：读该块第 0 页 spare 的首字节，非 0xFF 即为出厂坏块标记。
+ * 读不出来也当坏块 —— 判不准的时候不许往里写，这是唯一安全的方向。 */
+static int nand_is_bad_block(uint32_t block)
+{
+    uint8_t mark = 0x00U;
+
+    if (s_ready == 0 || block >= s_cfg.blocks) {
+        return 1;
+    }
+    if (nand_read_page(block * s_cfg.block_pages, (uint16_t)s_cfg.page_main,
+                       &mark, 1U) != BSL_OK) {
+        return 1;
+    }
+    return (mark != NAND_SPARE_BAD_MARK) ? 1 : 0;
 }
 
 static void nand_bank_config(void)
@@ -281,6 +445,9 @@ const bsl_nand_api_t bsl_api_brd_nand = {
     .ready = nand_api_ready,
     .info = nand_api_info,
     .read_page = nand_read_page,
+    .erase_block = nand_erase_block,
+    .write_page = nand_write_page,
+    .is_bad_block = nand_is_bad_block,
 };
 
 static bsl_err_t nand_driver_init(void)

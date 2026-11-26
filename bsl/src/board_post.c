@@ -1049,6 +1049,14 @@ static void post_nand(void)
     unsigned bank = 0U;
     uint32_t sum = 0U;
     unsigned ff = 0U;
+    uint32_t wr_blk = 0U;
+    uint32_t wr_mism = 0U;
+    unsigned wr_pk = 0U;
+    unsigned wr_bad = 0U;
+    unsigned wr_preff = 0U;
+    unsigned wr_er = 0U;
+    unsigned wr_prg = 0U;
+    unsigned wr_re = 0U;
     unsigned i;
     int ok = 0;
 
@@ -1079,6 +1087,126 @@ static void post_nand(void)
         || block_pages == 0U || blocks == 0U) {
         ok = 0;
     }
+
+    /* —— P9a-2 写通道：单块擦 / 写 / 读回比 / 再擦 ——
+     * 选块：从最后一块往前扫，最多 8 块，取第一个「坏块标记 0xFF 且页 0 主区+spare
+     * 全 0xFF（本来就是空的）」的块；扫不到就退到最后一块，让 preff=0 把「这一块
+     * 原来有数据、已被本批覆盖」如实暴露出来。每次上电按同一策略选同一块，磨耗
+     * 就集中在这一个块上（代价记账，不藏）。
+     * 顺序：擦 → 验全 FF → 写图案 → 读回逐字节比 → 再擦 → 验全 FF（留空块收工）。
+     * 只碰 1 个块、不写 spare、不开 ECC —— 这三条是这批的边界，不是遗漏。 */
+    if (ok != 0 && page_main > 0U && page_spare > 0U) {
+        wr_blk = blocks - 1U;
+
+        for (uint32_t k = 0U; (k < 64U) && (k < blocks); k++) {
+            uint32_t cand = blocks - 1U - k;
+            unsigned allff = 1U;
+
+            wr_pk++;
+            if (bsl_devapi_nand()->is_bad_block(cand) != 0) {
+                wr_bad++;
+                continue;
+            }
+            if (bsl_devapi_nand()->read_page(cand * block_pages, 0U, page,
+                                             page_main) != BSL_OK) {
+                continue;
+            }
+            if (bsl_devapi_nand()->read_page(cand * block_pages, page_main,
+                                             &page[page_main],
+                                             page_spare) != BSL_OK) {
+                continue;
+            }
+            for (i = 0U; i < (unsigned)(page_main + page_spare); i++) {
+                if (page[i] != 0xFFU) {
+                    allff = 0U;
+                    break;
+                }
+            }
+            if (allff != 0U) {
+                wr_blk = cand;
+                wr_preff = 1U;
+                break;
+            }
+        }
+
+        {
+            uint32_t wr_off = wr_blk * block_pages;
+            unsigned allff = 1U;
+            unsigned erase1_ok = 0U;
+
+            if (bsl_devapi_nand()->erase_block(wr_blk) == BSL_OK) {
+                erase1_ok = 1U;
+                if (bsl_devapi_nand()->read_page(wr_off, 0U, page, page_main)
+                        == BSL_OK
+                    && bsl_devapi_nand()->read_page(wr_off, page_main,
+                                                    &page[page_main],
+                                                    page_spare) == BSL_OK) {
+                    for (i = 0U; i < (unsigned)(page_main + page_spare); i++) {
+                        if (page[i] != 0xFFU) {
+                            allff = 0U;
+                            break;
+                        }
+                    }
+                } else {
+                    allff = 0U;
+                }
+                wr_er = (erase1_ok != 0U && allff != 0U) ? 1U : 0U;
+            }
+        }
+
+        if (wr_er != 0U) {
+            uint32_t wr_off = wr_blk * block_pages;
+            static uint8_t wr_rd[2048U];
+
+            for (i = 0U; i < page_main; i++) {
+                page[i] = (uint8_t)i;
+            }
+            if (bsl_devapi_nand()->write_page(wr_off, 0U, page, page_main)
+                == BSL_OK) {
+                wr_prg = 1U;
+                if (bsl_devapi_nand()->read_page(wr_off, 0U, wr_rd, page_main)
+                    == BSL_OK) {
+                    for (i = 0U; i < page_main; i++) {
+                        if (wr_rd[i] != (uint8_t)i) {
+                            wr_mism++;
+                        }
+                    }
+                } else {
+                    wr_mism = page_main; /* 读都读不出来 = 全不符 */
+                }
+            }
+        }
+
+        /* 收工：再擦一次，把块还原成空白（不留测试图案）。 */
+        if (wr_er != 0U) {
+            uint32_t wr_off = wr_blk * block_pages;
+            unsigned allff = 1U;
+
+            if (bsl_devapi_nand()->erase_block(wr_blk) == BSL_OK) {
+                if (bsl_devapi_nand()->read_page(wr_off, 0U, page, page_main)
+                        == BSL_OK
+                    && bsl_devapi_nand()->read_page(wr_off, page_main,
+                                                    &page[page_main],
+                                                    page_spare) == BSL_OK) {
+                    for (i = 0U; i < (unsigned)(page_main + page_spare); i++) {
+                        if (page[i] != 0xFFU) {
+                            allff = 0U;
+                            break;
+                        }
+                    }
+                } else {
+                    allff = 0U;
+                }
+                wr_re = allff;
+            }
+        }
+
+        if ((wr_er == 0U) || (wr_prg == 0U) || (wr_mism != 0U)
+            || (wr_re == 0U)) {
+            ok = 0;
+        }
+    }
+
     post_begin("nand id=");
     for (i = 0U; i < 5U; i++) {
         if (i != 0U) {
@@ -1100,6 +1228,22 @@ static void post_nand(void)
     bsl_log_put_hex(sum, 8U);
     BSL_LOG_INF(" ff=");
     bsl_log_put_dec((int)ff);
+    BSL_LOG_INF(" pr=");
+    bsl_log_put_dec((int)wr_pk);
+    BSL_LOG_INF("/");
+    bsl_log_put_dec((int)wr_bad);
+    BSL_LOG_INF(" wr=");
+    bsl_log_put_dec((int)wr_blk);
+    BSL_LOG_INF("/");
+    bsl_log_put_dec((int)wr_preff);
+    BSL_LOG_INF("/");
+    bsl_log_put_dec((int)wr_er);
+    BSL_LOG_INF("/");
+    bsl_log_put_dec((int)wr_prg);
+    BSL_LOG_INF("/");
+    bsl_log_put_dec((int)wr_mism);
+    BSL_LOG_INF("/");
+    bsl_log_put_dec((int)wr_re);
     post_end(ok);
 }
 /*

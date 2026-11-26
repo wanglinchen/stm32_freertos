@@ -172,15 +172,24 @@ typedef struct {
     void (*inject)(uint8_t b);
 } bsl_uart_api_t;
 
-/* NAND（P9a）：只读通道。info 一次给全 —— ID 5 字节 + 页/块几何 + 实际
+/* NAND（P9a 只读 + P9a-2 写通道）：info 一次给全 —— ID 5 字节 + 页/块几何 + 实际
  * 走通的 bank 号（参考工程写 Bank3/PG9，而 F429 的 PG9 多数封装是 NCE2，
- * 驱动两个 bank 都配、谁能读出 ID 用谁，这个数就是现场事实）。 */
+ * 驱动两个 bank 都配、谁能读出 ID 用谁，这个数就是现场事实）。
+ *
+ * P9a-2 加的三个方法只到"原料"这一层：erase_block / write_page 各自返回
+ * BSL_OK 只代表命令序列跑完且状态寄存器 I/O0=0，**不代表数据可信**
+ * （ECC 没开、坏块没管）；调用方必须自己读回比对，POST 就是这么用的。
+ * is_bad_block 返回 1 = 坏块或判不出来 —— 判不准时一律当坏块，是唯一安全的方向。 */
 typedef struct {
     int (*ready)(void);
     void (*info)(uint8_t id[5], uint16_t *page_main, uint16_t *page_spare,
                  uint32_t *block_pages, uint32_t *blocks, unsigned *bank);
     bsl_err_t (*read_page)(uint32_t page, uint16_t col, uint8_t *buf,
                            uint16_t len);
+    bsl_err_t (*erase_block)(uint32_t block);
+    bsl_err_t (*write_page)(uint32_t page, uint16_t col, const uint8_t *buf,
+                            uint16_t len);
+    int (*is_bad_block)(uint32_t block);
 } bsl_nand_api_t;
 
 /* DMA（P9c-1）：DMA2 内存→内存。done_words 是"实际搬了多少字"的读数，

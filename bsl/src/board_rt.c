@@ -1261,8 +1261,12 @@ static void parse_nand(void)
     n.rb_mask = 0U;
     if (bsl_fdt_prop_cells(node, "rb-gpios", rb, 3U) == 3U) {
         n.rb_port = board_rt_port_of_phandle(rb[0]);
-        if (n.rb_port != NULL && rb[1] <= 15U) {
-            n.rb_mask = (uint16_t)(1U << rb[1]);
+        if (n.rb_port != NULL && rb[1] != 0U && rb[1] <= 0xFFFFU) {
+            /* rb-gpios 在本工程里按"脚位掩码"写（与 sai-pins 同一个约定），
+             * 不是脚号。P9a 的解析按脚号写（要求 rb[1] <= 15），DTS 里的 0x40
+             * 就成了"脚 64"被直接丢掉 —— 于是 R/B 一直没人用，读页只能靠
+             * 0x70 查状态，读到的是状态字节而不是页数据（P9a-2 挖出来的第一处）。 */
+            n.rb_mask = (uint16_t)(rb[1] & 0xFFFFU);
         }
     }
     s_rt.nand = n;
