@@ -58,6 +58,12 @@ def main(argv: list[str]) -> int:
         dst.mkdir(parents=True, exist_ok=True)
         for name in _FILES:
             shutil.copy2(src / name, dst / name)
+            # .hex / .map 在 `.gitattributes` 里是 `text eol=lf`：objcopy 与链接器在 Windows
+            # 上写出 CRLF，直接入库会让每周归档都显示"改了行尾"。这里统一改成 LF，
+            # 让工作区与库里的字节一致（其余属性不动，时间戳仍保留）。
+            if name.endswith((".hex", ".map")):
+                text = (dst / name).read_text(encoding="utf-8")
+                (dst / name).write_text(text.replace("\r\n", "\n"), encoding="utf-8", newline="\n")
             size = (dst / name).stat().st_size
             print(f"[release] {variant}/{name} -> release/{date}/{variant}/{name} ({size} B)")
             lines.append(f"{variant}/{name}\t{size}\t{src.name}")
@@ -72,6 +78,7 @@ def main(argv: list[str]) -> int:
         f"date: {date}\ncopied_at: {_dt.datetime.now().isoformat(timespec='seconds')}\n"
         f"source: out/<variant>/release/<时间戳>/\n\n" + "\n".join(lines) + "\n",
         encoding="utf-8",
+        newline="\n",
     )
     print(f"[release] copy done -> release/{date}/（RELEASE.txt 已写）")
     return 0

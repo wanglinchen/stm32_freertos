@@ -136,6 +136,10 @@ EXCLUDE_DIRS = {
     "build",
     "workspace",
     "out",
+    # release 是每周构建的归档目录（只放 elf/hex/bin/map + RELEASE.txt 与日期子目录）：
+    # 不参与 Kconfig/Makefile 生成，否则会被当成一个层，给 Kconfig 加 source "release/Kconfig"
+    # 并在 defconfig 里冒出 CONFIG_RELEASE。
+    "release",
     # tests 若存在则只放 host 侧辅助文件；必须让 update 不要往里生成 Makefile/Kconfig，
     # 否则会被误当成「排除目录里的生成物」。
     "tests",
