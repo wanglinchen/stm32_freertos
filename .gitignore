@@ -1,5 +1,4 @@
 tool/.cache/
 out/
 logs/
-# 每周一 build 的产物存档（build/weekly_release.ps1 产出），本地保存、不入库
-release/
+# release/ 入库：每周一构建的归档存档（build/weekly_release.ps1 产出）；out/ 与 logs/ 不入库

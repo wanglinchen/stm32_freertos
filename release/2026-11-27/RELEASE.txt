@@ -1,0 +1,12 @@
+date: 2026-11-27
+copied_at: 2026-11-27T12:32:54
+source: out/<variant>/release/<时间戳>/
+
+userdebug/stm32-freertos.elf	1346668	2026_11_27-12_31_58
+userdebug/stm32-freertos.hex	244055	2026_11_27-12_31_58
+userdebug/stm32-freertos.bin	86752	2026_11_27-12_31_58
+userdebug/stm32-freertos.map	444061	2026_11_27-12_31_58
+user/stm32-freertos.elf	117444	2026_11_27-12_32_53
+user/stm32-freertos.hex	235730	2026_11_27-12_32_53
+user/stm32-freertos.bin	83792	2026_11_27-12_32_53
+user/stm32-freertos.map	119388	2026_11_27-12_32_53
