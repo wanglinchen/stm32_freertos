@@ -128,6 +128,7 @@ python build/build.py install-toolchain  # 工具链
   `<档位>/.config`、临时脚本与采集日志全部是本地产物，`.gitignore` 用一条 `out/` 覆盖；
   `check` 的 F 段逐条核对有没有漏网的。clone 后先 `python build/build.py update` 再 `build`。
   构建产物永远不当证据提交。
+  **例外**：`release/<日期>/<档位>/` 是入库的归档目录（每周 `build/weekly_release.ps1` 产出），归档后随代码一起提交并双远端推送。
 - **一次性脚本与提交信息不落仓库目录**：临时 python / ps1 补丁脚本、commit message
   一律写系统 temp（`$env:TEMP\…`）或 `logs/`；`out/` 只有构建产物（`objects/`、`release/`、
   `dts/`、`<档位>/`），仓库根或 `out/` 里出现 `tmp_*.py` / `tmp_*.ps1` / `tmp_*.txt`
