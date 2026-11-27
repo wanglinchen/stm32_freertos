@@ -1,6 +1,9 @@
 out/user/objects/
 out/userdebug/objects/
 out/tmp/
+# 发布件是每次 build 的本地拷贝（按时间戳目录、内容随版本变化），不入库；仓库只留 out/<档位>/.config。
+out/user/release/
+out/userdebug/release/
 .vscode/
 **/__pycache__/
 .pytest_cache/
@@ -9,3 +12,5 @@ tool/.cache/
 out/dts/
 # stability.py 的每轮报告是运行产物（含时间戳），不入库；要留证据请贴到 debug/ 分析目录。
 out/tests/
+# 过程日志统一落 logs/（build/刷机/串口采集的原始输出），不入库；证据仍贴 docs/design/。
+logs/

@@ -16,8 +16,8 @@
      表 / 改了脚本却没跑 update」——此时 dtsi、dts、dtb、elf 会一起停在旧坐标上，编译不报错。
   E. 头守卫：自研头（vendored 除外）必须有配对的 `#ifndef/#define`、末尾 `#endif`，且守卫名不重名。
      guard 重名时两个头互相屏蔽，症状是「明明 include 了却 undeclared」，且只在特定编译顺序下复现。
-  F. 忽略规则双向：中间产物（`out/dts/*`、`out/*/objects/`、`out/tmp/`）必须被 `.gitignore` 覆盖；
-     而发布件（`out/<variant>/.config`、`out/<variant>/release/`）**必须不被**忽略 —— 用
+  F. 忽略规则双向：中间产物（`out/dts/*`、`out/*/objects/`、`out/tmp/`、`out/*/release/`）必须被
+     `.gitignore` 覆盖；而定版配置 `out/<variant>/.config` **必须不被**忽略 —— 用
      `git check-ignore` 逐条问，不读 `.gitignore` 的字面形状。
 
 退出码：0 = 全部通过；1 = 有越级边 / 有环 / 产物不一致 / 派生链过期 / 守卫缺陷 / 忽略缺失。
@@ -337,10 +337,12 @@ _MUST_IGNORE = (
     "out/user/objects/",
     "out/userdebug/objects/",
     "out/tmp/",
+    "out/user/release/",        # 每次 build 的本地拷贝，按时间戳堆，不入库
+    "out/userdebug/release/",
 )
 
-# 反过来：这几类**必须留在库**。`out/` 若被整体忽略，发布件会静默掉出库 ——
-# 下次别人 clone 下来就没有可直接刷机的 bin，而且 git 不会有任何提示。
+# 反过来：定版配置**必须留在库**。`out/` 若被整体忽略，`out/<variant>/.config` 会静默掉出库 ——
+# 别人 clone 后不跑一遍 update 就没有可用配置，而且 git 不会有任何提示。
 _MUST_TRACK = (
     "out/user/.config",
     "out/userdebug/.config",
@@ -445,11 +447,12 @@ def _check_api_surface(problems: list[str], notes: list[str]) -> None:
 
 
 def _check_ignore_rules(problems: list[str], notes: list[str]) -> None:
-    """F. 忽略规则双向：中间产物必须被忽略，发布件必须不被忽略。
+    """F. 忽略规则双向：中间产物必须被忽略，定版配置必须不被忽略。
 
     单向判据（"out/ 被忽略"）会判错这棵树：`out/<variant>/release/<时间戳>/` 里的
-    bin/elf/hex/map 与 `out/<variant>/.config` 是入库的，`out/` 故意没有整体忽略，
-    而是逐个子目录列。所以这里用 `git check-ignore` 逐条问真相，不问 `.gitignore` 长什么样。
+    bin/elf/hex/map 与 objects/、tmp/ 都是本地产物不入库，但 `out/<variant>/.config`
+    是入库的；`out/` 故意没有整体忽略，而是逐个子目录列。所以这里用 `git check-ignore`
+    逐条问真相，不问 `.gitignore` 长什么样。
     """
     probe = _git_ignored(_MUST_IGNORE[0])
     if probe is None:
@@ -461,11 +464,11 @@ def _check_ignore_rules(problems: list[str], notes: list[str]) -> None:
     for p in leaked:
         problems.append(f"{p} 没有被忽略：构建中间产物会被提交")
     for p in dropped:
-        problems.append(f"{p} 被忽略了：发布件会静默掉出库（不要整体忽略 out/）")
+        problems.append(f"{p} 被忽略了：定版配置会静默掉出库（不要整体忽略 out/）")
     if not leaked and not dropped:
         notes.append(
             f"忽略规则双向正确（{len(_MUST_IGNORE)} 条中间产物被忽略，"
-            f"{len(_MUST_TRACK)} 条发布配置留在库）"
+            f"{len(_MUST_TRACK)} 条定版配置留在库）"
         )
 
 
