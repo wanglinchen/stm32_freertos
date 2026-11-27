@@ -49,7 +49,8 @@ jobs:
       - name: 刷新描述文件（含 DTS → DTB）
         run: python3 build/build.py update
 
-      # 生成物入库是本工程的既定策略；这一条保证它们不会和源码脱节。
+      # 生成物（Makefile / Kconfig / defconfig / dtsi）入库是既定策略，这一条保证它们不和源码脱节；
+      # out/ 整目录不入库，update 产出的 .config / dts 不会出现在这里。
       - name: 生成物必须与提交内容一致
         run: |
           git diff --stat

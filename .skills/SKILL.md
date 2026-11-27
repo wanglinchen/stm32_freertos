@@ -42,8 +42,8 @@ python build/build.py install-toolchain  # 工具链
    层边与 SCC，层边数变化要同步 `docs/design/系统设计.md` 与 `工程规格.md`。
 6. 收尾跑一次 `python build/build.py check`：七块判据 —— A 层边/越级、B 文件级与层间环、C DTB 与 elf 内容等长 + 关键符号、
    D DTS 派生链（`gen_dts.py` 重跑到系统 temp 目录，与 `project/dts` 两份 dtsi 逐字节比，再用
-   `generate.build_dts_text()` 复算 `out/dts/apollo.dts`）、E 自研头守卫、F 忽略规则双向（中间产物必须被忽略、
-   发布件必须不被忽略）、G API 面（头里声明的函数必须在 `nm` 里有符号 —— `--gc-sections` 会把零调用函数丢掉，
+   `generate.build_dts_text()` 复算 `out/dts/apollo.dts`）、E 自研头守卫、F 忽略规则（`out/` 整目录都必须被 `.gitignore` 覆盖，
+   含 `out/<档位>/.config`）、G API 面（头里声明的函数必须在 `nm` 里有符号 —— `--gc-sections` 会把零调用函数丢掉，
    只剩一条悬空声明）。它只读盘查、幂等、不设基线数字（不是门禁）；层边处数变了只打印不判失败，
    越级、成环、产物不一致、派生链过期、守卫缺陷、假 API 才失败。
 7. 增删公开 API：`arm-none-eabi-nm out/<variant>/objects/target/stm32-freertos.elf | findstr <符号>`
@@ -76,7 +76,7 @@ python build/build.py install-toolchain  # 工具链
 - **不要手改**自动生成的 `Makefile` / `Kconfig` / `toolchain.make`（除非随后 `update`）；
   `project/config/stm32f429_defconfig_common`（公共项，两档共用）与 `stm32f429_defconfig_<variant>`（档位差异层）里的 `# >>> USER_CUSTOM` 区可长期手改；`build` 时按「common → 档位」合并，同名符号档位优先。
 - 增删参与编译的层内源文件或子目录后：**`update`**，再视需要 `build`。
-- `build/` 不参与 Kconfig 扫描；`.config` 在 `out/`。
+- `build/` 不参与 Kconfig 扫描；`.config` 在 `out/`（不入库，`update` 生成）。
 - **板级事实只写一次**：引脚 / 极性 / 波特率写在 `docs/hardware/pinmap/*.xlsx`，由
   `docs/hardware/pinmap/gen_dts.py` 产 dtsi，`bsl/src/board_rt.c` 在运行期从内嵌 DTB 读回。
   C 里不得再出现第二份引脚常量；`osl/inc/board_panic_hw.h` 是唯一例外（panic 路径不能遍历 FDT）。
@@ -92,3 +92,12 @@ python build/build.py install-toolchain  # 工具链
   `board_system_init()` 这类入口做对拍断言；只解析不校验等于给后来的人一个"已经检查过"的错觉
   （`hse-frequency` 第四轮就是这种形态，已改为与 `HSE_VALUE` 对拍、码 3）。
 - 任务完成标准：文档与代码一致，且 **`update` + `build` 均通过**。
+
+  - **`out/` 整目录不入库**：`objects/`、`release/<时间戳>/`、`tmp/`、`dts/`、`tests/`、
+    `<档位>/.config`、临时脚本与采集日志全部是本地产物，`.gitignore` 用一条 `out/` 覆盖；
+    `check` 的 F 段逐条核对有没有漏网的。clone 后先 `python build/build.py update` 再 `build`。
+    构建产物永远不当证据提交。
+  - **所有过程日志只落 `logs/`**：编译、调试、刷写、openocd、gdb、串口采集产生的 `*.log` / `*.err`
+    一律写仓库根 `logs/`（`.gitignore` 已忽略），包括脚本默认落点与一次性 PowerShell 重定向；
+    仓库根和 `out/` 下不留 `*.log` / `*.err`。要留证据请整理成 `docs/design/串口自检_*.txt` 之类，
+    别把 `logs/` 里的原始输出直接当证据。
