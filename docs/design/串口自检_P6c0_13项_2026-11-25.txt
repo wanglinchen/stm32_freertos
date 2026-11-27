@@ -2,10 +2,10 @@
 日期：2026-11-25
 分支：feature/full-demo
 证据来源：
-  out/boot_p6c5.log      —— 最终固件启动（13/13，5 次复位中最后一条）
-  out/boot_p6c3.log / _r2.log / _r3.log —— 前 3 次复位（13/13）
-  out/hil_i2c_p6c0.log   —— 人手敲 i2c 命令（逐字，30 ms/字符）
-  out/boot_p6c0.log / p6c1 / p6c2 —— 中间版本（含一次 touch FAIL 与 pid raw 诊断）
+  logs/boot_p6c5.log      —— 最终固件启动（13/13，5 次复位中最后一条）
+  logs/boot_p6c3.log / _r2.log / _r3.log —— 前 3 次复位（13/13）
+  logs/hil_i2c_p6c0.log   —— 人手敲 i2c 命令（逐字，30 ms/字符）
+  logs/boot_p6c0.log / p6c1 / p6c2 —— 中间版本（含一次 touch FAIL 与 pid raw 诊断）
 产物：out/userdebug/.../stm32-freertos.elf（text 585772 / bss 44668）
       out/user/.../stm32-freertos.elf（text 575028 / data 52 / bss 44668）
 

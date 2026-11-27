@@ -124,4 +124,8 @@ python build/build.py install-toolchain  # 工具链
 - **解析了的事实必须有人消费**：DTB 属性被读进 `s_rt` 之后，要么有运行期消费者，要么在
   `board_system_init()` 这类入口做对拍断言；只解析不校验等于给后来的人一个"已经检查过"的错觉
   （`hse-frequency` 第四轮就是这种形态，已改为与 `HSE_VALUE` 对拍、码 3）。
+- **过程日志统一落 `logs/`（2026-11-27 用户要求）**：build / flash / openocd / 串口抓包的
+  `*.log`、`*.err` 一律写 `logs/`（该目录已在 `.gitignore` 里，不入库）；串口证据仍贴
+  `docs/design/串口自检_<n>项_<date>.txt`，**不要拿 logs 里的过程日志当证据**。文档里引用
+  过程日志时写 `logs/<文件>`，不要写 `out/<文件>`。
 - 任务完成标准：文档与代码一致，且 **`update` + `build` 均通过**。

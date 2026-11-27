@@ -1,7 +1,7 @@
 串口自检 P6b：13 项（新增 shell）+ 串口命令行 HIL 实测
 日期：2026-11-24
 分支：feature/full-demo
-证据来源：out/boot_p6b5.log（启动，13/13）、out/hil_shell_p6b2.log（人手敲命令）
+证据来源：logs/boot_p6b5.log（启动，13/13）、logs/hil_shell_p6b2.log（人手敲命令）
 产物：out/userdebug/objects/target/stm32-freertos.elf、out/user/objects/target/stm32-freertos.elf
 
 

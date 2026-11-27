@@ -32,3 +32,7 @@ out/*.zip
 out/ff15_x/
 # 采集/诊断日志（openocd + 串口抓包）：证据落在 docs/design，过程日志不进库
 out/*.log
+
+# 过程日志统一放 logs/（2026-11-27 用户要求）：build/flash/openocd/串口抓包的
+# *.log / *.err 都在这里，不入库；要留证据请贴进 docs/design/。
+logs/
