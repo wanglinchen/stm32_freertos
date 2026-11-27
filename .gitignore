@@ -1,6 +1,9 @@
 out/user/objects/
 out/userdebug/objects/
 out/tmp/
+# 发布件是每次 build 的本地拷贝（按时间戳目录、内容随版本变化），不入库；仓库只留 out/<档位>/.config。
+out/user/release/
+out/userdebug/release/
 .vscode/
 **/__pycache__/
 .pytest_cache/
