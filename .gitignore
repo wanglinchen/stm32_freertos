@@ -1,10 +1,5 @@
-# out/ 整目录都是本地产物（objects/、release/、tmp/、dts/、tests/、<档位>/.config 与临时脚本），
-# 一律不入库；clone 后先 `python build/build.py update` 生成配置与 DTB 再 build。
-out/
-.vscode/
-**/__pycache__/
-.pytest_cache/
-*.py[cod]
 tool/.cache/
-# 过程日志统一落 logs/（编译/调试/刷机/openocd/串口采集的原始输出），不入库；证据仍贴 docs/design/。
+out/
 logs/
+# 每周一 build 的产物存档（build/weekly_release.ps1 产出），本地保存、不入库
+release/
