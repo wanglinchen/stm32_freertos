@@ -16,8 +16,8 @@
      表 / 改了脚本却没跑 update」——此时 dtsi、dts、dtb、elf 会一起停在旧坐标上，编译不报错。
   E. 头守卫：自研头（vendored 除外）必须有配对的 `#ifndef/#define`、末尾 `#endif`，且守卫名不重名。
      guard 重名时两个头互相屏蔽，症状是「明明 include 了却 undeclared」，且只在特定编译顺序下复现。
-  F. 忽略规则双向：中间产物（`out/dts/*`、`out/*/objects/`、`out/tmp/`、`out/*/release/`）必须被
-     `.gitignore` 覆盖；而定版配置 `out/<variant>/.config` **必须不被**忽略 —— 用
+  F. 忽略规则双向：：`out/` 整目录（含 `out/<variant>/.config`）必须被
+     `.gitignore` 覆盖；入库的只有源（defconfig、dtsi） —— 用
      `git check-ignore` 逐条问，不读 `.gitignore` 的字面形状。
 
 退出码：0 = 全部通过；1 = 有越级边 / 有环 / 产物不一致 / 派生链过期 / 守卫缺陷 / 忽略缺失。
@@ -337,16 +337,14 @@ _MUST_IGNORE = (
     "out/user/objects/",
     "out/userdebug/objects/",
     "out/tmp/",
-    "out/user/release/",        # 每次 build 的本地拷贝，按时间戳堆，不入库
+    "out/user/release/",        # 每次 build 的本地拷贝，按时间戳堆
     "out/userdebug/release/",
-)
-
-# 反过来：定版配置**必须留在库**。`out/` 若被整体忽略，`out/<variant>/.config` 会静默掉出库 ——
-# 别人 clone 后不跑一遍 update 就没有可用配置，而且 git 不会有任何提示。
-_MUST_TRACK = (
-    "out/user/.config",
+    "out/user/.config",         # 由 defconfig 生成，update 随时可再造
     "out/userdebug/.config",
 )
+# `out/` 整目录不入库（含定版配置）：它是纯本地产物区，入库的只有源
+# （project/config/*_defconfig_*、project/dts/*.dtsi）。clone 后先跑一遍
+# `python build/build.py update` 就再造出 .config 与 apollo.dtb。
 
 
 def _git_ignored(path: str) -> bool | None:
@@ -447,12 +445,11 @@ def _check_api_surface(problems: list[str], notes: list[str]) -> None:
 
 
 def _check_ignore_rules(problems: list[str], notes: list[str]) -> None:
-    """F. 忽略规则双向：中间产物必须被忽略，定版配置必须不被忽略。
+    """F. 忽略规则：`out/` 整目录（含 `out/<variant>/.config`）必须被 `.gitignore` 覆盖。
 
-    单向判据（"out/ 被忽略"）会判错这棵树：`out/<variant>/release/<时间戳>/` 里的
-    bin/elf/hex/map 与 objects/、tmp/ 都是本地产物不入库，但 `out/<variant>/.config`
-    是入库的；`out/` 故意没有整体忽略，而是逐个子目录列。所以这里用 `git check-ignore`
-    逐条问真相，不问 `.gitignore` 长什么样。
+    `out/` 是纯本地产物区：objects/、release/<时间戳>/、tmp/、dts/、tests/、<档位>/.config
+    全都不入库，clone 后跑一次 `python build/build.py update` 即可再造。这里逐条问
+    `git check-ignore` 的真相，不问 `.gitignore` 长什么样。
     """
     probe = _git_ignored(_MUST_IGNORE[0])
     if probe is None:
@@ -460,16 +457,10 @@ def _check_ignore_rules(problems: list[str], notes: list[str]) -> None:
         return
 
     leaked = [p for p in _MUST_IGNORE if _git_ignored(p) is False]
-    dropped = [p for p in _MUST_TRACK if _git_ignored(p) is True]
     for p in leaked:
-        problems.append(f"{p} 没有被忽略：构建中间产物会被提交")
-    for p in dropped:
-        problems.append(f"{p} 被忽略了：定版配置会静默掉出库（不要整体忽略 out/）")
-    if not leaked and not dropped:
-        notes.append(
-            f"忽略规则双向正确（{len(_MUST_IGNORE)} 条中间产物被忽略，"
-            f"{len(_MUST_TRACK)} 条定版配置留在库）"
-        )
+        problems.append(f"{p} 没有被忽略：out/ 的产物会被提交")
+    if not leaked:
+        notes.append(f"忽略规则正确：out/ 的 {len(_MUST_IGNORE)} 条产物路径全部被忽略")
 
 
 def _nm_symbols(elf: Path) -> dict[str, int] | None:
