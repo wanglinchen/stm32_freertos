@@ -15,3 +15,5 @@ flash_log.txt
 stab_log.txt
 # 过程日志统一落 logs/（编译/调试/刷机/openocd/串口采集的原始输出），不入库；证据仍贴 docs/design/。
 logs/
+# 每周一 build 的产物存档（build/weekly_release.ps1 产出），本地保存、不入库
+release/
