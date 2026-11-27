@@ -217,6 +217,176 @@ static void post_put_x10(int32_t v)
     bsl_log_put_dec((int)(v % 10));
 }
 
+/* DWT->CYCCNT：osl_boot 已置 TRCENA + CYCCNTENA 并在复位后清零（bsl_pwm /
+ * bsl_uart / bsl_exti 都是这么用的），这里只做差。32 位计数在 192 MHz 下约
+ * 22.4 s 回绕一次，而本项的窗口是几十毫秒 —— 减法自带回绕处理。 */
+static uint32_t post_cyc_now(void)
+{
+    return DWT->CYCCNT;
+}
+
+static uint32_t post_cyc_to_us(uint32_t cyc)
+{
+    uint32_t mhz = (uint32_t)(SystemCoreClock / 1000000U);
+
+    return (mhz != 0U) ? (cyc / mhz) : 0U;
+}
+
+/*
+ * perf（P10a）：显示通道的性能基线。
+ *
+ * 测三块面积，都只调 bsl 自己已有的路径：
+ *   fill  —— 整屏 board_lcd_fill（纯内存写，SDRAM 里 480×800×2 = 768 KB）
+ *   blit  —— 整屏 board_lcd_present（8080 逐行 set_cursor + 0x2C + burst）
+ *   q/ic  —— 1/4 屏与 120×120 图标块的 present（应用真正刷的是这种脏矩形）
+ *
+ * 为什么不能只报一个"帧率"：整屏 = fill + blit，而桌面图标刷新只推脏矩形。
+ * 只报整屏会让人以为"点一下菜单要 50 ms"；只报小块又看不出整屏切换的代价。
+ * 两块尺寸差 26 倍，若 present 里藏着与面积无关的固定等待（例如每行一次忙等），
+ * 小块的每像素成本会异常高 —— "ov"（实测时间减去按面积折算的线性部分）就是
+ * 这一项的证据，也是本项真正想抓的形态。
+ *
+ * 判据（四条同时成立才 PASS）：
+ *   1) 三次 present 返回的像素数与对应面积逐项相等（written 对得上面积）；
+ *   2) fill 与 blit 都非 0 µs（CYCCNT 有效、present 真走到了总线）；
+ *   3) ov 的绝对值 ≤ 3 ms（固定开销有上界，抓"冻结式等待"）；
+ *   4) 整屏 fps ≥ 2.0（P7 按 125 ns/px 估的是 2~3 fps，不能比估算更差）。
+ * 绝对速度本身不当判据：够不够流畅要人眼看动画，本项给的是可引用的数字。
+ *
+ * RGB 屏（LTDC 直扫）没有"推"这一步，present 返回 0 —— 那种面板下只报 fill，
+ * 不拿 blit 的判据去判它，也不假装量过。
+ */
+static void post_perf(void)
+{
+    const bsl_panel_api_t *panel;
+    uint32_t w;
+    uint32_t h;
+    uint32_t area;
+    uint32_t q_w;
+    uint32_t q_h;
+    uint32_t q_area;
+    uint32_t ic_w;
+    uint32_t ic_h;
+    uint32_t ic_area;
+    uint32_t t0;
+    uint32_t fill_us;
+    uint32_t blit_us = 0U;
+    uint32_t q_us = 0U;
+    uint32_t ic_us = 0U;
+    uint32_t written = 0U;
+    uint32_t q_written = 0U;
+    uint32_t ic_written = 0U;
+    uint32_t ns_full;
+    uint32_t ns_q = 0U;
+    uint32_t ns_ic = 0U;
+    uint32_t fps_x10 = 0U;
+    int32_t ov_q = 0;
+    int32_t ov_ic = 0;
+    int is_8080;
+    int ok;
+
+    if (bsl_device_is_ready(BSL_DEV_PANEL) == 0) {
+        post_begin("perf ready=0");
+        post_end(0);
+        return;
+    }
+    panel = bsl_devapi_panel();
+    w = panel->width();
+    h = panel->height();
+    if (w == 0U || h == 0U) {
+        post_begin("perf geom=0");
+        post_end(0);
+        return;
+    }
+    area = w * h;
+    q_w = w / 2U;
+    q_h = h / 2U;
+    q_area = q_w * q_h;
+    /* 图标块取 120×120（桌面图标的量级）；屏比它小时按屏收。 */
+    ic_w = (w < 120U) ? w : 120U;
+    ic_h = (h < 120U) ? h : 120U;
+    ic_area = ic_w * ic_h;
+    is_8080 = (board_nt35510_ready() != 0) ? 1 : 0;
+
+    /* 整屏内存填充：fill 自己会登记脏矩形，下面的 present 正好推这一块。 */
+    t0 = post_cyc_now();
+    board_lcd_fill(0U, 0U, w, h, 0x0000U);
+    fill_us = post_cyc_to_us(post_cyc_now() - t0);
+
+    if (is_8080 != 0) {
+        t0 = post_cyc_now();
+        written = (uint32_t)board_lcd_present();
+        blit_us = post_cyc_to_us(post_cyc_now() - t0);
+
+        board_lcd_fill(0U, 0U, q_w, q_h, 0xFFFFU);
+        t0 = post_cyc_now();
+        q_written = (uint32_t)board_lcd_present();
+        q_us = post_cyc_to_us(post_cyc_now() - t0);
+
+        board_lcd_fill(0U, 0U, ic_w, ic_h, 0x07E0U);
+        t0 = post_cyc_now();
+        ic_written = (uint32_t)board_lcd_present();
+        ic_us = post_cyc_to_us(post_cyc_now() - t0);
+
+        ns_full = (blit_us * 1000U) / area;
+        ns_q = (q_us * 1000U) / q_area;
+        ns_ic = (ic_us * 1000U) / ic_area;
+        if ((fill_us + blit_us) > 0U) {
+            fps_x10 = (uint32_t)(10000000U / (fill_us + blit_us));
+        }
+        /* 线性假设下的"应有时间"，差出来的就是与面积无关的开销。 */
+        ov_q = (int32_t)q_us - (int32_t)(((uint64_t)blit_us * q_area) / area);
+        ov_ic = (int32_t)ic_us - (int32_t)(((uint64_t)blit_us * ic_area) / area);
+    } else {
+        ns_full = (fill_us * 1000U) / area;
+    }
+
+    post_begin("perf fill=");
+    post_put_x10((int32_t)(fill_us / 100U));
+    BSL_LOG_INF("ms");
+    if (is_8080 != 0) {
+        BSL_LOG_INF(" blit=");
+        post_put_x10((int32_t)(blit_us / 100U));
+        BSL_LOG_INF("ms fps=");
+        post_put_x10((int32_t)fps_x10);
+        BSL_LOG_INF(" px=");
+        bsl_log_put_dec((int)(ns_full));
+        BSL_LOG_INF("ns q=");
+        post_put_x10((int32_t)(q_us / 100U));
+        BSL_LOG_INF("ms/");
+        bsl_log_put_dec((int)(ns_q));
+        BSL_LOG_INF("ns ic=");
+        post_put_x10((int32_t)(ic_us / 100U));
+        BSL_LOG_INF("ms/");
+        bsl_log_put_dec((int)(ns_ic));
+        BSL_LOG_INF("ns ov=");
+        post_put_x10(ov_q / 100);
+        BSL_LOG_INF("/");
+        post_put_x10(ov_ic / 100);
+        BSL_LOG_INF("ms wr=");
+        bsl_log_put_dec((int)written);
+        BSL_LOG_INF("/");
+        bsl_log_put_dec((int)q_written);
+        BSL_LOG_INF("/");
+        bsl_log_put_dec((int)ic_written);
+    } else {
+        BSL_LOG_INF(" bus=rgb px=");
+        bsl_log_put_dec((int)(ns_full));
+        BSL_LOG_INF("ns");
+    }
+
+    if (is_8080 != 0) {
+        ok = ((written == area) && (q_written == q_area) && (ic_written == ic_area)
+              && (fill_us > 0U) && (blit_us > 0U)
+              && (ov_q <= 3000) && (ov_q >= -3000)
+              && (ov_ic <= 3000) && (ov_ic >= -3000)
+              && (fps_x10 >= 20U)) ? 1 : 0;
+    } else {
+        ok = (fill_us > 0U) ? 1 : 0;
+    }
+    post_end(ok);
+}
+
 /*
  * rtc：RTC 走时。
  *
@@ -1387,6 +1557,7 @@ void board_post_run(void)
     s_fail = 0U;
 
     post_sdram();
+    post_perf();
     post_lcd();
     post_touch();
     post_nor();
