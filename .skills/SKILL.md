@@ -91,13 +91,15 @@ python build/build.py install-toolchain  # 工具链
 - **解析了的事实必须有人消费**：DTB 属性被读进 `s_rt` 之后，要么有运行期消费者，要么在
   `board_system_init()` 这类入口做对拍断言；只解析不校验等于给后来的人一个"已经检查过"的错觉
   （`hse-frequency` 第四轮就是这种形态，已改为与 `HSE_VALUE` 对拍、码 3）。
+- **`out/` 整目录不入库**：`objects/`、`release/<时间戳>/`、`tmp/`、`dts/`、`tests/`、
+  `<档位>/.config` 全部是本地产物，`.gitignore` 用一条 `out/` 覆盖；`check` 的 F 段逐条核对
+  有没有漏网的。clone 后先 `python build/build.py update` 再 `build`。构建产物永远不当证据提交。
+- **一次性脚本与提交信息不落仓库目录**：临时 python / ps1 补丁脚本、commit message
+  一律写系统 temp（`$env:TEMP\…`）或 `logs/`；`out/` 只有构建产物（`objects/`、`release/`、
+  `dts/`、`<档位>/`），仓库根或 `out/` 里出现 `tmp_*.py` / `tmp_*.ps1` / `tmp_*.txt`
+  就是落点错了，收尾清掉。日志照旧落 `logs/`。
+- **所有过程日志只落 `logs/`**：编译、调试、刷写、openocd、gdb、串口采集产生的 `*.log` / `*.err`
+  一律写仓库根 `logs/`（`.gitignore` 已忽略），包括脚本默认落点与一次性 PowerShell 重定向；
+  仓库根和 `out/` 下不留 `*.log` / `*.err`。要留证据请整理成 `docs/design/串口自检_*.txt` 之类，
+  别把 `logs/` 里的原始输出直接当证据。
 - 任务完成标准：文档与代码一致，且 **`update` + `build` 均通过**。
-
-  - **`out/` 整目录不入库**：`objects/`、`release/<时间戳>/`、`tmp/`、`dts/`、`tests/`、
-    `<档位>/.config`、临时脚本与采集日志全部是本地产物，`.gitignore` 用一条 `out/` 覆盖；
-    `check` 的 F 段逐条核对有没有漏网的。clone 后先 `python build/build.py update` 再 `build`。
-    构建产物永远不当证据提交。
-  - **所有过程日志只落 `logs/`**：编译、调试、刷写、openocd、gdb、串口采集产生的 `*.log` / `*.err`
-    一律写仓库根 `logs/`（`.gitignore` 已忽略），包括脚本默认落点与一次性 PowerShell 重定向；
-    仓库根和 `out/` 下不留 `*.log` / `*.err`。要留证据请整理成 `docs/design/串口自检_*.txt` 之类，
-    别把 `logs/` 里的原始输出直接当证据。
