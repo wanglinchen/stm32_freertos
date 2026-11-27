@@ -29,8 +29,4 @@ config OSL_SRC_FREERTOS_TASKS
 	bool "tasks.c"
 	default y
 
-config OSL_SRC_FREERTOS_TIMERS
-	bool "timers.c"
-	default y
-
 endmenu

@@ -184,6 +184,10 @@ DISABLED_RE = re.compile(r"^\s*#\s*(CONFIG_[A-Z0-9_]+)\s+is not set\s*$")
 # （`--gc-sections` 也把它丢光），但**编译单元照样参与编译**：每个 job 都在编一份
 # 永远进不了镜像的文件，而按符号在场的检查因为符号不在而一律通过 —— 这就是「编了没链」
 # 的典型形态，只能在编译单元层看得见。
+#
+# 同一份裁剪结果也决定 Kconfig：被裁掉的源不再生成 CONFIG_* 开关。否则会出现
+# 「开关默认 y、.config 里写着 y、却没有任何规则消费它」的假开关（timers.c 就是
+# 这种形态：早前 Kconfig 有 OSL_SRC_FREERTOS_TIMERS=y，而 Makefile 里没有 timers.o 规则）。
 FREERTOS_CONFIG_GATED = (
     ("timers.c", "configUSE_TIMERS"),
     ("event_groups.c", "configUSE_EVENT_GROUPS"),
@@ -451,7 +455,9 @@ def dir_symbol(directory: Path) -> str:
     parts = [sanitize(part) for part in directory.relative_to(ROOT).parts]
     return "CONFIG_" + "_".join(parts)
 def source_symbols(directory: Path) -> list[tuple[Path, str]]:
-    sources = list_sources(directory)
+    # 与 Makefile 共用同一份裁剪表：被 configUSE_* 裁掉的官方源（timers.c 等）
+    # 不再产生 CONFIG_* 符号，Kconfig 与 defconfig 因此不会留下没人消费的开关。
+    sources = config_gated_sources(list_sources(directory))
     stems: dict[str, int] = {}
     for source in sources:
         stems[source.stem] = stems.get(source.stem, 0) + 1
@@ -561,7 +567,9 @@ def kconfig_block(symbol: str, prompt: str) -> list[str]:
     ]
 def write_kconfig(directory: Path, project_name: str) -> None:
     children = [child for child in child_dirs(directory) if needs_build_metadata(child)]
-    sources = list_sources(directory)
+    # 与 Makefile 用同一份裁剪后的源表：configUSE_* 为 0 的官方源（如 timers.c）
+    # 既不生成编译规则，也不再留下一个无人消费的 CONFIG_* 开关。
+    sources = config_gated_sources(list_sources(directory))
     lines = [GEN_BANNER]
     if directory == ROOT:
         lines.append(f'mainmenu "{project_name}"')
