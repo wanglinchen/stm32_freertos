@@ -1,6 +1,0 @@
-# 本目录报告由 capture.py 按需生成
-*.md
-!README.md
-# 问题分析记录与现场快照随仓库留痕
-!*/analyze.md
-!*/snapshot.md
