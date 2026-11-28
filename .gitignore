@@ -1,4 +1,6 @@
 tool/.cache/
 out/
 logs/
+# .vscode/ 是本机 IDE 配置（cmake.sourceDirectory 等绝对路径），不入库
+.vscode/
 # release/ 入库：每周一构建的归档存档（build/weekly_release.ps1 产出）；out/ 与 logs/ 不入库
