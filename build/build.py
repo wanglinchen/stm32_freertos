@@ -1,4 +1,5 @@
-"""`build` / `update` / `clean`：驱动 make、生成构建描述与 DTS/DTB、读体积、拷 release。
+"""`build` / `update` / `clean` / `check` / `release`：驱动 make、生成构建描述与 DTS/DTB、
+读体积、把四件套收进 `release/<日期>/<档位>/`。
 
 本文件同时持有原 `build/environment.py` 的工具链环境逻辑（解析 / PATH 注入 / 安装 /
 `set-buildenv`），供 `flash`、`debug/capture` 反引时直接使用。
@@ -768,6 +769,86 @@ def fold_root_in_map(dest: Path) -> None:
     ):
         text = text.replace(prefix, ".")
     dest.write_text(text, encoding="utf-8", newline="\n")
+
+
+# --- 归档四件套（原 build/release.py，2026-11-28 合并进本文件）---
+RELEASE_ARTIFACTS = (
+    "stm32-freertos.elf",
+    "stm32-freertos.hex",
+    "stm32-freertos.bin",
+    "stm32-freertos.map",
+)
+
+
+def _latest_variant_release(variant: str) -> Path | None:
+    """`out/<variant>/release/` 下按目录名（时间戳）排序取最新的一个。"""
+    root = ROOT / "out" / variant / "release"
+    if not root.is_dir():
+        return None
+    buckets = [
+        p for p in root.iterdir() if p.is_dir() and RELEASE_DIR_NAME_RE.match(p.name)
+    ]
+    if not buckets:
+        return None
+    buckets.sort(key=lambda p: datetime.strptime(p.name, "%Y_%m_%d-%H_%M_%S"))
+    return buckets[-1]
+
+
+def make_release(date: str | None = None) -> int:
+    """把最近一次构建的四件套收进 `release/<日期>/<档位>/`，返回退出码。
+
+    `release/` 的归档是**入库**的（`.gitignore` 只挡 `out/`、`logs/`、`tool/.cache/`、`.vscode/`），
+    归档后随代码一起提交并双远端推送。判据是四件套齐全且非空，任一档缺文件返回 1，
+    方便直接看退出码。
+    """
+    date = date or datetime.now().date().isoformat()
+    lines: list[str] = []
+    problems: list[str] = []
+
+    for variant in BUILD_VARIANTS:
+        src = _latest_variant_release(variant)
+        if src is None:
+            problems.append(f"{variant}: 没有 out/{variant}/release/<时间戳>/，先跑 build")
+            continue
+        missing = [
+            name
+            for name in RELEASE_ARTIFACTS
+            if not (src / name).is_file() or (src / name).stat().st_size == 0
+        ]
+        if missing:
+            problems.append(f"{variant}: {src.name} 里缺 {', '.join(missing)}")
+            continue
+
+        dst = ROOT / "release" / date / variant
+        dst.mkdir(parents=True, exist_ok=True)
+        for name in RELEASE_ARTIFACTS:
+            shutil.copy2(src / name, dst / name)
+            # .hex / .map 在 `.gitattributes` 里是 `text eol=lf`：objcopy 与链接器在 Windows
+            # 上写出 CRLF，直接入库会让每次归档都显示"改了行尾"。这里统一改成 LF，
+            # 让工作区与库里的字节一致（其余属性不动，时间戳仍保留）。
+            if name.endswith((".hex", ".map")):
+                text = (dst / name).read_text(encoding="utf-8")
+                (dst / name).write_text(
+                    text.replace("\r\n", "\n"), encoding="utf-8", newline="\n"
+                )
+            size = (dst / name).stat().st_size
+            print(f"[release] {variant}/{name} -> release/{date}/{variant}/{name} ({size} B)")
+            lines.append(f"{variant}/{name}\t{size}\t{src.name}")
+
+    if problems:
+        for problem in problems:
+            print(f"[release] FAIL {problem}", file=sys.stderr)
+        return 1
+
+    note = ROOT / "release" / date / "RELEASE.txt"
+    note.write_text(
+        f"date: {date}\ncopied_at: {datetime.now().isoformat(timespec='seconds')}\n"
+        f"source: out/<variant>/release/<时间戳>/\n\n" + "\n".join(lines) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    print(f"[release] copy done -> release/{date}/（RELEASE.txt 已写）")
+    return 0
 def build_env() -> dict[str, str]:
     return apply(os.environ)
 def resolve_compiler() -> str | None:
@@ -868,6 +949,8 @@ def main(argv: list[str] | None = None) -> None:
   build   默认先 update，再编译 userdebug + user；可加 --fast / --variant
   clean   删除 out/；并移除空的 tool/**/tmp（MSYS 副作用，正式临时目录为 out/tmp）
   check   只读盘查：层边与环、DTB 与 elf .dtb 段一致性、关键符号是否在位（不改任何文件）
+  release 把最近一次 out/<档位>/release/<时间戳>/ 的四件套拷进 release/<日期>/<档位>/，
+          并写 release/<日期>/RELEASE.txt（.hex/.map 转 LF；可加 --date YYYY-MM-DD）
 
 示例:
   python3 build/build.py update
@@ -875,6 +958,7 @@ def main(argv: list[str] | None = None) -> None:
   python3 build/build.py build --fast --variant userdebug
   python3 build/build.py clean
   python3 build/build.py check
+  python3 build/build.py release --date 2026-11-28
 
 工具链环境: python3 build/build.py install-toolchain / set-buildenv
 刷机环境见: python3 flash/flash.py
@@ -887,10 +971,11 @@ def main(argv: list[str] | None = None) -> None:
             "update",
             "clean",
             "check",
+            "release",
         ),
-        metavar="{build|update|clean|check}",
+        metavar="{build|update|clean|check|release}",
         help="build 会先 update；update 只刷新 Kconfig / Makefile / defconfig 与 DTS 产物；"
-             "check 只读盘查层引用/环与产物一致性",
+             "check 只读盘查层引用/环与产物一致性；release 归档四件套",
     )
     parser.add_argument(
         "--fast",
@@ -919,13 +1004,14 @@ def main(argv: list[str] | None = None) -> None:
         return
     option = argv[0]
     rest = argv[1:]
-    if option not in ("build", "update", "clean", "check"):
+    if option not in ("build", "update", "clean", "check", "release"):
         parser.error(f"未知子命令: {option}")
     allowed = {
         "build": {"--fast", "--no-update", "--variant"},
         "update": set(),
         "clean": set(),
         "check": set(),
+        "release": {"--date"},
     }[option]
     skip_next = False
     for token in rest:
@@ -933,7 +1019,7 @@ def main(argv: list[str] | None = None) -> None:
             skip_next = False
             continue
         if token in allowed:
-            skip_next = token == "--variant"
+            skip_next = token in ("--variant", "--date")
             continue
         parser.error(f"{option} 不认识参数: {token}（可用: {' '.join(sorted(allowed)) or '无'}）")
     class Args:
@@ -949,6 +1035,12 @@ def main(argv: list[str] | None = None) -> None:
         variant = rest[idx + 1]
         if variant not in BUILD_VARIANTS:
             parser.error(f"未知档位: {variant!r}")
+    release_date = None
+    if "--date" in rest:
+        idx = rest.index("--date")
+        if idx + 1 >= len(rest):
+            parser.error("--date 需要参数 YYYY-MM-DD")
+        release_date = rest[idx + 1]
     if args.option == "build":
         build(
             skip_update=args.fast,
@@ -962,6 +1054,8 @@ def main(argv: list[str] | None = None) -> None:
         import refcheck
 
         raise SystemExit(refcheck.run())
+    elif args.option == "release":
+        raise SystemExit(make_release(release_date))
     else:
         parser.error(f"未知子命令: {args.option}")
 

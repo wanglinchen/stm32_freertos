@@ -5,9 +5,10 @@
 
 | 文件 | 作用 | 怎么用 |
 |---|---|---|
-| `build.py` | 生成构建描述（Kconfig / Makefile / defconfig / .config / dtsi / dtb）并驱动编译，同时持有工具链环境逻辑 | `python build/build.py <子命令>` |
-| `refcheck.py` | 只读盘查：层边、环、产物一致性、DTS 派生链、头守卫、忽略规则 | 只能经 `python build/build.py check` 调用 |
-| `release.py` | 把最新一次构建的四件套收进 `release/<日期>/<档位>/` | `python build/release.py [--date YYYY-MM-DD]` |
+| `build.py` | 生成构建描述（Kconfig / Makefile / defconfig / .config / dtsi / dtb）、驱动编译、归档四件套，同时持有工具链环境逻辑 | `python build/build.py <子命令>` |
+| `refcheck.py` | 只读盘查：层边、环、产物一致性、DTS 派生链、头守卫、忽略规则、API 面 | 入口是 `python build/build.py check` |
+
+归档（原 `release.py`）已并入 `build.py` 的 `release` 子命令，见第三节。
 
 `build.py` 会自行把 `build/` 与 `project/` 放进 `sys.path`，所以**必须从仓库根目录调用**（或给足相对路径），
 不要 `cd build` 后再跑。
@@ -15,7 +16,8 @@
 ## 一、build.py
 
 ```
-python build/build.py {build|update|clean|check} [--fast|--no-update] [--variant userdebug|user]
+python build/build.py {build|update|clean|check|release} [--fast|--no-update] [--variant userdebug|user]
+python build/build.py release [--date YYYY-MM-DD]
 python build/build.py install-toolchain [--version 13.3.rel1] [--make-only] [--from "<Git>\usr\bin"]
 python build/build.py set-buildenv [--print bash|powershell|json] [--check]
 ```
@@ -78,30 +80,29 @@ python build/build.py set-buildenv [--print bash|powershell|json] [--check]
 没有 `tool/win_x86_64/bin`，`nm` 找不到会静默少检 C/G 两段——要单独跑就先
 `python build/build.py set-buildenv --print powershell | Invoke-Expression`。
 
-## 三、release.py —— 归档四件套
+## 三、release —— 归档四件套
 
 ```
-python build/release.py                 # 用今天日期
-python build/release.py --date 2026-11-28
+python build/build.py release                 # 用今天日期
+python build/build.py release --date 2026-11-28
 ```
 
 对 `userdebug` / `user` 各取 `out/<档位>/release/<时间戳>/` 里**最新**的那个目录，把
 `stm32-freertos.elf/.hex/.bin/.map` 拷到 `release/<日期>/<档位>/`，并写 `release/<日期>/RELEASE.txt`
-（来源目录、每个文件字节数、拷贝时间）。
+（来源目录、每个文件字节数、拷贝时间）。只读构建产物，不触发编译。
 
 - 判据是四件套齐全且非空，任一档缺文件就 `exit 1` 并打印缺了哪个（方便直接看退出码）；
 - 拷入后 `.hex`/`.map` 统一转 LF —— `.gitattributes` 里它们是 `text eol=lf`，而 objcopy 与链接器在
-  Windows 上写 CRLF，不转的话每周归档都会显示“改了行尾”；
+  Windows 上写 CRLF，不转的话每次归档都会显示“改了行尾”；
 - `release/` **是入库的**（`.gitignore` 只挡 `out/`、`logs/`、`tool/.cache/`、`.vscode/`），归档后随代码
   一起提交并双远端推送。静态库不进 `release/`，那是构建中间物。
 
-之前还有一个 `weekly_release.ps1`（update → 双档 build → release.py 的定时编排脚本），已删除；
-现在归档三步自己串：
+原定时编排脚本 `weekly_release.ps1` 已删除，归档现在自己串三步：
 
 ```
 python build/build.py update
 python build/build.py build
-python build/release.py
+python build/build.py release
 ```
 
 ## 四、约定与坑
