@@ -7,7 +7,8 @@
   2. 把 `stm32-freertos.elf/.hex/.bin/.map` 拷到 `release/<日期>/<variant>/`；
   3. 在 `release/<日期>/RELEASE.txt` 记录来源目录、大小与拷贝时间。
 
-`release/` 是本地存档（已在 `.gitignore`），不入库；判据是四件套齐全且非空，
+`release/` 的归档是**入库**的（`.gitignore` 只挡 `out/`、`logs/`、`tool/.cache/`、`.vscode/`），
+归档后随代码一起提交并双远端推送；判据是四件套齐全且非空，
 任一档缺文件就返回 1 并打印缺了哪个，方便定时任务里直接看退出码。
 """
 from __future__ import annotations
